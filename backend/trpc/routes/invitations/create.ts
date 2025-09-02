@@ -7,9 +7,9 @@ export default publicProcedure
     name: z.string().optional(),
     email: z.string().email().optional(),
   }))
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const invitation = storage.invitations.create({
+    const invitation = await storage.invitations.create({
       code,
       name: input.name,
       email: input.email,

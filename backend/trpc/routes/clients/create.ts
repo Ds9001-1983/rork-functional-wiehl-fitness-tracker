@@ -9,9 +9,9 @@ export default publicProcedure
     phone: z.string().optional(),
     starterPassword: z.string().optional(),
   }))
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     // Check if client with this email or phone already exists
-    const existingClients = storage.clients.getAll();
+    const existingClients = await storage.clients.getAll();
     
     // Check for duplicate email
     const existingClientByEmail = existingClients.find(client => client.email === input.email);
@@ -32,7 +32,7 @@ export default publicProcedure
     const starterPassword = input.starterPassword || 'TEMP123'; // Fallback password
     console.log('[Server] Creating client with password:', starterPassword);
     
-    const newClient = storage.clients.create({
+    const newClient = await storage.clients.create({
       name: input.name,
       email: input.email,
       phone: input.phone,
@@ -50,6 +50,7 @@ export default publicProcedure
     });
     
     console.log('[Server] Created client:', newClient.id, 'with password:', newClient.starterPassword);
-    console.log('[Server] All clients after creation:', storage.clients.getAll().map(c => ({ id: c.id, email: c.email, password: c.starterPassword })));
+    const allClients = await storage.clients.getAll();
+    console.log('[Server] All clients after creation:', allClients.map(c => ({ id: c.id, email: c.email, password: c.starterPassword })));
     return newClient;
   });
