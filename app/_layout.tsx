@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -14,14 +14,25 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  console.log('🔄 RootLayoutNav - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+  
+  if (isLoading) {
+    return null; // Show loading or splash screen
+  }
+  
   return (
-    <Stack initialRouteName="login" screenOptions={{ 
-      headerBackTitle: "Zurück",
-      headerStyle: {
-        backgroundColor: '#000000',
-      },
-      headerTintColor: '#FFFFFF',
-    }}>
+    <Stack 
+      initialRouteName={isAuthenticated ? "(tabs)" : "login"}
+      screenOptions={{ 
+        headerBackTitle: "Zurück",
+        headerStyle: {
+          backgroundColor: '#000000',
+        },
+        headerTintColor: '#FFFFFF',
+      }}
+    >
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
