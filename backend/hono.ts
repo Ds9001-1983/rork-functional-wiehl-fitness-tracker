@@ -28,4 +28,13 @@ app.get("/", (c) => {
   return c.json({ status: "ok", message: "API is running" });
 });
 
+// Health check endpoint for nginx
+app.get("/health", (c) => {
+  return c.json({ 
+    status: "healthy", 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 export default app;
