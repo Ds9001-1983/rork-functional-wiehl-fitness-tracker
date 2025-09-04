@@ -215,7 +215,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query('DELETE FROM clients WHERE id = $1', [id]);
-          const success = result.rowCount !== null && result.rowCount > 0;
+          const success = (result.rowCount ?? 0) > 0;
           console.log('[Storage] Deleted client from DB:', id, 'success:', success);
           return success;
         } catch (err) {
@@ -279,7 +279,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query('DELETE FROM invitations WHERE code = $1', [code]);
-          const success = result.rowCount !== null && result.rowCount > 0;
+          const success = (result.rowCount ?? 0) > 0;
           console.log('[Storage] Removed invitation from DB:', code, 'success:', success);
           return success;
         } catch (err) {
