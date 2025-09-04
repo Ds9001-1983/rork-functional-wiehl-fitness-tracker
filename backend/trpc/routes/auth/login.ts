@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../create-context';
-import { storage } from '../../../storage';
+import { storage, StoredClient, StoredInvitation } from '../../../storage';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,7 +9,7 @@ const loginSchema = z.object({
 
 export default publicProcedure
   .input(loginSchema)
-  .mutation(({ input }) => {
+  .mutation(async ({ input }) => {
     const { email, password } = input;
     
     console.log('[Server] Login attempt for:', email);
@@ -36,10 +36,10 @@ export default publicProcedure
     }
     
     // Client Login - Check if user exists in clients list
-    const clients = storage.clients.getAll();
-    console.log('[Server] All clients in storage:', clients.map(c => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
+    const clients = await storage.clients.getAll();
+    console.log('[Server] All clients in storage:', clients.map((c: StoredClient) => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
     
-    const existingClient = clients.find(client => client.email === email);
+    const existingClient = clients.find((client: StoredClient) => client.email === email);
     
     if (existingClient) {
       console.log('[Server] Found existing client:', existingClient.email, 'with password:', existingClient.starterPassword);
@@ -66,15 +66,15 @@ export default publicProcedure
     }
     
     // If not found as client, check if it's a valid invitation code login
-    const invitations = storage.invitations.getAll();
-    const invitation = invitations.find(inv => 
+    const invitations = await storage.invitations.getAll();
+    const invitation = invitations.find((inv: StoredInvitation) => 
       (inv.email === email || inv.code === password) && 
       (inv.email === email || !inv.email)
     );
     
     if (invitation) {
       // Create new client from invitation
-      const newClient = storage.clients.create({
+      const newClient = await storage.clients.create({
         name: invitation.name || email.split('@')[0],
         email: email,
         role: 'client',
@@ -91,7 +91,7 @@ export default publicProcedure
       });
       
       // Remove used invitation from storage
-      storage.invitations.remove(invitation.code);
+      await storage.invitations.remove(invitation.code);
       
       console.log('[Server] New client created from invitation:', email);
       console.log('[Server] Invitation used and should be removed:', invitation.code);
