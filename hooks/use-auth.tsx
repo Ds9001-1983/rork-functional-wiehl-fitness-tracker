@@ -46,6 +46,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const login = useCallback(async (email: string, password: string): Promise<User | null> => {
     try {
       console.log('🔄 Attempting login with backend for:', email, 'with password:', password);
+      console.log('🔄 tRPC client available:', !!trpcClient);
+      console.log('🔄 tRPC auth available:', !!trpcClient.auth);
+      console.log('🔄 tRPC login available:', !!trpcClient.auth.login);
       const result = await trpcClient.auth.login.mutate({ email, password });
       
       if (result.success && result.user) {

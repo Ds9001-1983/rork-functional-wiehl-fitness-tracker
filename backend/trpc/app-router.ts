@@ -5,14 +5,14 @@ import listClients from "./routes/clients/list";
 import deleteClient from "./routes/clients/delete";
 import createInvitation from "./routes/invitations/create";
 import listInvitations from "./routes/invitations/list";
-import loginRoute from "./routes/auth/login";
+import { loginProcedure } from "./routes/auth/login";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
     hi: hiRoute,
   }),
   auth: createTRPCRouter({
-    login: loginRoute,
+    login: loginProcedure,
   }),
   clients: createTRPCRouter({
     create: createClient,
