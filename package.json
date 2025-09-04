@@ -23,6 +23,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.15.5",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.2",
     "expo": "53.0.22",
     "expo-blur": "~14.1.5",
     "expo-constants": "~17.1.7",

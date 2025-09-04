@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 require('ts-node/register');
 const { serve } = require('@hono/node-server');
 const app = require('./backend/hono.ts').default;
