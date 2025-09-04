@@ -33,3 +33,49 @@
 2025-09-04T09:04:46: ✅ Server is running on http://localhost:3000
 2025-09-04T09:04:46: 🌐 API available at http://localhost:3000/api
 2025-09-04T09:04:46: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:07:08: [dotenv@17.2.2] injecting env (4) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+2025-09-04T09:07:10: 🚀 Server starting on port 3000
+2025-09-04T09:07:10: 📊 Environment: production
+2025-09-04T09:07:10: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T09:07:10: 💾 Database: Connected
+2025-09-04T09:07:10: ✅ Server is running on http://localhost:3000
+2025-09-04T09:07:10: 🌐 API available at http://localhost:3000/api
+2025-09-04T09:07:10: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:09:43: [dotenv@17.2.2] injecting env (4) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+2025-09-04T09:09:44: 🚀 Server starting on port 3000
+2025-09-04T09:09:44: 📊 Environment: production
+2025-09-04T09:09:44: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T09:09:44: 💾 Database: Connected
+2025-09-04T09:09:44: ✅ Server is running on http://localhost:3000
+2025-09-04T09:09:44: 🌐 API available at http://localhost:3000/api
+2025-09-04T09:09:44: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:26:39: [dotenv@17.2.2] injecting env (4) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+2025-09-04T09:26:40: 📁 Serving web build from dist/
+2025-09-04T09:26:40: 🚀 Server starting on port 3000
+2025-09-04T09:26:40: 📊 Environment: production
+2025-09-04T09:26:40: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T09:26:40: 💾 Database: Connected
+2025-09-04T09:26:40: ✅ Server is running on http://localhost:3000
+2025-09-04T09:26:40: 🌐 API available at http://localhost:3000/api
+2025-09-04T09:26:40: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:26:40: 🏥 Health check: http://localhost:3000/health
+2025-09-04T09:45:52: [dotenv@17.2.2] injecting env (4) from .env -- tip: 📡 version env with Radar: https://dotenvx.com/radar
+2025-09-04T09:45:53: 📁 Serving web build from dist/
+2025-09-04T09:45:53: 🚀 Server starting on port 3000
+2025-09-04T09:45:53: 📊 Environment: production
+2025-09-04T09:45:53: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T09:45:53: 💾 Database: Connected
+2025-09-04T09:45:53: ✅ Server is running on http://localhost:3000
+2025-09-04T09:45:53: 🌐 API available at http://localhost:3000/api
+2025-09-04T09:45:53: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:45:53: 🏥 Health check: http://localhost:3000/health
+2025-09-04T09:46:14: [dotenv@17.2.2] injecting env (4) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+2025-09-04T09:46:15: 📁 Serving web build from dist/
+2025-09-04T09:46:15: 🚀 Server starting on port 3000
+2025-09-04T09:46:15: 📊 Environment: production
+2025-09-04T09:46:15: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T09:46:15: 💾 Database: Connected
+2025-09-04T09:46:15: ✅ Server is running on http://localhost:3000
+2025-09-04T09:46:15: 🌐 API available at http://localhost:3000/api
+2025-09-04T09:46:15: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T09:46:15: 🏥 Health check: http://localhost:3000/health
