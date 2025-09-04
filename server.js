@@ -4,6 +4,9 @@ require('dotenv').config();
 require('ts-node/register');
 const { serve } = require('@hono/node-server');
 const { Hono } = require('hono');
+const { serveStatic } = require('@hono/node-server/serve-static');
+const path = require('path');
+const fs = require('fs');
 const apiApp = require('./backend/hono.ts').default;
 
 const port = process.env.PORT || 3000;
@@ -13,6 +16,15 @@ const app = new Hono();
 
 // Mount the API app at /api
 app.route('/api', apiApp);
+
+// Serve static files from dist directory (web build)
+const distPath = path.join(process.cwd(), 'dist');
+if (fs.existsSync(distPath)) {
+  app.use('/*', serveStatic({ root: './dist' }));
+  console.log('📁 Serving web build from dist/');
+} else {
+  console.log('⚠️  No web build found. Run "bunx rork export -p web" to build for web.');
+}
 
 // Add a root health check
 app.get('/', (c) => {
