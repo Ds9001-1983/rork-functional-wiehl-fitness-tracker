@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'fitness-app',
+    name: 'fitness-api',
     script: 'server.js',
     instances: 1,
     autorestart: true,
