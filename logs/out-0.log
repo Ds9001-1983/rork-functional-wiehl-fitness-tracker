@@ -79,3 +79,13 @@
 2025-09-04T09:46:15: 🌐 API available at http://localhost:3000/api
 2025-09-04T09:46:15: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
 2025-09-04T09:46:15: 🏥 Health check: http://localhost:3000/health
+2025-09-04T12:18:47: [dotenv@17.2.2] injecting env (1) from .env -- tip: ⚙️  override existing env vars with { override: true }
+2025-09-04T12:18:48: 📁 Serving web build from dist/
+2025-09-04T12:18:48: 🚀 Server starting on port 3000
+2025-09-04T12:18:48: 📊 Environment: production
+2025-09-04T12:18:48: 🔗 CORS Origin: https://app.functional-wiehl.de
+2025-09-04T12:18:48: 💾 Database: Connected
+2025-09-04T12:18:48: ✅ Server is running on http://localhost:3000
+2025-09-04T12:18:48: 🌐 API available at http://localhost:3000/api
+2025-09-04T12:18:48: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+2025-09-04T12:18:48: 🏥 Health check: http://localhost:3000/health
