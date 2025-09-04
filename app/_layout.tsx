@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ 
+    <Stack initialRouteName="login" screenOptions={{ 
       headerBackTitle: "Zurück",
       headerStyle: {
         backgroundColor: '#000000',
