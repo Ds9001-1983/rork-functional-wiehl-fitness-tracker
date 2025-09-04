@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../create-context';
-import { storage, StoredClient, StoredInvitation } from '../../../storage';
+import { storage } from '../../../storage';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -37,9 +37,9 @@ export default publicProcedure
     
     // Client Login - Check if user exists in clients list
     const clients = await storage.clients.getAll();
-    console.log('[Server] All clients in storage:', clients.map((c: StoredClient) => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
+    console.log('[Server] All clients in storage:', clients.map((c) => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
     
-    const existingClient = clients.find((client: StoredClient) => client.email === email);
+    const existingClient = clients.find((client) => client.email === email);
     
     if (existingClient) {
       console.log('[Server] Found existing client:', existingClient.email, 'with password:', existingClient.starterPassword);
@@ -67,7 +67,7 @@ export default publicProcedure
     
     // If not found as client, check if it's a valid invitation code login
     const invitations = await storage.invitations.getAll();
-    const invitation = invitations.find((inv: StoredInvitation) => 
+    const invitation = invitations.find((inv) => 
       (inv.email === email || inv.code === password) && 
       (inv.email === email || !inv.email)
     );
