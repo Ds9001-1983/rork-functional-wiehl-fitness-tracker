@@ -15,7 +15,7 @@ export default publicProcedure
     console.log('[Server] Login attempt for:', email);
     
     // Trainer Login
-    if (email === 'app@functional-wiehl.de' && password === 'Ds9001Ds9001!') {
+    if (email === 'app@functional-wiehl.de' && password === 'Ds9001Ds9001') {
       const trainerUser = {
         id: 'trainer-admin',
         name: 'Functional Wiehl Trainer',
