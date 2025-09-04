@@ -13,6 +13,7 @@ interface AuthState {
   switchRole: () => void;
   updatePassword: (newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  clearStorage: () => Promise<void>;
 }
 
 export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
@@ -21,12 +22,18 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const loadUser = useCallback(async () => {
     try {
+      console.log('🔄 Loading user from AsyncStorage...');
       const storedUser = await AsyncStorage.getItem('user');
+      console.log('📱 Stored user data:', storedUser);
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        console.log('👤 Parsed user:', parsedUser);
+        setUser(parsedUser);
+      } else {
+        console.log('❌ No stored user found');
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error('❌ Error loading user:', error);
     } finally {
       setIsLoading(false);
     }
@@ -117,6 +124,18 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     return Promise.resolve();
   }, []);
 
+  const clearStorage = useCallback(async () => {
+    try {
+      console.log('🗑️ Clearing all AsyncStorage data...');
+      await AsyncStorage.clear();
+      setUser(null);
+      console.log('✅ AsyncStorage cleared successfully');
+    } catch (error) {
+      console.error('❌ Error clearing AsyncStorage:', error);
+      throw error;
+    }
+  }, []);
+
   const authState = useMemo(() => ({
     user,
     isLoading,
@@ -126,7 +145,8 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     switchRole,
     updatePassword,
     resetPassword,
-  }), [user, isLoading, login, logout, switchRole, updatePassword, resetPassword]);
+    clearStorage,
+  }), [user, isLoading, login, logout, switchRole, updatePassword, resetPassword, clearStorage]);
 
   return authState;
 });

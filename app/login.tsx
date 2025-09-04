@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, resetPassword, isAuthenticated } = useAuth();
+  const { login, resetPassword, isAuthenticated, clearStorage } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -125,6 +125,15 @@ export default function LoginScreen() {
     }
   };
 
+  const handleClearStorage = async () => {
+    try {
+      await clearStorage();
+      Alert.alert('Storage gelöscht', 'Alle gespeicherten Daten wurden entfernt.');
+    } catch {
+      Alert.alert('Fehler', 'Storage konnte nicht gelöscht werden.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -202,6 +211,14 @@ export default function LoginScreen() {
             onPress={handleForgotPassword}
           >
             <Text style={styles.forgotPasswordText}>Passwort vergessen?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            testID="clear-storage"
+            style={styles.debugButton}
+            onPress={handleClearStorage}
+          >
+            <Text style={styles.debugButtonText}>🗑️ Storage löschen (Debug)</Text>
           </TouchableOpacity>
 
           <View style={styles.inviteSection}>
@@ -338,5 +355,17 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontSize: 14,
     fontWeight: '600' as const,
+  },
+  debugButton: {
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    padding: Spacing.sm,
+    backgroundColor: Colors.error,
+    borderRadius: BorderRadius.sm,
+  },
+  debugButtonText: {
+    color: Colors.background,
+    fontSize: 12,
+    fontWeight: '500' as const,
   },
 });
