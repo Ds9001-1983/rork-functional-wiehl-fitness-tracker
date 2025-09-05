@@ -45,10 +45,21 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const login = useCallback(async (email: string, password: string): Promise<User | null> => {
     try {
-      console.log('🔄 Attempting login with backend for:', email, 'with password:', password);
+      console.log('🔄 Attempting login with backend for:', email);
       console.log('🔄 tRPC client available:', !!trpcClient);
       console.log('🔄 tRPC auth available:', !!trpcClient.auth);
       console.log('🔄 tRPC login available:', !!trpcClient.auth.login);
+      
+      // Test connection first
+      try {
+        console.log('🔄 Testing tRPC connection...');
+        await trpcClient.example.hi.query({ name: 'connection-test' });
+        console.log('✅ tRPC connection successful');
+      } catch (connectionError) {
+        console.log('❌ tRPC connection failed:', connectionError);
+        throw new Error('CONNECTION_FAILED');
+      }
+      
       const result = await trpcClient.auth.login.mutate({ email, password });
       
       if (result.success && result.user) {
@@ -63,12 +74,17 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     } catch (error: any) {
       console.log('🚨 Backend login error:', error);
       console.log('🚨 Error message:', error.message);
-      console.log('🚨 Full error object:', error);
+      console.log('🚨 Error data:', error.data);
+      console.log('🚨 Error shape:', error.shape);
+      console.log('🚨 Full error object:', JSON.stringify(error, null, 2));
       
       // Check for tRPC error format
-      const errorMessage = error.message || error.data?.message || error.code;
+      const errorMessage = error.message || error.data?.message || error.shape?.message || error.code;
       console.log('🚨 Extracted error message:', errorMessage);
       
+      if (errorMessage === 'CONNECTION_FAILED' || errorMessage?.includes('fetch')) {
+        throw new Error('CONNECTION_FAILED');
+      }
       if (errorMessage === 'USER_NOT_INVITED' || errorMessage?.includes('USER_NOT_INVITED')) {
         throw new Error('USER_NOT_INVITED');
       }

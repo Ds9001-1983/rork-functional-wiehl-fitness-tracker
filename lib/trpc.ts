@@ -1,5 +1,5 @@
 import { createTRPCReact } from "@trpc/react-query";
-import { httpLink } from "@trpc/client";
+import { createTRPCClient, httpLink } from "@trpc/client";
 import type { AppRouter } from "@/backend/trpc/app-router";
 import superjson from "superjson";
 
@@ -23,13 +23,28 @@ const baseUrl = getBaseUrl();
 console.log('[tRPC] Creating client with base URL:', baseUrl);
 console.log('[tRPC] Full tRPC URL:', `${baseUrl}/api/trpc`);
 
-export const trpcClient = trpc.createClient({
+// React Query client for React components
+export const trpcReactClient = trpc.createClient({
   links: [
     httpLink({
       url: `${baseUrl}/api/trpc`,
       transformer: superjson,
       headers: () => {
-        console.log('[tRPC] Making request to:', `${baseUrl}/api/trpc`);
+        console.log('[tRPC] Making React request to:', `${baseUrl}/api/trpc`);
+        return {};
+      },
+    }),
+  ],
+});
+
+// Vanilla client for non-React usage
+export const trpcClient = createTRPCClient<AppRouter>({
+  links: [
+    httpLink({
+      url: `${baseUrl}/api/trpc`,
+      transformer: superjson,
+      headers: () => {
+        console.log('[tRPC] Making vanilla request to:', `${baseUrl}/api/trpc`);
         return {};
       },
     }),

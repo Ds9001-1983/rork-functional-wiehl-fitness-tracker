@@ -37,9 +37,9 @@ export const loginProcedure = publicProcedure
     
     // Client Login - Check if user exists in clients list
     const clients = await storage.clients.getAll();
-    console.log('[Server] All clients in storage:', clients.map((c: any) => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
+    console.log('[Server] All clients in storage:', clients.map((c) => ({ id: c.id, email: c.email, hasPassword: !!c.starterPassword })));
     
-    const existingClient = clients.find((client: any) => client.email === email);
+    const existingClient = clients.find((client) => client.email === email);
     
     if (existingClient) {
       console.log('[Server] Found existing client:', existingClient.email, 'with password:', existingClient.starterPassword);
@@ -67,7 +67,7 @@ export const loginProcedure = publicProcedure
     
     // If not found as client, check if it's a valid invitation code login
     const invitations = await storage.invitations.getAll();
-    const invitation = invitations.find((inv: any) => 
+    const invitation = invitations.find((inv) => 
       (inv.email === email || inv.code === password) && 
       (inv.email === email || !inv.email)
     );

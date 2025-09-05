@@ -76,7 +76,9 @@ export default function LoginScreen() {
       }
     } catch (e) {
       console.log('🚨 Login Fehler:', e);
-      if (e instanceof Error && e.message === 'USER_NOT_INVITED') {
+      if (e instanceof Error && e.message === 'CONNECTION_FAILED') {
+        Alert.alert('Verbindungsfehler', 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung und versuche es erneut.');
+      } else if (e instanceof Error && e.message === 'USER_NOT_INVITED') {
         showNotInvitedAlert();
       } else if (e instanceof Error && e.message === 'INVALID_PASSWORD') {
         Alert.alert('Fehler', 'Falsches Passwort. Bitte verwende das Einmalpasswort, das dir der Trainer gegeben hat.');
