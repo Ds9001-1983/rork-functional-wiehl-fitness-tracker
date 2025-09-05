@@ -14,7 +14,7 @@ app.use('/*', cors({
 }));
 
 // tRPC handler
-app.use('/trpc/*', trpcServer({
+app.use('/api/trpc/*', trpcServer({
   router: appRouter,
   createContext: (opts: any) => createContext(opts),
   onError: ({ error, path }: { error: any; path: any }) => {
@@ -31,7 +31,7 @@ app.get('/', (c) => {
     message: 'Fitness App API',
     endpoints: {
       health: '/health',
-      trpc: '/trpc',
+      trpc: '/api/trpc',
     },
   });
 });
