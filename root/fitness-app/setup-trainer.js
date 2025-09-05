@@ -1,55 +1,58 @@
-const fs = require('fs');
-const path = require('path');
+require('dotenv').config();
+const { Pool } = require('pg');
 
-// Get current directory
-const __dirname = process.cwd();
+async function setupTrainer() {
+  console.log('🔄 Connecting to database...');
+  
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  });
 
-// Trainer-Daten
-const trainerData = {
-  email: 'app@functional-wiehl.de',
-  password: 'Ds9001Ds9001',
-  role: 'trainer',
-  name: 'Trainer',
-  createdAt: new Date().toISOString()
-};
-
-// Pfad zur Trainer-Datei
-const trainersPath = path.join(__dirname, 'backend', 'data', 'trainers.json');
-
-// Stelle sicher, dass das Verzeichnis existiert
-const dataDir = path.dirname(trainersPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
-
-// Lade existierende Trainer oder erstelle leeres Array
-let trainers = [];
-if (fs.existsSync(trainersPath)) {
   try {
-    const data = fs.readFileSync(trainersPath, 'utf8');
-    trainers = JSON.parse(data);
-  } catch (_error) {
-    console.log('Erstelle neue Trainer-Datei...');
-    trainers = [];
+    // Create users table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'trainer',
+        name VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Check if trainer already exists
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      ['trainer123']
+    );
+
+    if (existingUser.rows.length > 0) {
+      // Update existing trainer
+      await pool.query(
+        'UPDATE users SET password = $1, name = $2 WHERE email = $3',
+        ['trainer123', 'Trainer', 'trainer123']
+      );
+      console.log('✅ Trainer updated successfully!');
+    } else {
+      // Create new trainer
+      await pool.query(
+        'INSERT INTO users (email, password, role, name) VALUES ($1, $2, $3, $4)',
+        ['trainer123', 'trainer123', 'trainer', 'Trainer']
+      );
+      console.log('✅ Trainer created successfully!');
+    }
+
+    console.log('📋 Login credentials:');
+    console.log('Username: trainer123');
+    console.log('Password: trainer123');
+    
+  } catch (error) {
+    console.error('❌ Error setting up trainer:', error);
+  } finally {
+    await pool.end();
   }
 }
 
-// Prüfe ob Trainer bereits existiert
-const existingTrainer = trainers.find(t => t.email === trainerData.email);
-if (existingTrainer) {
-  // Update existierenden Trainer
-  existingTrainer.password = trainerData.password;
-  existingTrainer.name = trainerData.name;
-  console.log('Trainer-Daten aktualisiert:', trainerData.email);
-} else {
-  // Füge neuen Trainer hinzu
-  trainers.push(trainerData);
-  console.log('Neuer Trainer erstellt:', trainerData.email);
-}
-
-// Speichere Trainer-Daten
-fs.writeFileSync(trainersPath, JSON.stringify(trainers, null, 2));
-console.log('Trainer-Setup abgeschlossen!');
-console.log('Login-Daten:');
-console.log('Email:', trainerData.email);
-console.log('Passwort:', trainerData.password);
+setupTrainer();
