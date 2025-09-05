@@ -5,20 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Functional Wiehl - Fitness App</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #000000;
             color: #ffffff;
-            overflow: hidden;
+            overflow-x: hidden;
         }
         #root {
             width: 100vw;
-            height: 100vh;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         .loading {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
@@ -26,16 +32,458 @@
             color: #ffffff;
             font-size: 18px;
         }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top: 4px solid #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background-color: #ff4444;
+            color: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .retry-btn {
+            background-color: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .retry-btn:hover {
+            background-color: #00cc6a;
+        }
     </style>
 </head>
 <body>
     <div id="root">
-        <div class="loading">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
             <div>Lade Fitness App...</div>
         </div>
     </div>
+    
     <script>
-        console.log('Fitness App wird geladen...');
+        console.log('🚀 Fitness App wird geladen...');
+        
+        // Simple React Native Web simulation
+        let appLoaded = false;
+        
+        function showError(message) {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div class="error">
+                    <h2>Fehler beim Laden der App</h2>
+                    <p>${message}</p>
+                    <button class="retry-btn" onclick="location.reload()">Neu laden</button>
+                </div>
+            `;
+        }
+        
+        function loadApp() {
+            // Simulate app loading
+            setTimeout(() => {
+                if (!appLoaded) {
+                    // Create a simple login form as fallback
+                    createLoginForm();
+                }
+            }, 3000);
+        }
+        
+        function createLoginForm() {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+                ">
+                    <div style="
+                        background-color: #1a1a1a;
+                        padding: 40px;
+                        border-radius: 12px;
+                        box-shadow: 0 8px 32px rgba(0, 255, 136, 0.1);
+                        width: 100%;
+                        max-width: 400px;
+                        border: 1px solid #333;
+                    ">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <img src="https://functional-wiehl.de/wp-content/uploads/2024/01/Functional-Wiehl-Logo-weiss-1.png" 
+                                 alt="Functional Wiehl" 
+                                 style="width: 200px; height: auto; margin-bottom: 10px;" />
+                            <p style="color: #888; margin: 0;">Dein digitaler Trainingspartner</p>
+                        </div>
+                        
+                        <form id="loginForm" onsubmit="handleLogin(event)">
+                            <div style="margin-bottom: 20px;">
+                                <input type="email" 
+                                       id="email" 
+                                       placeholder="E-Mail" 
+                                       required
+                                       style="
+                                           width: 100%;
+                                           padding: 15px;
+                                           background-color: #2a2a2a;
+                                           border: 1px solid #444;
+                                           border-radius: 8px;
+                                           color: white;
+                                           font-size: 16px;
+                                       " />
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                <input type="password" 
+                                       id="password" 
+                                       placeholder="Passwort" 
+                                       required
+                                       style="
+                                           width: 100%;
+                                           padding: 15px;
+                                           background-color: #2a2a2a;
+                                           border: 1px solid #444;
+                                           border-radius: 8px;
+                                           color: white;
+                                           font-size: 16px;
+                                       " />
+                            </div>
+                            
+                            <button type="submit" 
+                                    id="loginBtn"
+                                    style="
+                                        width: 100%;
+                                        padding: 15px;
+                                        background-color: #00ff88;
+                                        color: #000;
+                                        border: none;
+                                        border-radius: 8px;
+                                        font-size: 16px;
+                                        font-weight: 600;
+                                        cursor: pointer;
+                                        transition: background-color 0.2s;
+                                    "
+                                    onmouseover="this.style.backgroundColor='#00cc6a'"
+                                    onmouseout="this.style.backgroundColor='#00ff88'">
+                                Anmelden
+                            </button>
+                        </form>
+                        
+                        <div id="errorMessage" style="
+                            color: #ff4444;
+                            text-align: center;
+                            margin-top: 15px;
+                            display: none;
+                        "></div>
+                        
+                        <div style="
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 20px;
+                            border-top: 1px solid #333;
+                        ">
+                            <p style="color: #888; font-size: 14px; margin-bottom: 10px;">
+                                Noch kein Zugang? Ein Trainer muss dich einladen.
+                            </p>
+                            <a href="https://api.whatsapp.com/send/?phone=492262752717&text=Hallo%2C+ich+m%C3%B6chte+in+die+Trainingsplan+App.&type=phone_number&app_absent=0" 
+                               target="_blank"
+                               style="
+                                   display: inline-block;
+                                   background-color: #25D366;
+                                   color: white;
+                                   padding: 10px 20px;
+                                   text-decoration: none;
+                                   border-radius: 6px;
+                                   font-size: 14px;
+                               ">
+                                📱 Trainer kontaktieren
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            loginBtn.textContent = 'Anmelden...';
+            loginBtn.disabled = true;
+            errorMessage.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/trpc/auth.login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        json: { email, password }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.result?.data?.success) {
+                    // Store user data
+                    localStorage.setItem('user', JSON.stringify(data.result.data.user));
+                    
+                    // Redirect to app
+                    if (data.result.data.user.role === 'client' && !data.result.data.user.passwordChanged) {
+                        showPasswordChangeForm();
+                    } else {
+                        showMainApp(data.result.data.user);
+                    }
+                } else {
+                    throw new Error(data.error?.message || 'Login fehlgeschlagen');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMessage.textContent = getErrorMessage(error.message);
+                errorMessage.style.display = 'block';
+            } finally {
+                loginBtn.textContent = 'Anmelden';
+                loginBtn.disabled = false;
+            }
+        }
+        
+        function getErrorMessage(error) {
+            if (error.includes('USER_NOT_INVITED')) {
+                return 'Du wurdest noch nicht eingeladen. Kontaktiere einen Trainer.';
+            } else if (error.includes('INVALID_PASSWORD')) {
+                return 'Falsches Passwort. Verwende das Einmalpasswort vom Trainer.';
+            } else if (error.includes('CONNECTION_FAILED')) {
+                return 'Verbindungsfehler. Bitte versuche es erneut.';
+            }
+            return 'Ungültige Anmeldedaten. Überprüfe E-Mail und Passwort.';
+        }
+        
+        function showPasswordChangeForm() {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 100vh;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+                ">
+                    <div style="
+                        background-color: #1a1a1a;
+                        padding: 40px;
+                        border-radius: 12px;
+                        box-shadow: 0 8px 32px rgba(0, 255, 136, 0.1);
+                        width: 100%;
+                        max-width: 400px;
+                        border: 1px solid #333;
+                        text-align: center;
+                    ">
+                        <h2 style="color: #00ff88; margin-bottom: 20px;">Passwort ändern</h2>
+                        <p style="color: #ccc; margin-bottom: 30px;">
+                            Bitte ändere dein Passwort für mehr Sicherheit.
+                        </p>
+                        
+                        <form id="passwordForm" onsubmit="handlePasswordChange(event)">
+                            <input type="password" 
+                                   id="newPassword" 
+                                   placeholder="Neues Passwort" 
+                                   required
+                                   minlength="6"
+                                   style="
+                                       width: 100%;
+                                       padding: 15px;
+                                       background-color: #2a2a2a;
+                                       border: 1px solid #444;
+                                       border-radius: 8px;
+                                       color: white;
+                                       font-size: 16px;
+                                       margin-bottom: 20px;
+                                   " />
+                            
+                            <button type="submit" 
+                                    id="changePasswordBtn"
+                                    style="
+                                        width: 100%;
+                                        padding: 15px;
+                                        background-color: #00ff88;
+                                        color: #000;
+                                        border: none;
+                                        border-radius: 8px;
+                                        font-size: 16px;
+                                        font-weight: 600;
+                                        cursor: pointer;
+                                    ">
+                                Passwort ändern
+                            </button>
+                        </form>
+                        
+                        <div id="passwordError" style="
+                            color: #ff4444;
+                            text-align: center;
+                            margin-top: 15px;
+                            display: none;
+                        "></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function showMainApp(user) {
+            const root = document.getElementById('root');
+            root.innerHTML = `
+                <div style="
+                    min-height: 100vh;
+                    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+                    padding: 20px;
+                ">
+                    <div style="
+                        max-width: 1200px;
+                        margin: 0 auto;
+                    ">
+                        <header style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 20px 0;
+                            border-bottom: 1px solid #333;
+                            margin-bottom: 30px;
+                        ">
+                            <h1 style="color: #00ff88; margin: 0;">Fitness App</h1>
+                            <div style="color: #ccc;">
+                                Willkommen, ${user.name || user.email}!
+                                <button onclick="logout()" style="
+                                    margin-left: 15px;
+                                    padding: 8px 16px;
+                                    background-color: #ff4444;
+                                    color: white;
+                                    border: none;
+                                    border-radius: 4px;
+                                    cursor: pointer;
+                                ">Abmelden</button>
+                            </div>
+                        </header>
+                        
+                        <div style="
+                            display: grid;
+                            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                            gap: 20px;
+                        ">
+                            <div style="
+                                background-color: #1a1a1a;
+                                padding: 30px;
+                                border-radius: 12px;
+                                border: 1px solid #333;
+                            ">
+                                <h3 style="color: #00ff88; margin-top: 0;">📱 Mobile App</h3>
+                                <p style="color: #ccc; margin-bottom: 20px;">
+                                    Für die beste Erfahrung verwende die mobile App:
+                                </p>
+                                <div style="text-align: center;">
+                                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDE1MCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiBmaWxsPSIjMDAwIi8+Cjx0ZXh0IHg9Ijc1IiB5PSI3NSIgZmlsbD0iIzAwZmY4OCIgZm9udC1zaXplPSIxNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UVIgQ29kZTwvdGV4dD4KPHN2Zz4K" 
+                                         alt="QR Code" 
+                                         style="width: 150px; height: 150px; border: 2px solid #333; border-radius: 8px;" />
+                                    <p style="color: #888; font-size: 12px; margin-top: 10px;">
+                                        Scanne mit Expo Go App
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="
+                                background-color: #1a1a1a;
+                                padding: 30px;
+                                border-radius: 12px;
+                                border: 1px solid #333;
+                            ">
+                                <h3 style="color: #00ff88; margin-top: 0;">📊 Statistiken</h3>
+                                <div style="color: #ccc;">
+                                    <p>Workouts: ${user.stats?.totalWorkouts || 0}</p>
+                                    <p>Streak: ${user.stats?.currentStreak || 0} Tage</p>
+                                    <p>Rolle: ${user.role === 'trainer' ? 'Trainer' : 'Kunde'}</p>
+                                </div>
+                            </div>
+                            
+                            ${user.role === 'trainer' ? `
+                            <div style="
+                                background-color: #1a1a1a;
+                                padding: 30px;
+                                border-radius: 12px;
+                                border: 1px solid #333;
+                            ">
+                                <h3 style="color: #00ff88; margin-top: 0;">👥 Trainer Center</h3>
+                                <p style="color: #ccc; margin-bottom: 20px;">
+                                    Verwalte deine Kunden und erstelle Trainingspläne.
+                                </p>
+                                <button onclick="showTrainerFeatures()" style="
+                                    padding: 10px 20px;
+                                    background-color: #00ff88;
+                                    color: #000;
+                                    border: none;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-weight: 600;
+                                ">Trainer Center öffnen</button>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div style="
+                            text-align: center;
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 1px solid #333;
+                            color: #666;
+                        ">
+                            <p>Web-Version - Für alle Features nutze die mobile App</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function logout() {
+            localStorage.removeItem('user');
+            location.reload();
+        }
+        
+        function showTrainerFeatures() {
+            alert('Trainer-Features sind in der mobilen App verfügbar. Bitte verwende die Expo Go App.');
+        }
+        
+        // Check if user is already logged in
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try {
+                const user = JSON.parse(savedUser);
+                showMainApp(user);
+            } catch (e) {
+                localStorage.removeItem('user');
+                loadApp();
+            }
+        } else {
+            loadApp();
+        }
     </script>
 </body>
 </html>

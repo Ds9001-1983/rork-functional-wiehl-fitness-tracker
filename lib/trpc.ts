@@ -12,8 +12,13 @@ const getBaseUrl = () => {
     return envUrl;
   }
   if (typeof window !== "undefined" && window.location?.origin) {
-    console.log('[tRPC] Using window origin:', window.location.origin);
-    return window.location.origin;
+    const origin = window.location.origin;
+    console.log('[tRPC] Using window origin:', origin);
+    // For production web, use the same domain
+    if (origin.includes('app.functional-wiehl.de')) {
+      return origin;
+    }
+    return origin;
   }
   console.log('[tRPC] Using fallback URL: http://127.0.0.1:3000');
   return "http://127.0.0.1:3000";
