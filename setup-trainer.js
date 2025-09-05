@@ -1,60 +1,48 @@
-const { storage } = require('./backend/storage');
+require('dotenv').config();
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 async function setupTrainer() {
-  console.log('🔧 Setting up trainer user...');
-  
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+
   try {
+    console.log('🔄 Connecting to database...');
+    
     // Check if trainer already exists
-    const clients = await storage.clients.getAll();
-    const existingTrainer = clients.find(client => client.email === 'app@functional-wiehl.de');
-    
-    if (existingTrainer) {
-      console.log('✅ Trainer already exists, updating password...');
-      
-      // Update existing trainer
-      const updatedTrainer = {
-        ...existingTrainer,
-        starterPassword: 'Ds9001Ds9001',
-        role: 'trainer',
-        passwordChanged: true
-      };
-      
-      await storage.clients.update(existingTrainer.id, updatedTrainer);
-      console.log('✅ Trainer password updated successfully!');
-    } else {
-      console.log('➕ Creating new trainer user...');
-      
-      // Create new trainer
-      const trainer = await storage.clients.create({
-        name: 'Functional Wiehl Trainer',
-        email: 'app@functional-wiehl.de',
-        role: 'trainer',
-        joinDate: new Date().toISOString(),
-        passwordChanged: true,
-        starterPassword: 'Ds9001Ds9001',
-        stats: {
-          totalWorkouts: 0,
-          totalVolume: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          personalRecords: {},
-        },
-      });
-      
-      console.log('✅ Trainer created successfully!');
-      console.log('📧 Email: app@functional-wiehl.de');
-      console.log('🔑 Password: Ds9001Ds9001');
+    const existingTrainer = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      ['app@functional-wiehl.de']
+    );
+
+    if (existingTrainer.rows.length > 0) {
+      console.log('✅ Trainer already exists in database');
+      console.log('📧 Email:', existingTrainer.rows[0].email);
+      console.log('👤 Role:', existingTrainer.rows[0].role);
+      return;
     }
+
+    // Create trainer account
+    const hashedPassword = await bcrypt.hash('trainer123', 10);
     
-    // List all users for verification
-    const allClients = await storage.clients.getAll();
-    console.log('\n👥 All users in database:');
-    allClients.forEach(client => {
-      console.log(`- ${client.email} (${client.role}) - Password: ${client.starterPassword}`);
-    });
-    
+    const result = await pool.query(
+      `INSERT INTO users (email, password, role, password_changed, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, NOW(), NOW()) 
+       RETURNING *`,
+      ['app@functional-wiehl.de', hashedPassword, 'trainer', true]
+    );
+
+    console.log('✅ Trainer account created successfully!');
+    console.log('📧 Email: app@functional-wiehl.de');
+    console.log('🔑 Password: trainer123');
+    console.log('👤 Role: trainer');
+    console.log('🆔 ID:', result.rows[0].id);
+
   } catch (error) {
     console.error('❌ Error setting up trainer:', error);
+  } finally {
+    await pool.end();
   }
 }
 

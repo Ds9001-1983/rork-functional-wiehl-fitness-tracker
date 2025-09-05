@@ -88,16 +88,27 @@ async function initializeTables() {
   if (!pool) return;
   
   try {
+    // Create users table (matches the schema from setup-trainer.js)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'client',
+        password_changed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Create clients table for additional client data
     await pool.query(`
       CREATE TABLE IF NOT EXISTS clients (
         id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
         phone VARCHAR(50),
-        role VARCHAR(20) DEFAULT 'client',
         join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        starter_password VARCHAR(255),
-        password_changed BOOLEAN DEFAULT FALSE,
         total_workouts INTEGER DEFAULT 0,
         total_volume INTEGER DEFAULT 0,
         current_streak INTEGER DEFAULT 0,
@@ -115,21 +126,7 @@ async function initializeTables() {
       )
     `);
     
-    // Insert trainer account if it doesn't exist
-    await pool.query(`
-      INSERT INTO clients (
-        name, email, role, starter_password, password_changed,
-        total_workouts, total_volume, current_streak, longest_streak, personal_records
-      ) VALUES (
-        'Functional Wiehl Trainer', 'app@functional-wiehl.de', 'trainer', 'Ds9001Ds9001', true,
-        0, 0, 0, 0, '{}'
-      ) ON CONFLICT (email) DO UPDATE SET
-        starter_password = EXCLUDED.starter_password,
-        password_changed = EXCLUDED.password_changed;
-    `);
-    
     console.log('[Storage] ✅ Database tables initialized');
-    console.log('[Storage] ✅ Trainer account ensured in database');
   } catch (err) {
     console.log('[Storage] ❌ Failed to initialize tables:', err);
     useDatabase = false;

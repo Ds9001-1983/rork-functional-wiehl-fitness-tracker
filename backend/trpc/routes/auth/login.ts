@@ -1,10 +1,16 @@
 import { z } from 'zod';
 import { publicProcedure } from '../../create-context';
-import { storage } from '../../../storage';
+import { Pool } from 'pg';
+import bcrypt from 'bcryptjs';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+});
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
 });
 
 export const loginProcedure = publicProcedure
@@ -14,69 +20,69 @@ export const loginProcedure = publicProcedure
     
     console.log('[Server] Login attempt for:', email);
     
-    // Get all users from database (including trainer)
-    const clients = await storage.clients.getAll();
-    console.log('[Server] All users in storage:', clients.map((c) => ({ id: c.id, email: c.email, role: c.role, hasPassword: !!c.starterPassword })));
-    
-    const existingUser = clients.find((client) => client.email === email);
-    
-    if (existingUser) {
-      console.log('[Server] Found existing user:', existingUser.email, 'role:', existingUser.role, 'with password:', existingUser.starterPassword);
+    try {
+      // Check if user exists in database
+      const userResult = await pool.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+      );
       
-      // Check password - use starter password
-      const expectedPassword = existingUser.starterPassword;
-      
-      if (!expectedPassword) {
-        console.log('[Server] No starter password set for user:', email);
-        throw new Error('INVALID_PASSWORD');
+      if (userResult.rows.length === 0) {
+        console.log('[Server] User not found:', email);
+        throw new Error('USER_NOT_INVITED');
       }
       
-      const isValidPassword = password === expectedPassword;
+      const user = userResult.rows[0];
+      console.log('[Server] Found user:', user.email, 'role:', user.role);
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
       
       if (!isValidPassword) {
         console.log('[Server] Invalid password for user:', email);
-        console.log('[Server] Expected:', expectedPassword);
-        console.log('[Server] Received:', password);
         throw new Error('INVALID_PASSWORD');
       }
       
-      console.log('[Server] User login successful:', email, 'role:', existingUser.role);
-      return { success: true, user: existingUser };
-    }
-    
-    // If not found as existing user, check if it's a valid invitation code login
-    const invitations = await storage.invitations.getAll();
-    const invitation = invitations.find((inv) => 
-      (inv.email === email || inv.code === password) && 
-      (inv.email === email || !inv.email)
-    );
-    
-    if (invitation) {
-      // Create new client from invitation
-      const newClient = await storage.clients.create({
-        name: invitation.name || email.split('@')[0],
-        email: email,
-        role: 'client',
-        joinDate: new Date().toISOString(),
-        passwordChanged: false,
-        starterPassword: invitation.code,
+      // Get additional client data if exists
+      let clientData = null;
+      if (user.role === 'client') {
+        const clientResult = await pool.query(
+          'SELECT * FROM clients WHERE user_id = $1',
+          [user.id]
+        );
+        clientData = clientResult.rows[0] || null;
+      }
+      
+      // Format user data for frontend
+      const userData = {
+        id: user.id.toString(),
+        name: clientData?.name || user.email.split('@')[0],
+        email: user.email,
+        phone: clientData?.phone,
+        role: user.role,
+        joinDate: clientData?.join_date || user.created_at,
+        passwordChanged: user.password_changed,
         stats: {
-          totalWorkouts: 0,
-          totalVolume: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          personalRecords: {},
+          totalWorkouts: clientData?.total_workouts || 0,
+          totalVolume: clientData?.total_volume || 0,
+          currentStreak: clientData?.current_streak || 0,
+          longestStreak: clientData?.longest_streak || 0,
+          personalRecords: clientData?.personal_records || {},
         },
-      });
+      };
       
-      // Remove used invitation from storage
-      await storage.invitations.remove(invitation.code);
+      console.log('[Server] User login successful:', email, 'role:', user.role);
+      return { success: true, user: userData };
       
-      console.log('[Server] New client created from invitation:', email);
-      console.log('[Server] Invitation used and should be removed:', invitation.code);
-      return { success: true, user: newClient };
+    } catch (error: any) {
+      console.log('[Server] Login error:', error.message);
+      
+      if (error.message === 'USER_NOT_INVITED' || error.message === 'INVALID_PASSWORD') {
+        throw error;
+      }
+      
+      // Database connection error
+      console.log('[Server] Database error during login:', error);
+      throw new Error('CONNECTION_FAILED');
     }
-    
-    console.log('[Server] User not found or not invited:', email);
-    throw new Error('USER_NOT_INVITED');
   });

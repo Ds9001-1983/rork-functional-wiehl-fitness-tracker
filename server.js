@@ -20,14 +20,23 @@ app.route('/api', apiApp);
 // Serve static files from dist directory (web build)
 const distPath = path.join(process.cwd(), 'dist');
 if (fs.existsSync(distPath)) {
-  app.use('/*', serveStatic({ root: './dist' }));
+  // Serve static files for all non-API routes
+  app.use('/*', serveStatic({ 
+    root: './dist',
+    index: 'index.html'
+  }));
   console.log('📁 Serving web build from dist/');
 } else {
   console.log('⚠️  No web build found. Run "bunx rork export -p web" to build for web.');
 }
 
-// Add a root health check
-app.get('/', (c) => {
+// Fallback for SPA routing - serve index.html for non-API routes
+app.get('*', (c) => {
+  const indexPath = path.join(process.cwd(), 'dist', 'index.html');
+  if (fs.existsSync(indexPath)) {
+    const html = fs.readFileSync(indexPath, 'utf8');
+    return c.html(html);
+  }
   return c.json({ 
     status: 'ok', 
     message: 'Fitness App Server',
