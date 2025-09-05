@@ -8,7 +8,7 @@ export interface StoredClient {
   name: string;
   email: string;
   phone?: string;
-  role: 'client';
+  role: 'client' | 'trainer';
   joinDate: string;
   starterPassword?: string;
   passwordChanged: boolean;
@@ -33,9 +33,27 @@ let pool: Pool | null = null;
 let useDatabase = false;
 
 // In-memory fallback storage
-let clients: StoredClient[] = [];
+let clients: StoredClient[] = [
+  // Default trainer account for in-memory fallback
+  {
+    id: 'trainer-1',
+    name: 'Functional Wiehl Trainer',
+    email: 'app@functional-wiehl.de',
+    role: 'trainer',
+    joinDate: new Date().toISOString(),
+    starterPassword: 'Ds9001Ds9001',
+    passwordChanged: true,
+    stats: {
+      totalWorkouts: 0,
+      totalVolume: 0,
+      currentStreak: 0,
+      longestStreak: 0,
+      personalRecords: {},
+    },
+  },
+];
 let invitations: StoredInvitation[] = [];
-let nextClientId = 1;
+let nextClientId = 2; // Start at 2 since trainer is ID 1
 
 // Initialize database connection
 if (process.env.DATABASE_URL) {
@@ -97,7 +115,21 @@ async function initializeTables() {
       )
     `);
     
+    // Insert trainer account if it doesn't exist
+    await pool.query(`
+      INSERT INTO clients (
+        name, email, role, starter_password, password_changed,
+        total_workouts, total_volume, current_streak, longest_streak, personal_records
+      ) VALUES (
+        'Functional Wiehl Trainer', 'app@functional-wiehl.de', 'trainer', 'Ds9001Ds9001', true,
+        0, 0, 0, 0, '{}'
+      ) ON CONFLICT (email) DO UPDATE SET
+        starter_password = EXCLUDED.starter_password,
+        password_changed = EXCLUDED.password_changed;
+    `);
+    
     console.log('[Storage] ✅ Database tables initialized');
+    console.log('[Storage] ✅ Trainer account ensured in database');
   } catch (err) {
     console.log('[Storage] ❌ Failed to initialize tables:', err);
     useDatabase = false;
