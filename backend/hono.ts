@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { trpcServer } from '@hono/trpc-server';
-import { appRouter } from './trpc/app-router';
-import { createContext } from './trpc/create-context';
+import { appRouter } from './trpc/app-router.ts';
+import { createContext } from './trpc/create-context.ts';
 import { cors } from 'hono/cors';
 
 const app = new Hono();
@@ -13,8 +13,8 @@ app.use('/*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
-// tRPC handler
-app.use('/api/trpc/*', trpcServer({
+// tRPC handler (mounted under /api in server.js, so this becomes /api/trpc/*)
+app.use('/trpc/*', trpcServer({
   router: appRouter,
   createContext: (opts: any) => createContext(opts),
   onError: ({ error, path }: { error: any; path: any }) => {
@@ -31,7 +31,7 @@ app.get('/', (c) => {
     message: 'Fitness App API',
     endpoints: {
       health: '/health',
-      trpc: '/api/trpc',
+      trpc: '/trpc',
     },
   });
 });

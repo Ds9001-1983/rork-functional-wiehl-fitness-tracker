@@ -1,7 +1,15 @@
 // Load environment variables
 require('dotenv').config();
 
-require('ts-node/register');
+require('ts-node').register({
+  transpileOnly: true,
+  compilerOptions: {
+    module: 'ESNext',
+    moduleResolution: 'nodenext',
+    allowImportingTsExtensions: true,
+    strict: true
+  }
+});
 const { serve } = require('@hono/node-server');
 const { Hono } = require('hono');
 const { serveStatic } = require('@hono/node-server/serve-static');
