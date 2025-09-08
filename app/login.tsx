@@ -21,17 +21,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, resetPassword, isAuthenticated, clearStorage } = useAuth();
+  const { login, resetPassword, isAuthenticated, clearStorage, user } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [rememberPassword, setRememberPassword] = useState<boolean>(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!isAuthenticated) return;
+    if (user?.role === 'trainer' || user?.role === 'admin') {
+      router.replace('/trainer');
+    } else {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user?.role, router]);
 
   useEffect(() => {
     loadSavedCredentials();
@@ -69,7 +72,14 @@ export default function LoginScreen() {
         await AsyncStorage.setItem('rememberPassword', 'false');
         await AsyncStorage.setItem('savedEmail', email);
       }
-      if (user && user.role === 'client' && user.passwordChanged === false) {
+      if (!user) {
+        return;
+      }
+      if (user.role === 'trainer' || user.role === 'admin') {
+        router.replace('/trainer');
+        return;
+      }
+      if (user.role === 'client' && user.passwordChanged === false) {
         router.replace('/change-password');
       } else {
         router.replace('/(tabs)');
