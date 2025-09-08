@@ -3,10 +3,14 @@ require('dotenv').config();
 
 require('ts-node').register({
   transpileOnly: true,
+  skipProject: true,
   compilerOptions: {
     module: 'NodeNext',
     moduleResolution: 'NodeNext',
     allowImportingTsExtensions: true,
+    jsx: 'react-jsx',
+    target: 'ES2022',
+    esModuleInterop: true,
     strict: true
   }
 });
