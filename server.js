@@ -4,8 +4,8 @@ require('dotenv').config();
 require('ts-node').register({
   transpileOnly: true,
   compilerOptions: {
-    module: 'ESNext',
-    moduleResolution: 'nodenext',
+    module: 'NodeNext',
+    moduleResolution: 'NodeNext',
     allowImportingTsExtensions: true,
     strict: true
   }
