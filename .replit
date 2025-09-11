@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "bash", "bun"]
+modules = ["nodejs-20", "web", "bash", "bun", "postgresql-16"]
 [agent]
 expertMode = true
 
@@ -36,6 +36,10 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 37409
+externalPort = 3001
 
 [deployment]
 deploymentTarget = "vm"

@@ -6,18 +6,18 @@ import superjson from "superjson";
 export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
-  const envUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL ?? process.env.API_BASE_URL;
-  if (envUrl) {
-    console.log('[tRPC] Using env URL:', envUrl);
-    return envUrl;
+  // Normalize function to remove trailing slashes and /api paths
+  const normalize = (url: string) => url.replace(/\/$/, '').replace(/\/(api(\/trpc)?)$/, '');
+  
+  const rawUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL ?? process.env.API_BASE_URL;
+  if (rawUrl) {
+    const normalized = normalize(rawUrl);
+    console.log('[tRPC] Using normalized env URL:', rawUrl, '->', normalized);
+    return normalized;
   }
   if (typeof window !== "undefined" && window.location?.origin) {
     const origin = window.location.origin;
     console.log('[tRPC] Using window origin:', origin);
-    // For production web, use the same domain
-    if (origin.includes('app.functional-wiehl.de')) {
-      return origin;
-    }
     return origin;
   }
   console.log('[tRPC] Using fallback URL: http://127.0.0.1:3000');

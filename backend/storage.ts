@@ -41,7 +41,7 @@ let clients: StoredClient[] = [
     email: 'app@functional-wiehl.de',
     role: 'trainer',
     joinDate: new Date().toISOString(),
-    starterPassword: 'Ds9001Ds9001',
+    starterPassword: 'trainer123',
     passwordChanged: true,
     stats: {
       totalWorkouts: 0,

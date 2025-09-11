@@ -29,7 +29,9 @@ const webBuildPath = join(process.cwd(), 'web-build');
 if (existsSync(webBuildPath)) {
   // Serve static files for all non-API routes (exclude /api and /health)
   app.use('/*', (c, next) => {
-    if (c.req.path.startsWith('/api') || c.req.path === '/health') {
+    const path = c.req.path;
+    // Skip static serving for API routes and health check
+    if (path.startsWith('/api') || path === '/health') {
       return next();
     }
     return serveStatic({ 
@@ -41,8 +43,18 @@ if (existsSync(webBuildPath)) {
   console.log('⚠️  No web build found. Run "bunx expo export --platform web" to build for web.');
 }
 
-// Fallback for SPA routing - serve index.html for non-API routes
+// Fallback for SPA routing - serve index.html only for non-API routes
 app.get('*', (c) => {
+  const path = c.req.path;
+  // Don't intercept API routes
+  if (path.startsWith('/api') || path === '/health') {
+    return c.json({ 
+      status: 'error', 
+      message: 'API route not found',
+      requestedPath: path
+    });
+  }
+  
   const indexPath = join(process.cwd(), 'web-build', 'index.html');
   if (existsSync(indexPath)) {
     const html = readFileSync(indexPath, 'utf8');

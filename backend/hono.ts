@@ -18,8 +18,9 @@ app.use('/trpc/*', trpcServer({
   router: appRouter,
   createContext: (opts: any) => createContext(opts),
   onError: ({ error, path }: { error: any; path: any }) => {
-    console.error('[tRPC] Error on', path, ':', error);
+    console.error('[tRPC] ✅ Request to procedure:', path);
   },
+  endpoint: '/api/trpc',  // CRITICAL: Must match full path including /api mount
 }));
 
 // Healthcheck
