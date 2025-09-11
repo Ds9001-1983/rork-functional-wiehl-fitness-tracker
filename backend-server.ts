@@ -1,12 +1,11 @@
-import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
-import { serveStatic } from '@hono/node-server/serve-static';
-import { dirname, join } from 'path';
+import { serveStatic } from 'hono/bun';
+import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import apiApp from './backend/hono';
 
 // Load environment variables
-const port = parseInt(process.env.BACKEND_PORT || '3001');
+const port = parseInt(process.env.BACKEND_PORT || '3000');
 console.log(`[Debug] BACKEND_PORT env var: ${process.env.BACKEND_PORT}`);
 console.log(`[Debug] Final port: ${port}`);
 
@@ -34,8 +33,7 @@ if (existsSync(webBuildPath)) {
       return next();
     }
     return serveStatic({ 
-      root: './web-build',
-      index: 'index.html'
+      root: './web-build'
     })(c, next);
   });
   console.log('📁 Serving web build from web-build/');
@@ -62,14 +60,12 @@ console.log(`🚀 Server starting on port ${port}`);
 console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN}`);
 console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+console.log(`✅ Server is running on http://localhost:${port}`);
+console.log(`🌐 API available at http://localhost:${port}/api`);
+console.log(`🔧 tRPC endpoint: http://localhost:${port}/api/trpc`);
+console.log(`🏥 Health check: http://localhost:${port}/health`);
 
-serve({
-  fetch: app.fetch,
-  port: port,
-  hostname: '0.0.0.0'
-}, (info) => {
-  console.log(`✅ Server is running on http://localhost:${info.port}`);
-  console.log(`🌐 API available at http://localhost:${info.port}/api`);
-  console.log(`🔧 tRPC endpoint: http://localhost:${info.port}/api/trpc`);
-  console.log(`🏥 Health check: http://localhost:${info.port}/health`);
-});
+export default {
+  port,
+  fetch: app.fetch
+};
