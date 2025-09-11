@@ -21,7 +21,7 @@ const path = require('path');
 const fs = require('fs');
 const apiApp = require('./backend/hono.ts').default;
 
-const port = process.env.PORT || 3000;
+const port = process.env.BACKEND_PORT || 3001;
 
 // Create main app and mount API at /api
 const app = new Hono();
