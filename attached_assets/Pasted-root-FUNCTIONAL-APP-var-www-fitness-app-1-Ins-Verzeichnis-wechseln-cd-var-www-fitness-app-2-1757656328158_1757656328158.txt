@@ -1,0 +1,73 @@
+root@FUNCTIONAL-APP:/var/www/fitness-app# # 1. Ins Verzeichnis wechseln
+cd /var/www/fitness-app
+
+# 2. Die neuesten Änderungen holen (mit den tRPC-Fixes!)
+git pull origin main
+
+# 3. Dependencies aktualisieren
+bun install
+
+# 4. Service neu starten - WICHTIG!
+sudo systemctl restart fitness-app
+
+# 5. Status prüfen
+sudo systemctl status fitness-app
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (5/5), done.
+remote: Total 11 (delta 6), reused 11 (delta 6), pack-reused 0 (from 0)
+Unpacking objects: 100% (11/11), 5.94 KiB | 2.97 MiB/s, done.
+From https://github.com/Ds9001-1983/rork-functional-wiehl-fitness-tracker
+ * branch            main       -> FETCH_HEAD
+   c48b104..6498d16  main       -> origin/main
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint: 
+hint:   git config pull.rebase false  # merge (the default strategy)
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint: 
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+[0.02ms] ".env"
+bun install v1.2.21 (7c45ed97)
+
+Checked 1010 installs across 878 packages (no changes) [16.00ms]
+● fitness-app.service - Functional Wiehl Fitness Tracker
+     Loaded: loaded (/etc/systemd/system/fitness-app.service; enabled; vendor preset: enabled)
+     Active: active (running) since Fri 2025-09-12 05:51:30 UTC; 12ms ago
+   Main PID: 888637 (bun)
+      Tasks: 10 (limit: 9250)
+     Memory: 8.5M
+        CPU: 12ms
+     CGroup: /system.slice/fitness-app.service
+             └─888637 /root/.bun/bin/bun run backend-server.ts
+
+Sep 12 05:51:30 FUNCTIONAL-APP systemd[1]: fitness-app.service: Deactivated successfully.
+Sep 12 05:51:30 FUNCTIONAL-APP systemd[1]: Stopped Functional Wiehl Fitness Tracker.
+Sep 12 05:51:30 FUNCTIONAL-APP systemd[1]: fitness-app.service: Consumed 4.314s CPU time.
+Sep 12 05:51:30 FUNCTIONAL-APP systemd[1]: Started Functional Wiehl Fitness Tracker.
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Backend Health Check
+curl http://localhost:3000/health
+
+# Falls Nginx läuft, auch extern testen
+curl https://app.functional-wiehl.de/health
+
+# Logs anschauen bei Problemen
+sudo journalctl -u fitness-app -f
+{"status":"healthy","timestamp":"2025-09-12T05:51:43.705Z","uptime":13.539570956}{"status":"healthy","timestamp":"2025-09-12T05:51:43.749Z","uptime":13.583766858}Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:  internalQuery: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       where: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:      schema: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       table: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:    dataType: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:  constraint: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:        file: "aclchk.c",
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:     routine: "aclcheck_error",
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:        code: "42501"
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       at <anonymous> (/var/www/fitness-app/node_modules/pg-pool/index.js:45:11)
+^C
+root@FUNCTIONAL-APP:/var/www/fitness-app# 

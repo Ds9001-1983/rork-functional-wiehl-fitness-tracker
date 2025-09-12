@@ -1,0 +1,47 @@
+sudo journalctl -u fitness-app -f
+{"status":"healthy","timestamp":"2025-09-12T05:51:43.705Z","uptime":13.539570956}{"status":"healthy","timestamp":"2025-09-12T05:51:43.749Z","uptime":13.583766858}Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:  internalQuery: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       where: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:      schema: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       table: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:    dataType: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:  constraint: undefined,
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:        file: "aclchk.c",
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:     routine: "aclcheck_error",
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:        code: "42501"
+Sep 12 05:51:30 FUNCTIONAL-APP bun[888637]:       at <anonymous> (/var/www/fitness-app/node_modules/pg-pool/index.js:45:11)
+^C
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Git Merge-Strategie setzen und nochmal pullen
+cd /var/www/fitness-app
+git config pull.rebase false
+git pull origin main
+From https://github.com/Ds9001-1983/rork-functional-wiehl-fitness-tracker
+ * branch            main       -> FETCH_HEAD
+Merge made by the 'ort' strategy.
+ attached_assets/Pasted--6-Umgebungsvariablen-einrichten-nano-env-fatal-destination-path-fitness-app-already-exists-an-1757610790225_1757610790225.txt |  66 +++++++++++++++++++++++++++++
+ .../Pasted-Sep-11-17-12-25-FUNCTIONAL-APP-systemd-3518115-fitness-app-service-Failed-to-execute-root-bun-b-1757611453944_1757611453944.txt            |  49 ++++++++++++++++++++++
+ deploy-to-hetzner.sh                                                                                                                                  | 184 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 299 insertions(+)
+ create mode 100644 attached_assets/Pasted--6-Umgebungsvariablen-einrichten-nano-env-fatal-destination-path-fitness-app-already-exists-an-1757610790225_1757610790225.txt
+ create mode 100644 attached_assets/Pasted-Sep-11-17-12-25-FUNCTIONAL-APP-systemd-3518115-fitness-app-service-Failed-to-execute-root-bun-b-1757611453944_1757611453944.txt
+ create mode 100644 deploy-to-hetzner.sh
+root@FUNCTIONAL-APP:/var/www/fitness-app# git pull origin main --no-edit
+From https://github.com/Ds9001-1983/rork-functional-wiehl-fitness-tracker
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Service neu starten
+sudo systemctl restart fitness-app
+
+# Status prüfen
+sudo systemctl status fitness-app
+● fitness-app.service - Functional Wiehl Fitness Tracker
+     Loaded: loaded (/etc/systemd/system/fitness-app.service; enabled; vendor preset: enabled)
+     Active: active (running) since Fri 2025-09-12 05:55:06 UTC; 11ms ago
+   Main PID: 896070 (bun)
+      Tasks: 5 (limit: 9250)
+     Memory: 5.6M
+        CPU: 10ms
+     CGroup: /system.slice/fitness-app.service
+             └─896070 /root/.bun/bin/bun run backend-server.ts
+
+Sep 12 05:55:06 FUNCTIONAL-APP systemd[1]: Started Functional Wiehl Fitness Tracker.
+root@FUNCTIONAL-APP:/var/www/fitness-app# 

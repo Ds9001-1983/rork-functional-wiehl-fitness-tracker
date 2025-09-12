@@ -1,0 +1,144 @@
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Schauen wir uns die Login-Route genau an
+cat /var/www/fitness-app/backend/trpc/routes/auth/login.ts | head -20
+import { z } from 'zod';
+import { publicProcedure } from '../../create-context';
+import { Pool } from 'pg';
+import bcrypt from 'bcryptjs';
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const loginProcedure = publicProcedure
+  .input(loginSchema)
+  .mutation(async ({ input }) => {
+    const { email, password } = input;
+    
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Direkter API-Test mit verschiedenen Formaten
+curl -X POST http://localhost:3000/api/trpc/auth.login \
+  -H "Content-Type: application/json" \
+  -d '{"0":{"json":{"email":"app@functional-wiehl.de","password":"trainer123"}}}'
+{"error":{"json":{"message":"[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  }\n]","code":-32600,"data":{"code":"BAD_REQroot@FUNCTIONAL-APP:/var/www/fitness-app# cd /var/www/fitness-app:/var/www/fitness-app# cd /var/www/fitness-app
+
+# Neuen Hash direkt auf dem Server generieren
+cat > fix-password.js << 'EOF'
+const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
+
+async function fixPassword() {
+  const pool = new Pool({
+    connectionString: 'postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app'
+  });
+
+  // Neuen Hash mit lokalem bcrypt generieren
+  const newHash = await bcrypt.hash('trainer123', 10);
+  console.log('Neuer Hash:', newHash);
+  
+  // In DB updaten
+  await pool.query(
+    'UPDATE users SET password = $1 WHERE email = $2',
+    [newHash, 'app@functional-wiehl.de']
+  );
+  
+  console.log('Passwort aktualisiert!');
+  
+  // Testen
+  const result = await pool.query('SELECT password FROM users WHERE email = $1', ['app@functional-wiehl.de']);
+  const isValid = await bcrypt.compare('trainer123', result.rows[0].password);
+  console.log('Test erfolgreich:', isValid);
+  
+  await pool.end();
+}
+
+fixPassword();
+EOF
+
+bun fix-password.js
+Neuer Hash: $2b$10$gSqqu49Qosc55FMehbg/LO82tMK0g5AcQO9g97ThAxRw3dXWaCh4y
+Passwort aktualisiert!
+Test erfolgreich: true
+root@FUNCTIONAL-APP:/var/www/fitness-app# sudo systemctl restart fitness-app
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Prüfen ob der User in fitness_app existiert
+sudo -u postgres psql -d fitness_app -c "SELECT id, email, role, name FROM users WHERE email = 'app@functional-wiehl.de';"
+ id |          email          |  role   |           name           
+----+-------------------------+---------+--------------------------
+  1 | app@functional-wiehl.de | trainer | Functional Wiehl Trainer
+(1 row)
+
+root@FUNCTIONAL-APP:/var/www/fitness-app# cd /var/www/fitness-app
+
+# Neuen Hash direkt auf dem Server generieren
+cat > fix-password.js << 'EOF'
+const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
+
+async function fixPassword() {
+  const pool = new Pool({
+    connectionString: 'postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app'
+  });
+
+  // Neuen Hash mit lokalem bcrypt generieren
+  const newHash = await bcrypt.hash('trainer123', 10);
+  console.log('Neuer Hash generiert:', newHash);
+  
+  // In DB updaten
+  const result = await pool.query(
+    'UPDATE users SET password = $1 WHERE email = $2 RETURNING *',
+    [newHash, 'app@functional-wiehl.de']
+  );
+  
+  if (result.rowCount > 0) {
+    console.log('✅ Passwort aktualisiert für:', result.rows[0].email);
+    
+    // Testen
+    const testResult = await pool.query('SELECT password FROM users WHERE email = $1', ['app@functional-wiehl.de']);
+    const isValid = await bcrypt.compare('trainer123', testResult.rows[0].password);
+    console.log('✅ Login-Test erfolgreich:', isValid);
+  } else {
+    console.log('❌ User nicht gefunden!');
+  }
+  
+  await pool.end();
+}
+
+fixPassword().catch(console.error);
+EOF
+
+bun fix-password.js
+Neuer Hash generiert: $2b$10$kOTzyJnfBfmBbQg/NutUAeKqfDKtrO/p/njWGF2GCCUI9TCdUNtwq
+✅ Passwort aktualisiert für: app@functional-wiehl.de
+✅ Login-Test erfolgreich: true
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Service neu starten
+sudo systemctl restart fitness-app
+
+# Warten bis Service läuft
+sleep 3
+
+# Login testen
+curl -X POST http://localhost:3000/api/trpc/auth.login \
+  -H "Content-Type: application/json" \
+  -d '{"0":{"json":{"email":"app@functional-wiehl.de","password":"trainer123"}}}' \
+  | python3 -m json.tool
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   358  100   284  100    74  10098   2631 --:--:-- --:--:-- --:--:-- 13259
+{
+    "error": {
+        "json": {
+            "message": "[\n  {\n    \"expected\": \"object\",\n    \"code\": \"invalid_type\",\n    \"path\": [],\n    \"message\": \"Invalid input: expected object, received undefined\"\n  }\n]",
+            "code": -32600,
+            "data": {
+                "code": "BAD_REQUEST",
+                "httpStatus": 400,
+                "path": "auth.login"
+            }
+        }
+    }
+}
+root@FUNCTIONAL-APP:/var/www/fitness-app# 
