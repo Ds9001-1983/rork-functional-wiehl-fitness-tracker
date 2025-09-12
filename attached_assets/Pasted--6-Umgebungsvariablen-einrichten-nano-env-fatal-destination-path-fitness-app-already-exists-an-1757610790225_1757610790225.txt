@@ -1,0 +1,66 @@
+# 6. Umgebungsvariablen einrichten
+nano .env
+fatal: destination path 'fitness-app' already exists and is not an empty directory.
+######################################################################## 100.0%
+bun was installed successfully to ~/.bun/bin/bun 
+Run 'bun --help' to get started
+error: Bun could not find a package.json file to install from
+note: Run "bun init" to initialize a project
+root@FUNCTIONAL-APP:/var/www/fitness-app# # PostgreSQL installieren
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Datenbank und Benutzer erstellen
+sudo -u postgres psql
+
+CREATE DATABASE fitness_tracker;
+CREATE USER fitness_user WITH PASSWORD 'IHR_SICHERES_PASSWORT';
+GRANT ALL PRIVILEGES ON DATABASE fitness_tracker TO fitness_user;
+\q
+
+# Schema initialisieren (im App-Verzeichnis)
+bun run db:push --force
+Hit:1 https://mirror.hetzner.com/ubuntu/packages jammy InRelease
+Get:2 https://mirror.hetzner.com/ubuntu/packages jammy-updates InRelease [128 kB]
+Get:3 https://mirror.hetzner.com/ubuntu/packages jammy-backports InRelease [127 kB]
+Get:4 https://mirror.hetzner.com/ubuntu/security jammy-security InRelease [129 kB]
+Hit:5 https://deb.nodesource.com/node_20.x nodistro InRelease
+Get:6 https://mirror.hetzner.com/ubuntu/packages jammy-updates/main amd64 Packages [2,886 kB]
+Get:7 https://mirror.hetzner.com/ubuntu/packages jammy-updates/main amd64 c-n-f Metadata [18.9 kB]
+Get:8 https://mirror.hetzner.com/ubuntu/packages jammy-updates/universe amd64 Packages [1,231 kB]
+Get:9 https://mirror.hetzner.com/ubuntu/packages jammy-updates/universe amd64 c-n-f Metadata [29.5 kB]
+Fetched 4,550 kB in 1s (7,368 kB/s)                        
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+1 package can be upgraded. Run 'apt list --upgradable' to see it.
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+postgresql is already the newest version (14+238).
+postgresql-contrib is already the newest version (14+238).
+0 upgraded, 0 newly installed, 0 to remove and 1 not upgraded.
+psql (14.19 (Ubuntu 14.19-0ubuntu0.22.04.1))
+Type "help" for help.
+
+postgres=# exit
+CREATE: command not found
+CREATE: command not found
+GRANT: command not found
+Command 'q' not found, but can be installed with:
+snap install q                       # version 1.6.3-1, or
+apt  install python3-q-text-as-data  # version 3.1.6-1
+See 'snap info q' for additional versions.
+error: Script not found "db:push"
+root@FUNCTIONAL-APP:/var/www/fitness-app# sudo nano /etc/systemd/system/fitness-app.service
+root@FUNCTIONAL-APP:/var/www/fitness-app# sudo systemctl enable fitness-app
+sudo systemctl start fitness-app
+sudo systemctl status fitness-app
+Created symlink /etc/systemd/system/multi-user.target.wants/fitness-app.service → /etc/systemd/system/fitness-app.service.
+● fitness-app.service - Functional Wiehl Fitness Tracker
+     Loaded: loaded (/etc/systemd/system/fitness-app.service; enabled; vendor p>
+     Active: activating (auto-restart) (Result: exit-code) since Thu 2025-09-11>
+    Process: 3518073 ExecStart=/root/.bun/bin/bun run backend-server.ts (code=e>
+   Main PID: 3518073 (code=exited, status=203/EXEC)
+        CPU: 1ms
+lines 1-6/6 (END)

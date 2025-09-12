@@ -1,0 +1,49 @@
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[3518115]: fitness-app.service: Failed to execute /root/.bun/bin/bun: Permission denied
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[3518115]: fitness-app.service: Failed at step EXEC spawning /root/.bun/bin/bun: Permission denied
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: fitness-app.service: Main process exited, code=exited, status=203/EXEC
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: fitness-app.service: Failed with result 'exit-code'.
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: fitness-app.service: Scheduled restart job, restart counter is at 5.
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: Stopped Functional Wiehl Fitness Tracker.
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: fitness-app.service: Start request repeated too quickly.
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: fitness-app.service: Failed with result 'exit-code'.
+Sep 11 17:12:25 FUNCTIONAL-APP systemd[1]: Failed to start Functional Wiehl Fitness Tracker.
+Sep 11 17:23:19 FUNCTIONAL-APP systemd[1]: Started Functional Wiehl Fitness Tracker.
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: [Storage] Initializing storage system...
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: [Debug] BACKEND_PORT env var: 3000
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: [Debug] Final port: 3000
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 📁 Serving web build from web-build/
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 🚀 Server starting on port 3000
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 📊 Environment: production
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 🔗 CORS Origin: https://app.functional-wiehl.de
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 💾 Database: Connected
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: ✅ Server is running on http://localhost:3000
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 🌐 API available at http://localhost:3000/api
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 🏥 Health check: http://localhost:3000/health
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: Started server: http://localhost:3000
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: [Storage] ✅ PostgreSQL connected successfully
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: [Storage] ❌ Failed to initialize tables: 40 |     res = resolve
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 41 |     rej = reject
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 42 |   }).catch((err) => {
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 43 |     // replace the stack trace that leads to `TCP.onStreamRead` with one that leads back to the
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 44 |     // application that created the query
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: 45 |     Error.captureStackTrace(err)
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:                ^
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]: error: permission denied for table users
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:      length: 93,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:    severity: "ERROR",
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:      detail: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:        hint: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:    position: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:  internalPosition: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:  internalQuery: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:       where: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:      schema: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:       table: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:    dataType: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:  constraint: undefined,
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:        file: "aclchk.c",
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:     routine: "aclcheck_error",
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:        code: "42501"
+Sep 11 17:23:19 FUNCTIONAL-APP bun[3540567]:       at <anonymous> (/var/www/fitness-app/node_modules/pg-pool/index.js:45:11)
+~
