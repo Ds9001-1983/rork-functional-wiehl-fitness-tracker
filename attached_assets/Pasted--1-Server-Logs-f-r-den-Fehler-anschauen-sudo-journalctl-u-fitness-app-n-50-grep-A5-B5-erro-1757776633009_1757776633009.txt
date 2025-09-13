@@ -1,0 +1,60 @@
+# 1. Server-Logs für den Fehler anschauen:
+sudo journalctl -u fitness-app -n 50 | grep -A5 -B5 "error\|Error\|500"
+
+# 2. Prüfen ob die Datenbank-Verbindung funktioniert:
+sudo -u postgres psql fitness_app -c "SELECT id, email, password IS NOT NULL as has_password FROM users WHERE email = 'app@functional-wiehl.de';"
+
+# 3. API direkt testen mit mehr Details:
+curl -v -X POST https://app.functional-wiehl.de/api/trpc/auth.login \
+  -H 'Content-Type: application/json' \
+  -d '{"json":{"email":"app@functional-wiehl.de","password":"trainer123"}}' 2>&1 | grep -E "HTTP|error|success"
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Comparing password...
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Password comparison result: false
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Invalid password for user: app@functional-wiehl.de
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Provided password: trainer123
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Stored hash exists: true
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Login error: INVALID_PASSWORD
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [Server] Full error: 51 |
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: 52 |       if (!isValidPassword) {
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: 53 |         console.log('[Server] Invalid password for user:', email);
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: 54 |         console.log('[Server] Provided password:', password);
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: 55 |         console.log('[Server] Stored hash exists:', !!user.password);
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: 56 |         throw new Error('INVALID_PASSWORD');
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]:                    ^
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: error: INVALID_PASSWORD
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]:       at <anonymous> (/var/www/fitness-app/backend/trpc/routes/auth/login.ts:56:15)
+Sep 13 15:14:16 FUNCTIONAL-APP bun[828059]: [tRPC] Error on procedure: auth.login INVALID_PASSWORD
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Login attempt for: app@functional-wiehl.de
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Password provided: Yes
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Database query result: 1 users found
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Found user: {
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]:   id: 1,
+--
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Comparing password...
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Password comparison result: false
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Invalid password for user: app@functional-wiehl.de
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Provided password: trainer123
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Stored hash exists: true
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Login error: INVALID_PASSWORD
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [Server] Full error: 51 |
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: 52 |       if (!isValidPassword) {
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: 53 |         console.log('[Server] Invalid password for user:', email);
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: 54 |         console.log('[Server] Provided password:', password);
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: 55 |         console.log('[Server] Stored hash exists:', !!user.password);
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: 56 |         throw new Error('INVALID_PASSWORD');
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]:                    ^
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: error: INVALID_PASSWORD
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]:       at <anonymous> (/var/www/fitness-app/backend/trpc/routes/auth/login.ts:56:15)
+Sep 13 15:15:18 FUNCTIONAL-APP bun[828059]: [tRPC] Error on procedure: auth.login INVALID_PASSWORD
+ id |          email          | has_password 
+----+-------------------------+--------------
+  1 | app@functional-wiehl.de | t
+(1 row)
+
+* Using HTTP2, server supports multiplexing
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+> POST /api/trpc/auth.login HTTP/2
+< HTTP/2 500 
+{"error":{"json":{"message":"INVALID_PASSWORD","code":-32603,"data":{"code":"INTERNAL_SERVER_ERROR","httpStatus":500,"path":"auth.login"}}}}
+root@FUNCTIONAL-APP:/var/www/fitness-app# 
