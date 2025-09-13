@@ -1,0 +1,56 @@
+root@FUNCTIONAL-APP:/var/www/fitness-app# # Status des Services prüfen:
+sudo systemctl status fitness-app
+
+# Logs anschauen für Fehlerdetails:
+sudo journalctl -u fitness-app -n 30
+● fitness-app.service - Functional Wiehl Fitness Tracker
+     Loaded: loaded (/etc/systemd/system/fitness-app.service; enabled; vendor preset: enabled)
+     Active: active (running) since Fri 2025-09-12 06:42:40 UTC; 3min 39s ago
+   Main PID: 994158 (bun)
+      Tasks: 5 (limit: 9250)
+     Memory: 32.8M
+        CPU: 290ms
+     CGroup: /system.slice/fitness-app.service
+             └─994158 /root/.bun/bin/bun run backend-server.ts
+
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 📊 Environment: production
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🔗 CORS Origin: https://app.functional-wiehl.de
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 💾 Database: Connected
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: ✅ Server is running on http://localhost:3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🌐 API available at http://localhost:3000/api
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🏥 Health check: http://localhost:3000/health
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: Started server: http://localhost:3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ PostgreSQL connected successfully
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ Database tables initialized
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 🚀 Server starting on port 3000
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 📊 Environment: production
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 🔗 CORS Origin: https://app.functional-wiehl.de
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 💾 Database: Connected
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: ✅ Server is running on http://localhost:3000
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 🌐 API available at http://localhost:3000/api
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: 🏥 Health check: http://localhost:3000/health
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: Started server: http://localhost:3000
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: [Storage] ✅ PostgreSQL connected successfully
+Sep 12 06:41:13 FUNCTIONAL-APP bun[991175]: [Storage] ✅ Database tables initialized
+Sep 12 06:42:40 FUNCTIONAL-APP systemd[1]: Stopping Functional Wiehl Fitness Tracker...
+Sep 12 06:42:40 FUNCTIONAL-APP systemd[1]: fitness-app.service: Deactivated successfully.
+Sep 12 06:42:40 FUNCTIONAL-APP systemd[1]: Stopped Functional Wiehl Fitness Tracker.
+Sep 12 06:42:40 FUNCTIONAL-APP systemd[1]: Started Functional Wiehl Fitness Tracker.
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] Initializing storage system...
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Debug] BACKEND_PORT env var: 3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Debug] Final port: 3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 📁 Serving web build from web-build/
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🚀 Server starting on port 3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 📊 Environment: production
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🔗 CORS Origin: https://app.functional-wiehl.de
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 💾 Database: Connected
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: ✅ Server is running on http://localhost:3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🌐 API available at http://localhost:3000/api
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🔧 tRPC endpoint: http://localhost:3000/api/trpc
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: 🏥 Health check: http://localhost:3000/health
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: Started server: http://localhost:3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ PostgreSQL connected successfully
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ Database tables initialized
+root@FUNCTIONAL-APP:/var/www/fitness-app# 
