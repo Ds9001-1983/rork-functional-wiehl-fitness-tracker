@@ -13,14 +13,14 @@ app.use('/*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
-// tRPC handler (mounted under /api in server.js, so this becomes /api/trpc/*)
+// tRPC handler (mounted under /api in backend-server.ts, so this becomes /api/trpc/*)
 app.use('/trpc/*', trpcServer({
   router: appRouter,
   createContext: (opts: any) => createContext(opts),
   onError: ({ error, path }: { error: any; path: any }) => {
-    console.error('[tRPC] ✅ Request to procedure:', path);
+    console.error('[tRPC] Error on procedure:', path, error.message);
   },
-  endpoint: '/trpc',  // Must be /trpc since app is mounted under /api
+  endpoint: '/api/trpc',  // Tell tRPC where it's mounted in the full URL path
 }));
 
 // Healthcheck
