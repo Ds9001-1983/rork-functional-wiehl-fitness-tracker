@@ -20,7 +20,7 @@ app.use('/trpc/*', trpcServer({
   onError: ({ error, path }: { error: any; path: any }) => {
     console.error('[tRPC] ✅ Request to procedure:', path);
   },
-  endpoint: '/api/trpc',  // CRITICAL: Must match full path including /api mount
+  endpoint: '/trpc',  // Must be /trpc since app is mounted under /api
 }));
 
 // Healthcheck
