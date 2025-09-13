@@ -1,0 +1,10 @@
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: Started server: http://localhost:3000
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ PostgreSQL connected successfully
+Sep 12 06:42:40 FUNCTIONAL-APP bun[994158]: [Storage] ✅ Database tables initialized
+Sep 13 14:32:59 FUNCTIONAL-APP bun[994158]: [tRPC] ✅ Request to procedure: trpc/auth.login
+Sep 13 14:33:03 FUNCTIONAL-APP bun[994158]: [tRPC] ✅ Request to procedure: trpc/auth.login
+Sep 13 14:39:46 FUNCTIONAL-APP systemd[1]: Stopping Functional Wiehl Fitness Tracker...
+Sep 13 14:39:46 FUNCTIONAL-APP systemd[1]: fitness-app.service: Deactivated successfully.
+Sep 13 14:39:46 FUNCTIONAL-APP systemd[1]: Stopped Functional Wiehl Fitness Tracker.
+Sep 13 14:39:46 FUNCTIONAL-APP systemd[1]: fitness-app.service: Consumed 10.042s CPU time.
+Sep 13 14:39:46 FUNCTIONAL-APP systemd[1]: Started Functional Wiehl Fitness Tracker.
