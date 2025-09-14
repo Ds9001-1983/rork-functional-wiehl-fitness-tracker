@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Functional Wiehl - Fitness Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c00;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #060;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .dashboard {
+            display: none;
+        }
+        .user-info {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .menu-item {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .menu-item:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginForm">
+            <div class="logo">
+                <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="60" height="60" rx="12" fill="url(#gradient)"/>
+                    <path d="M20 30h20M30 20v20" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="0" y1="0" x2="60" y2="60">
+                            <stop stop-color="#667eea"/>
+                            <stop offset="1" stop-color="#764ba2"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1>Functional Wiehl</h1>
+            <p class="subtitle">Dein digitaler Trainingspartner</p>
+            
+            <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
+            
+            <form id="loginFormElement">
+                <div class="form-group">
+                    <label for="email">E-Mail</label>
+                    <input type="email" id="email" value="app@functional-wiehl.de" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Passwort</label>
+                    <input type="password" id="password" value="trainer123" required>
+                </div>
+                <button type="submit" id="loginButton">Anmelden</button>
+            </form>
+        </div>
+        
+        <div id="dashboard" class="dashboard">
+            <h1>Trainer Dashboard</h1>
+            <div id="userInfo" class="user-info"></div>
+            <div class="menu-item" onclick="alert('Kunden-Verwaltung wird geladen...')">
+                👥 Kunden verwalten
+            </div>
+            <div class="menu-item" onclick="alert('Trainingseinheiten wird geladen...')">
+                💪 Trainingseinheiten
+            </div>
+            <div class="menu-item" onclick="alert('Fortschritte wird geladen...')">
+                📊 Fortschritte anzeigen
+            </div>
+            <div class="menu-item" onclick="logout()">
+                🚪 Abmelden
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://app.functional-wiehl.de/api/trpc';
+        
+        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const button = document.getElementById('loginButton');
+            const errorDiv = document.getElementById('error');
+            const successDiv = document.getElementById('success');
+            
+            // Reset messages
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            button.disabled = true;
+            button.textContent = 'Anmeldung läuft...';
+            
+            try {
+                console.log('Sending login request to:', API_URL + '/auth.login');
+                const response = await fetch(API_URL + '/auth.login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        json: { email, password }
+                    })
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.result?.data?.json?.success) {
+                    // Login successful
+                    successDiv.textContent = 'Erfolgreich angemeldet!';
+                    successDiv.style.display = 'block';
+                    
+                    // Store user data
+                    localStorage.setItem('user', JSON.stringify(data.result.data.json.user));
+                    
+                    // Show dashboard
+                    setTimeout(() => {
+                        document.getElementById('loginForm').style.display = 'none';
+                        document.getElementById('dashboard').style.display = 'block';
+                        document.getElementById('userInfo').innerHTML = `
+                            <strong>Willkommen, ${data.result.data.json.user.name}!</strong><br>
+                            E-Mail: ${data.result.data.json.user.email}<br>
+                            Rolle: ${data.result.data.json.user.role}
+                        `;
+                    }, 1000);
+                } else {
+                    // Login failed
+                    const errorMessage = data.error?.json?.message || 'Anmeldung fehlgeschlagen';
+                    errorDiv.textContent = 'Fehler: ' + errorMessage;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'Netzwerkfehler: ' + error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Anmelden';
+            }
+        });
+        
+        function logout() {
+            localStorage.removeItem('user');
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('success').textContent = 'Erfolgreich abgemeldet';
+            document.getElementById('success').style.display = 'block';
+        }
+        
+        // Check if already logged in
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('userInfo').innerHTML = `
+                <strong>Willkommen zurück, ${user.name}!</strong><br>
+                E-Mail: ${user.email}<br>
+                Rolle: ${user.role}
+            `;
+        }
+    </script>
+</body>
+</html>
