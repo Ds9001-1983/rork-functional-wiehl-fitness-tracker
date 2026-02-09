@@ -5,7 +5,11 @@
   "scripts": {
     "start": "bunx rork start -p u2isdzzpvkfpkfvw4dy7l --tunnel",
     "start-web": "bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel"
+    "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel",
+    "server": "bun backend-server.ts",
+    "test": "bun test __tests__/",
+    "build-web": "bunx expo export --platform web",
+    "deploy": "bash deploy.sh"
   },
   "dependencies": {
     "@expo/cli": "^54.0.1",

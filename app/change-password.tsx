@@ -54,7 +54,7 @@ export default function ChangePasswordScreen() {
 
     setIsLoading(true);
     try {
-      await updatePassword(newPassword);
+      await updatePassword(currentPassword, newPassword);
       
       Alert.alert(
         'Passwort geändert! 🎉',

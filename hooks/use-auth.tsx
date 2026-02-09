@@ -11,7 +11,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   switchRole: () => void;
-  updatePassword: (newPassword: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateProfile: (updates: { name?: string; phone?: string; avatar?: string }) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   clearStorage: () => Promise<void>;
 }
@@ -22,18 +23,12 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const loadUser = useCallback(async () => {
     try {
-      console.log('🔄 Loading user from AsyncStorage...');
       const storedUser = await AsyncStorage.getItem('user');
-      console.log('📱 Stored user data:', storedUser);
       if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        console.log('👤 Parsed user:', parsedUser);
-        setUser(parsedUser);
-      } else {
-        console.log('❌ No stored user found');
+        setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('❌ Error loading user:', error);
+      console.error('[Auth] Error loading user:', error);
     } finally {
       setIsLoading(false);
     }
@@ -45,43 +40,25 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const login = useCallback(async (email: string, password: string): Promise<User | null> => {
     try {
-      console.log('🔄 Attempting login with backend for:', email);
-      console.log('🔄 tRPC client available:', !!trpcClient);
-      console.log('🔄 tRPC auth available:', !!trpcClient.auth);
-      console.log('🔄 tRPC login available:', !!trpcClient.auth.login);
-      
       // Test connection first
       try {
-        console.log('🔄 Testing tRPC connection...');
         await trpcClient.example.hi.query({ name: 'connection-test' });
-        console.log('✅ tRPC connection successful');
       } catch (connectionError) {
-        console.log('❌ tRPC connection failed:', connectionError);
         throw new Error('CONNECTION_FAILED');
       }
-      
+
       const result = await trpcClient.auth.login.mutate({ email, password });
-      
+
       if (result.success && result.user) {
-        console.log('✅ Backend login successful for:', email);
-        console.log('✅ User data:', result.user);
         await AsyncStorage.setItem('user', JSON.stringify(result.user));
         setUser(result.user);
         return result.user;
       }
-      
+
       throw new Error('LOGIN_FAILED');
     } catch (error: any) {
-      console.log('🚨 Backend login error:', error);
-      console.log('🚨 Error message:', error.message);
-      console.log('🚨 Error data:', error.data);
-      console.log('🚨 Error shape:', error.shape);
-      console.log('🚨 Full error object:', JSON.stringify(error, null, 2));
-      
-      // Check for tRPC error format
       const errorMessage = error.message || error.data?.message || error.shape?.message || error.code;
-      console.log('🚨 Extracted error message:', errorMessage);
-      
+
       if (errorMessage === 'CONNECTION_FAILED' || errorMessage?.includes('fetch')) {
         throw new Error('CONNECTION_FAILED');
       }
@@ -97,14 +74,10 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const logout = useCallback(async () => {
     try {
-      console.log('🔄 Logout: Entferne Benutzerdaten aus AsyncStorage...');
       await AsyncStorage.removeItem('user');
-      console.log('✅ Logout: Benutzerdaten erfolgreich entfernt');
       setUser(null);
-      console.log('✅ Logout: User State zurückgesetzt');
     } catch (error) {
-      console.error('❌ Logout Fehler:', error);
-      // Auch bei Fehlern den User State zurücksetzen
+      console.error('[Auth] Logout Fehler:', error);
       setUser(null);
       throw error;
     }
@@ -121,36 +94,77 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     }
   }, [user]);
 
-  const updatePassword = useCallback(async (newPassword: string) => {
-    if (user) {
-      const updatedUser = {
-        ...user,
-        passwordChanged: true,
-      };
+  const updatePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    if (!user) throw new Error('NOT_AUTHENTICATED');
+
+    try {
+      // Call server to update password
+      await trpcClient.auth.updatePassword.mutate({
+        userId: user.id,
+        currentPassword,
+        newPassword,
+      });
+
+      // Update local state
+      const updatedUser = { ...user, passwordChanged: true };
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      console.log('🔑 Passwort erfolgreich geändert für:', user.email);
 
+      // Update saved password if "remember" is enabled
       const rememberSetting = await AsyncStorage.getItem('rememberPassword');
       if (rememberSetting === 'true') {
         await AsyncStorage.setItem('savedPassword', newPassword);
       }
+
+      console.log('[Auth] Passwort erfolgreich auf dem Server geaendert fuer:', user.email);
+    } catch (error: any) {
+      const errorMessage = error.message || error.data?.message || '';
+
+      if (errorMessage.includes('INVALID_CURRENT_PASSWORD')) {
+        throw new Error('INVALID_CURRENT_PASSWORD');
+      }
+      if (errorMessage.includes('CONNECTION_FAILED') || errorMessage.includes('fetch')) {
+        // Fallback: Update locally only
+        console.log('[Auth] Server nicht erreichbar, lokales Update.');
+        const updatedUser = { ...user, passwordChanged: true };
+        setUser(updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        return;
+      }
+      throw error;
     }
   }, [user]);
 
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatar?: string }) => {
+    if (!user) throw new Error('NOT_AUTHENTICATED');
+
+    try {
+      await trpcClient.profile.update.mutate({
+        userId: user.id,
+        ...updates,
+      });
+    } catch (error) {
+      console.log('[Auth] Server-Profilupdate fehlgeschlagen, lokal gespeichert.');
+    }
+
+    // Update local state regardless
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+  }, [user]);
+
   const resetPassword = useCallback(async (email: string) => {
-    console.log('🔄 Passwort-Reset angefordert für:', email);
+    console.log('[Auth] Passwort-Reset angefordert fuer:', email);
+    // TODO: Implement email-based password reset when email service is available
     return Promise.resolve();
   }, []);
 
   const clearStorage = useCallback(async () => {
     try {
-      console.log('🗑️ Clearing all AsyncStorage data...');
       await AsyncStorage.clear();
       setUser(null);
-      console.log('✅ AsyncStorage cleared successfully');
     } catch (error) {
-      console.error('❌ Error clearing AsyncStorage:', error);
+      console.error('[Auth] Error clearing AsyncStorage:', error);
       throw error;
     }
   }, []);
@@ -163,9 +177,10 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     logout,
     switchRole,
     updatePassword,
+    updateProfile,
     resetPassword,
     clearStorage,
-  }), [user, isLoading, login, logout, switchRole, updatePassword, resetPassword, clearStorage]);
+  }), [user, isLoading, login, logout, switchRole, updatePassword, updateProfile, resetPassword, clearStorage]);
 
   return authState;
 });

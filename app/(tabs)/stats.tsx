@@ -5,15 +5,16 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { TrendingUp, Award, Target, Activity } from 'lucide-react-native';
+import { TrendingUp, Award, Target, Activity, Trophy } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { StatsCard } from '@/components/StatsCard';
+import { exercises as exerciseDatabase } from '@/data/exercises';
 
 export default function StatsScreen() {
   const { user } = useAuth();
-  const { setCurrentUserId, getWorkoutHistory } = useWorkouts();
+  const { setCurrentUserId, getWorkoutHistory, getPersonalRecords } = useWorkouts();
 
   useEffect(() => {
     if (user?.id) {
@@ -22,7 +23,8 @@ export default function StatsScreen() {
   }, [user?.id, setCurrentUserId]);
 
   const userWorkouts = getWorkoutHistory();
-  
+  const personalRecords = getPersonalRecords();
+
   const totalVolume = userWorkouts.reduce((total, workout) => {
     return total + workout.exercises.reduce((wTotal, exercise) => {
       return wTotal + exercise.sets.reduce((eTotal, set) => {
@@ -40,6 +42,18 @@ export default function StatsScreen() {
   const avgWorkoutDuration = userWorkouts.length > 0
     ? userWorkouts.reduce((total, w) => total + (w.duration || 0), 0) / userWorkouts.length / 60000
     : 0;
+
+  // Map exercise IDs to German names
+  const getExerciseName = (exerciseId: string): string => {
+    const exercise = exerciseDatabase.find(e => e.id === exerciseId);
+    return exercise?.name || exerciseId;
+  };
+
+  // Sort records by weight descending
+  const sortedRecords = Object.entries(personalRecords)
+    .sort(([, a], [, b]) => b - a);
+
+  const hasRecords = sortedRecords.length > 0;
 
   return (
     <View style={styles.container}>
@@ -63,13 +77,13 @@ export default function StatsScreen() {
             color={Colors.success}
           />
           <StatsCard
-            title="Gesamt Sätze"
+            title="Gesamt Saetze"
             value={totalSets}
             icon={<Target size={20} color={Colors.warning} />}
             color={Colors.warning}
           />
           <StatsCard
-            title="Ø Dauer"
+            title="Durchschn. Dauer"
             value={`${avgWorkoutDuration.toFixed(0)}min`}
             icon={<Award size={20} color={Colors.error} />}
             color={Colors.error}
@@ -77,7 +91,7 @@ export default function StatsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Wöchentlicher Fortschritt</Text>
+          <Text style={styles.sectionTitleStandalone}>Woechentlicher Fortschritt</Text>
           <View style={styles.weekChart}>
             {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
               const dayWorkouts = userWorkouts.filter(w => {
@@ -85,11 +99,11 @@ export default function StatsScreen() {
                 return workoutDay === (index + 1) % 7;
               });
               const height = Math.min(100, dayWorkouts.length * 30);
-              
+
               return (
                 <View key={`${day}-${index}`} style={styles.dayColumn}>
                   <View style={styles.barContainer}>
-                    <View style={[styles.bar, { height }]} />
+                    <View style={[styles.bar, { height: Math.max(height, 2) }]} />
                   </View>
                   <Text style={styles.dayLabel}>{day}</Text>
                 </View>
@@ -99,21 +113,38 @@ export default function StatsScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Persönliche Bestleistungen</Text>
-          <View style={styles.recordsList}>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Bankdrücken</Text>
-              <Text style={styles.recordValue}>100 kg</Text>
-            </View>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Kniebeuge</Text>
-              <Text style={styles.recordValue}>120 kg</Text>
-            </View>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Kreuzheben</Text>
-              <Text style={styles.recordValue}>140 kg</Text>
-            </View>
+          <View style={styles.sectionHeader}>
+            <Trophy size={20} color={Colors.accent} />
+            <Text style={styles.sectionTitle}>Persoenliche Bestleistungen</Text>
           </View>
+
+          {hasRecords ? (
+            <View style={styles.recordsList}>
+              {sortedRecords.map(([exerciseId, weight], index) => (
+                <View
+                  key={exerciseId}
+                  style={[
+                    styles.recordItem,
+                    index === sortedRecords.length - 1 && styles.recordItemLast,
+                  ]}
+                >
+                  <View style={styles.recordLeft}>
+                    <Text style={styles.recordRank}>#{index + 1}</Text>
+                    <Text style={styles.recordName}>{getExerciseName(exerciseId)}</Text>
+                  </View>
+                  <Text style={styles.recordValue}>{weight} kg</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyRecords}>
+              <Trophy size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyText}>Noch keine Bestleistungen</Text>
+              <Text style={styles.emptySubtext}>
+                Schliesse Workouts ab, um deine persoenlichen Rekorde zu tracken!
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -150,7 +181,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.xl,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
   sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  sectionTitleStandalone: {
     fontSize: 20,
     fontWeight: '600' as const,
     color: Colors.text,
@@ -193,17 +235,53 @@ const styles = StyleSheet.create({
   recordItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
+  recordItemLast: {
+    borderBottomWidth: 0,
+  },
+  recordLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  recordRank: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.accent,
+    width: 30,
+  },
   recordName: {
     fontSize: 16,
     color: Colors.text,
+    flex: 1,
   },
   recordValue: {
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.accent,
+  },
+  emptyRecords: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
   },
 });
