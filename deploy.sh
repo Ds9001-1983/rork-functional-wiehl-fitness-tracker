@@ -41,15 +41,22 @@ bun install
 echo "[3/7] Running tests..."
 bun test __tests__/ || echo "  Warning: Some tests failed (continuing...)"
 
+# Patch metro exports for Node.js 22 compatibility
+echo "[4/8] Patching metro exports..."
+node scripts/patch-metro-exports.js
+
 # Build web version
-echo "[4/7] Building web version..."
+echo "[5/8] Building web version..."
 bunx expo export --platform web
 
 # Copy web build to nginx directory
-echo "[5/7] Deploying static files..."
-rm -rf /var/www/fitness-app/dist
-mkdir -p /var/www/fitness-app
-cp -r dist/ /var/www/fitness-app/dist/ 2>/dev/null || cp -r web-build/ /var/www/fitness-app/dist/
+echo "[6/8] Deploying static files..."
+DEPLOY_DIR=$(pwd)
+if [ "$DEPLOY_DIR" != "/var/www/fitness-app" ]; then
+    rm -rf /var/www/fitness-app/dist
+    mkdir -p /var/www/fitness-app
+    cp -r dist/ /var/www/fitness-app/dist/
+fi
 chown -R www-data:www-data /var/www/fitness-app 2>/dev/null || true
 chmod -R 755 /var/www/fitness-app
 
@@ -57,12 +64,12 @@ chmod -R 755 /var/www/fitness-app
 mkdir -p logs
 
 # Start server with PM2
-echo "[6/7] Starting API server..."
+echo "[7/8] Starting API server..."
 pm2 start ecosystem.config.js
 pm2 save
 
 # Reload nginx
-echo "[7/7] Reloading nginx..."
+echo "[8/8] Reloading nginx..."
 systemctl reload nginx 2>/dev/null || echo "  Nginx not running (ok for dev)"
 
 echo ""
