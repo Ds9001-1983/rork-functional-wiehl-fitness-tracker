@@ -1,43 +1,51 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { Workout, WorkoutPlan, WorkoutExercise, WorkoutSet } from '@/types/workout';
+import { Workout, WorkoutPlan, WorkoutExercise, WorkoutSet, Routine, calculate1RM } from '@/types/workout';
+import { exercises as exerciseDb } from '@/data/exercises';
 import { trpcClient } from '@/lib/trpc';
 
 interface WorkoutState {
   workouts: Workout[];
   workoutPlans: WorkoutPlan[];
+  routines: Routine[];
   activeWorkout: Workout | null;
   isLoading: boolean;
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
   startWorkout: (planId?: string) => void;
+  startWorkoutFromRoutine: (routine: Routine) => void;
   endWorkout: () => void;
   addExerciseToWorkout: (exerciseId: string) => void;
   updateSet: (exerciseIndex: number, setIndex: number, set: Partial<WorkoutSet>) => void;
   addSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
+  updateExerciseNotes: (exerciseIndex: number, notes: string) => void;
   saveWorkout: () => Promise<void>;
   getWorkoutHistory: () => Workout[];
   getPersonalRecords: () => Record<string, number>;
+  getDetailedRecords: () => Array<{ exerciseId: string; weight: number; reps: number; date: string; estimated1RM: number }>;
+  getExerciseHistory: (exerciseId: string) => Array<{ date: string; sets: WorkoutSet[] }>;
+  getMuscleGroupVolume: () => Record<string, number>;
   createWorkout: (workout: Omit<Workout, 'id'>) => Promise<void>;
   createWorkoutPlan: (plan: Omit<WorkoutPlan, 'id'>) => Promise<void>;
   updateWorkoutPlan: (planId: string, updatedPlan: WorkoutPlan) => Promise<void>;
   assignPlanToUser: (planId: string, userId: string) => Promise<void>;
+  saveRoutine: (routine: Omit<Routine, 'id' | 'timesUsed'>) => Promise<void>;
+  deleteRoutine: (routineId: string) => Promise<void>;
   refreshFromServer: () => Promise<void>;
 }
 
 export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(() => {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [workoutPlans, setWorkoutPlans] = useState<WorkoutPlan[]>([]);
+  const [routines, setRoutines] = useState<Routine[]>([]);
   const [activeWorkout, setActiveWorkout] = useState<Workout | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load from server first, fallback to AsyncStorage
   const loadData = useCallback(async () => {
     try {
-      // Try to load from server
       try {
         const [serverWorkouts, serverPlans] = await Promise.all([
           currentUserId
@@ -49,17 +57,11 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         setWorkouts(serverWorkouts as Workout[]);
         setWorkoutPlans(serverPlans as WorkoutPlan[]);
 
-        // Cache locally
         await Promise.all([
           AsyncStorage.setItem('workouts', JSON.stringify(serverWorkouts)),
           AsyncStorage.setItem('workoutPlans', JSON.stringify(serverPlans)),
         ]);
-
-        console.log('[Workouts] Loaded from server:', serverWorkouts.length, 'workouts,', serverPlans.length, 'plans');
       } catch (serverError) {
-        console.log('[Workouts] Server nicht erreichbar, lade aus lokalem Speicher');
-
-        // Fallback to local storage
         const [storedWorkouts, storedPlans] = await Promise.all([
           AsyncStorage.getItem('workouts'),
           AsyncStorage.getItem('workoutPlans'),
@@ -68,6 +70,9 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         if (storedWorkouts) setWorkouts(JSON.parse(storedWorkouts));
         if (storedPlans) setWorkoutPlans(JSON.parse(storedPlans));
       }
+
+      const storedRoutines = await AsyncStorage.getItem('routines');
+      if (storedRoutines) setRoutines(JSON.parse(storedRoutines));
     } catch (error) {
       console.error('[Workouts] Error loading data:', error);
     } finally {
@@ -93,10 +98,46 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       exercises: plan?.exercises || [],
       completed: false,
       userId: currentUserId || '1',
+      templateId: planId,
     };
 
     setActiveWorkout(newWorkout);
   }, [workoutPlans, currentUserId]);
+
+  const startWorkoutFromRoutine = useCallback((routine: Routine) => {
+    const newExercises: WorkoutExercise[] = routine.exercises.map(re => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      exerciseId: re.exerciseId,
+      sets: Array.from({ length: re.sets }, (_, i) => ({
+        id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+        reps: re.reps || 0,
+        weight: re.weight || 0,
+        completed: false,
+        type: 'normal' as const,
+      })),
+      notes: re.notes,
+    }));
+
+    const newWorkout: Workout = {
+      id: Date.now().toString(),
+      name: routine.name,
+      date: new Date().toISOString(),
+      exercises: newExercises,
+      completed: false,
+      userId: currentUserId || '1',
+      templateId: routine.id,
+    };
+
+    const updatedRoutines = routines.map(r =>
+      r.id === routine.id
+        ? { ...r, timesUsed: r.timesUsed + 1, lastUsed: new Date().toISOString() }
+        : r
+    );
+    setRoutines(updatedRoutines);
+    AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+
+    setActiveWorkout(newWorkout);
+  }, [routines, currentUserId]);
 
   const saveWorkout = useCallback(async () => {
     if (!activeWorkout) return;
@@ -107,7 +148,6 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       duration: Date.now() - new Date(activeWorkout.date).getTime(),
     };
 
-    // Save to server
     try {
       const serverWorkout = await trpcClient.workouts.create.mutate({
         userId: completedWorkout.userId,
@@ -118,11 +158,9 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         completed: true,
         createdBy: completedWorkout.createdBy,
       });
-      // Use server-generated ID
       completedWorkout.id = (serverWorkout as any).id || completedWorkout.id;
-      console.log('[Workouts] Workout auf Server gespeichert:', completedWorkout.id);
     } catch (error) {
-      console.log('[Workouts] Server-Speicherung fehlgeschlagen, nur lokal gespeichert');
+      // Local fallback
     }
 
     const updatedWorkouts = [...workouts, completedWorkout];
@@ -131,11 +169,8 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [activeWorkout, workouts]);
 
   const endWorkout = useCallback(() => {
-    if (activeWorkout) {
-      saveWorkout();
-    }
     setActiveWorkout(null);
-  }, [activeWorkout, saveWorkout]);
+  }, []);
 
   const addExerciseToWorkout = useCallback((exerciseId: string) => {
     if (!activeWorkout) return;
@@ -143,14 +178,13 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     const newExercise: WorkoutExercise = {
       id: Date.now().toString(),
       exerciseId,
-      sets: [
-        {
-          id: Date.now().toString(),
-          reps: 0,
-          weight: 0,
-          completed: false,
-        },
-      ],
+      sets: [{
+        id: Date.now().toString(),
+        reps: 0,
+        weight: 0,
+        completed: false,
+        type: 'normal',
+      }],
     };
 
     setActiveWorkout({
@@ -163,9 +197,11 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     if (!activeWorkout) return;
 
     const updatedExercises = [...activeWorkout.exercises];
-    updatedExercises[exerciseIndex].sets[setIndex] = {
-      ...updatedExercises[exerciseIndex].sets[setIndex],
-      ...setUpdate,
+    updatedExercises[exerciseIndex] = {
+      ...updatedExercises[exerciseIndex],
+      sets: updatedExercises[exerciseIndex].sets.map((s, i) =>
+        i === setIndex ? { ...s, ...setUpdate } : s
+      ),
     };
 
     setActiveWorkout({
@@ -178,14 +214,21 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     if (!activeWorkout) return;
 
     const updatedExercises = [...activeWorkout.exercises];
-    const lastSet = updatedExercises[exerciseIndex].sets[updatedExercises[exerciseIndex].sets.length - 1];
+    const sets = updatedExercises[exerciseIndex].sets;
+    const lastSet = sets[sets.length - 1];
 
-    updatedExercises[exerciseIndex].sets.push({
+    const newSet: WorkoutSet = {
       id: Date.now().toString(),
       reps: lastSet?.reps || 0,
       weight: lastSet?.weight || 0,
       completed: false,
-    });
+      type: 'normal',
+    };
+
+    updatedExercises[exerciseIndex] = {
+      ...updatedExercises[exerciseIndex],
+      sets: [...sets, newSet],
+    };
 
     setActiveWorkout({
       ...activeWorkout,
@@ -197,7 +240,25 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     if (!activeWorkout) return;
 
     const updatedExercises = [...activeWorkout.exercises];
-    updatedExercises[exerciseIndex].sets.splice(setIndex, 1);
+    updatedExercises[exerciseIndex] = {
+      ...updatedExercises[exerciseIndex],
+      sets: updatedExercises[exerciseIndex].sets.filter((_, i) => i !== setIndex),
+    };
+
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises,
+    });
+  }, [activeWorkout]);
+
+  const updateExerciseNotes = useCallback((exerciseIndex: number, notes: string) => {
+    if (!activeWorkout) return;
+
+    const updatedExercises = [...activeWorkout.exercises];
+    updatedExercises[exerciseIndex] = {
+      ...updatedExercises[exerciseIndex],
+      notes,
+    };
 
     setActiveWorkout({
       ...activeWorkout,
@@ -209,7 +270,6 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     return workouts.filter(w => w.userId === currentUserId);
   }, [workouts, currentUserId]);
 
-  // Calculate personal records dynamically from workout history
   const getPersonalRecords = useCallback((): Record<string, number> => {
     const records: Record<string, number> = {};
     const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
@@ -230,6 +290,74 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     return records;
   }, [workouts, currentUserId]);
 
+  const getDetailedRecords = useCallback(() => {
+    const records: Record<string, { weight: number; reps: number; date: string; estimated1RM: number }> = {};
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+
+    for (const workout of userWorkouts) {
+      for (const exercise of workout.exercises) {
+        for (const set of exercise.sets) {
+          if (set.completed && set.weight > 0) {
+            const e1rm = calculate1RM(set.weight, set.reps);
+            const current = records[exercise.exerciseId];
+            if (!current || e1rm > current.estimated1RM) {
+              records[exercise.exerciseId] = {
+                weight: set.weight,
+                reps: set.reps,
+                date: workout.date,
+                estimated1RM: e1rm,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    return Object.entries(records).map(([exerciseId, data]) => ({
+      exerciseId,
+      ...data,
+    }));
+  }, [workouts, currentUserId]);
+
+  const getExerciseHistory = useCallback((exerciseId: string) => {
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+    const history: Array<{ date: string; sets: WorkoutSet[] }> = [];
+
+    for (const workout of userWorkouts) {
+      const exercise = workout.exercises.find(e => e.exerciseId === exerciseId);
+      if (exercise) {
+        history.push({ date: workout.date, sets: exercise.sets });
+      }
+    }
+
+    return history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [workouts, currentUserId]);
+
+  const getMuscleGroupVolume = useCallback(() => {
+    const volume: Record<string, number> = {};
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    for (const workout of userWorkouts) {
+      if (new Date(workout.date) < weekAgo) continue;
+
+      for (const exercise of workout.exercises) {
+        const exData = exerciseDb.find(e => e.id === exercise.exerciseId);
+        if (!exData) continue;
+
+        const completedSets = exercise.sets.filter(s => s.completed).length;
+
+        for (const mg of exData.muscleGroups) {
+          volume[mg] = (volume[mg] || 0) + completedSets;
+        }
+      }
+    }
+
+    return volume;
+  }, [workouts, currentUserId]);
+
   const createWorkoutPlan = useCallback(async (plan: Omit<WorkoutPlan, 'id'>) => {
     let newPlan: WorkoutPlan;
 
@@ -243,9 +371,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         schedule: plan.schedule,
       });
       newPlan = serverPlan as WorkoutPlan;
-      console.log('[Workouts] Plan auf Server erstellt:', newPlan.id);
     } catch (error) {
-      console.log('[Workouts] Server-Erstellung fehlgeschlagen, lokal erstellt');
       newPlan = { ...plan, id: Date.now().toString() };
     }
 
@@ -268,9 +394,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         createdBy: workout.createdBy,
       });
       newWorkout = serverWorkout as Workout;
-      console.log('[Workouts] Workout auf Server erstellt:', newWorkout.id);
     } catch (error) {
-      console.log('[Workouts] Server-Erstellung fehlgeschlagen, lokal erstellt');
       newWorkout = { ...workout, id: Date.now().toString() };
     }
 
@@ -289,9 +413,8 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
         assignedTo: updatedPlan.assignedTo,
         schedule: updatedPlan.schedule,
       });
-      console.log('[Workouts] Plan auf Server aktualisiert:', planId);
     } catch (error) {
-      console.log('[Workouts] Server-Update fehlgeschlagen, lokal aktualisiert');
+      // Local fallback
     }
 
     const updatedPlans = workoutPlans.map(p =>
@@ -305,9 +428,8 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const assignPlanToUser = useCallback(async (planId: string, userId: string) => {
     try {
       await trpcClient.plans.assign.mutate({ planId, userId });
-      console.log('[Workouts] Plan zugewiesen:', planId, '-> User:', userId);
     } catch (error) {
-      console.log('[Workouts] Server-Zuweisung fehlgeschlagen, lokal aktualisiert');
+      // Local fallback
     }
 
     const plan = workoutPlans.find(p => p.id === planId);
@@ -326,26 +448,52 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);
 
+  const saveRoutine = useCallback(async (routine: Omit<Routine, 'id' | 'timesUsed'>) => {
+    const newRoutine: Routine = {
+      ...routine,
+      id: Date.now().toString(),
+      timesUsed: 0,
+    };
+
+    const updatedRoutines = [...routines, newRoutine];
+    setRoutines(updatedRoutines);
+    await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+  }, [routines]);
+
+  const deleteRoutine = useCallback(async (routineId: string) => {
+    const updatedRoutines = routines.filter(r => r.id !== routineId);
+    setRoutines(updatedRoutines);
+    await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+  }, [routines]);
+
   return useMemo(() => ({
     workouts,
     workoutPlans,
+    routines,
     activeWorkout,
     isLoading,
     currentUserId,
     setCurrentUserId,
     startWorkout,
+    startWorkoutFromRoutine,
     endWorkout,
     addExerciseToWorkout,
     updateSet,
     addSet,
     removeSet,
+    updateExerciseNotes,
     saveWorkout,
     getWorkoutHistory,
     getPersonalRecords,
+    getDetailedRecords,
+    getExerciseHistory,
+    getMuscleGroupVolume,
     createWorkout,
     createWorkoutPlan,
     updateWorkoutPlan,
     assignPlanToUser,
+    saveRoutine,
+    deleteRoutine,
     refreshFromServer,
-  }), [workouts, workoutPlans, activeWorkout, isLoading, currentUserId, startWorkout, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, saveWorkout, getWorkoutHistory, getPersonalRecords, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, refreshFromServer]);
+  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, refreshFromServer]);
 });

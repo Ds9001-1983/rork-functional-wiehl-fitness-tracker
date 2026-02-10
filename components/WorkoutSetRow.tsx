@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { Check, X, ChevronUp, ChevronDown } from 'lucide-react-native';
-import { WorkoutSet } from '@/types/workout';
+import { WorkoutSet, SetType } from '@/types/workout';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 
 interface WorkoutSetRowProps {
@@ -9,7 +9,16 @@ interface WorkoutSetRowProps {
   setNumber: number;
   onUpdate: (set: Partial<WorkoutSet>) => void;
   onRemove: () => void;
+  previousWeight?: number;
+  previousReps?: number;
 }
+
+const SET_TYPE_LABELS: Record<SetType, { label: string; short: string; color: string }> = {
+  normal: { label: 'Normal', short: '', color: Colors.textMuted },
+  warmup: { label: 'Aufwärmen', short: 'W', color: Colors.warning },
+  dropset: { label: 'Drop Set', short: 'D', color: Colors.error },
+  failure: { label: 'Bis Versagen', short: 'F', color: '#E040FB' },
+};
 
 const NumberPicker: React.FC<{
   value: number;
@@ -22,31 +31,31 @@ const NumberPicker: React.FC<{
   onClose: () => void;
 }> = ({ value, onValueChange, min, max, step, suffix = '', visible, onClose }) => {
   const [selectedValue, setSelectedValue] = useState(value);
-  
+
   const values: number[] = [];
   for (let i = min; i <= max; i += step) {
     values.push(i);
   }
-  
+
   const handleConfirm = () => {
     onValueChange(selectedValue);
     onClose();
   };
-  
+
   const increment = () => {
     const currentIndex = values.indexOf(selectedValue);
     if (currentIndex < values.length - 1) {
       setSelectedValue(values[currentIndex + 1]);
     }
   };
-  
+
   const decrement = () => {
     const currentIndex = values.indexOf(selectedValue);
     if (currentIndex > 0) {
       setSelectedValue(values[currentIndex - 1]);
     }
   };
-  
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
@@ -59,22 +68,22 @@ const NumberPicker: React.FC<{
               <Text style={[styles.modalButton, styles.confirmButton]}>Bestätigen</Text>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.pickerContainer}>
             <TouchableOpacity style={styles.pickerButton} onPress={increment}>
               <ChevronUp size={24} color={Colors.text} />
             </TouchableOpacity>
-            
+
             <View style={styles.valueContainer}>
               <Text style={styles.valueText}>{selectedValue}{suffix}</Text>
             </View>
-            
+
             <TouchableOpacity style={styles.pickerButton} onPress={decrement}>
               <ChevronDown size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
-          
-          <ScrollView 
+
+          <ScrollView
             style={styles.valuesList}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.valuesListContent}
@@ -108,41 +117,66 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   setNumber,
   onUpdate,
   onRemove,
+  previousWeight,
+  previousReps,
 }) => {
   const [showWeightPicker, setShowWeightPicker] = useState(false);
   const [showRepsPicker, setShowRepsPicker] = useState(false);
-  
+  const [showTypePicker, setShowTypePicker] = useState(false);
+
+  const setTypeInfo = SET_TYPE_LABELS[set.type || 'normal'];
+  const hasPrevious = previousWeight !== undefined && previousReps !== undefined;
+
+  const cycleSetType = () => {
+    const types: SetType[] = ['normal', 'warmup', 'dropset', 'failure'];
+    const currentIndex = types.indexOf(set.type || 'normal');
+    const nextType = types[(currentIndex + 1) % types.length];
+    onUpdate({ type: nextType });
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.setNumber}>{setNumber}</Text>
-      
+    <View style={[styles.container, set.type === 'warmup' && styles.warmupRow]}>
+      {/* Set number / type indicator */}
+      <TouchableOpacity onPress={cycleSetType} style={styles.setNumberContainer}>
+        {setTypeInfo.short ? (
+          <Text style={[styles.setTypeLabel, { color: setTypeInfo.color }]}>{setTypeInfo.short}</Text>
+        ) : (
+          <Text style={styles.setNumber}>{setNumber}</Text>
+        )}
+      </TouchableOpacity>
+
+      {/* Previous performance hint */}
+      {hasPrevious && (
+        <Text style={styles.previousHint}>{previousWeight}x{previousReps}</Text>
+      )}
+
       <TouchableOpacity
         style={styles.input}
         onPress={() => setShowWeightPicker(true)}
       >
         <Text style={styles.inputText}>{set.weight || '0'} kg</Text>
       </TouchableOpacity>
-      
-      <Text style={styles.separator}>×</Text>
-      
+
+      <Text style={styles.separator}>x</Text>
+
       <TouchableOpacity
         style={styles.input}
         onPress={() => setShowRepsPicker(true)}
       >
         <Text style={styles.inputText}>{set.reps || '0'}</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[styles.completeButton, set.completed && styles.completedButton]}
         onPress={() => onUpdate({ completed: !set.completed })}
       >
         <Check size={16} color={set.completed ? Colors.background : Colors.textMuted} />
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
         <X size={16} color={Colors.error} />
       </TouchableOpacity>
-      
+
       <NumberPicker
         value={set.weight}
         onValueChange={(weight) => onUpdate({ weight })}
@@ -153,7 +187,7 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
         visible={showWeightPicker}
         onClose={() => setShowWeightPicker(false)}
       />
-      
+
       <NumberPicker
         value={set.reps}
         onValueChange={(reps) => onUpdate({ reps })}
@@ -177,11 +211,27 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.xs,
   },
-  setNumber: {
+  warmupRow: {
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+  },
+  setNumberContainer: {
     width: 30,
+    alignItems: 'center',
+  },
+  setNumber: {
     fontSize: 14,
     color: Colors.textMuted,
     fontWeight: '600' as const,
+  },
+  setTypeLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  previousHint: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    width: 44,
+    textAlign: 'center',
   },
   input: {
     flex: 1,
