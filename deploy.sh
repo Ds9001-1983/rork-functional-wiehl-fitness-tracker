@@ -4,6 +4,10 @@ set -e
 echo "=== Functional Wiehl Fitness App Deployment ==="
 echo ""
 
+# Ensure bun is in PATH
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
 # Check prerequisites
 if ! command -v bun &> /dev/null; then
     echo "ERROR: bun is not installed. Install with: curl -fsSL https://bun.sh/install | bash"
@@ -11,8 +15,8 @@ if ! command -v bun &> /dev/null; then
 fi
 
 if ! command -v pm2 &> /dev/null; then
-    echo "ERROR: pm2 is not installed. Install with: bun add -g pm2"
-    exit 1
+    echo "Installing PM2..."
+    bun add -g pm2
 fi
 
 # Check .env file
@@ -31,11 +35,11 @@ pm2 delete fitness-api 2>/dev/null || echo "  No existing process to delete"
 
 # Install dependencies
 echo "[2/7] Installing dependencies..."
-bun install --production
+bun install
 
 # Run tests
 echo "[3/7] Running tests..."
-bun test __tests__/ || echo "  Warning: Some tests failed"
+bun test __tests__/ || echo "  Warning: Some tests failed (continuing...)"
 
 # Build web version
 echo "[4/7] Building web version..."
@@ -43,11 +47,11 @@ bunx expo export --platform web
 
 # Copy web build to nginx directory
 echo "[5/7] Deploying static files..."
-sudo rm -rf /var/www/fitness-app/dist
-sudo mkdir -p /var/www/fitness-app
-sudo cp -r web-build/ /var/www/fitness-app/dist/
-sudo chown -R www-data:www-data /var/www/fitness-app
-sudo chmod -R 755 /var/www/fitness-app
+rm -rf /var/www/fitness-app/dist
+mkdir -p /var/www/fitness-app
+cp -r dist/ /var/www/fitness-app/dist/ 2>/dev/null || cp -r web-build/ /var/www/fitness-app/dist/
+chown -R www-data:www-data /var/www/fitness-app 2>/dev/null || true
+chmod -R 755 /var/www/fitness-app
 
 # Setup logs directory
 mkdir -p logs
@@ -55,10 +59,11 @@ mkdir -p logs
 # Start server with PM2
 echo "[6/7] Starting API server..."
 pm2 start ecosystem.config.js
+pm2 save
 
 # Reload nginx
 echo "[7/7] Reloading nginx..."
-sudo systemctl reload nginx
+systemctl reload nginx 2>/dev/null || echo "  Nginx not running (ok for dev)"
 
 echo ""
 echo "=== Deployment complete ==="
