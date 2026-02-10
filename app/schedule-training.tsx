@@ -156,7 +156,8 @@ export default function ScheduleTrainingScreen() {
             id: `set_${Date.now()}_${index}_1`,
             reps: 10,
             weight: 20,
-            completed: false
+            completed: false,
+            type: 'normal' as const,
           }
         ],
         notes: ''

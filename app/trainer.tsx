@@ -34,8 +34,8 @@ export default function TrainerCenterScreen() {
   const swipeThreshold = screenWidth * 0.3;
 
   const sampleExercises: WorkoutExercise[] = useMemo(() => ([
-    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false }] },
-    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false }] },
+    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false, type: 'normal' as const }] },
+    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false, type: 'normal' as const }] },
   ]), []);
 
   const generateStarterPassword = (): string => {
