@@ -82,12 +82,17 @@ console.log(`🚀 Server starting on port ${port}`);
 console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN}`);
 console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-console.log(`✅ Server is running on http://localhost:${port}`);
-console.log(`🌐 API available at http://localhost:${port}/api`);
-console.log(`🔧 tRPC endpoint: http://localhost:${port}/api/trpc`);
-console.log(`🏥 Health check: http://localhost:${port}/health`);
 
-export default {
+// Start HTTP server explicitly with Bun.serve()
+// NOTE: "export default { port, fetch }" only works when running "bun file.ts" directly.
+// PM2 loads via require(), which does NOT trigger Bun's automatic server start.
+// Bun.serve() works in BOTH cases.
+const server = Bun.serve({
   port,
-  fetch: app.fetch
-};
+  fetch: app.fetch,
+});
+
+console.log(`✅ Server is running on http://localhost:${server.port}`);
+console.log(`🌐 API available at http://localhost:${server.port}/api`);
+console.log(`🔧 tRPC endpoint: http://localhost:${server.port}/api/trpc`);
+console.log(`🏥 Health check: http://localhost:${server.port}/health`);
