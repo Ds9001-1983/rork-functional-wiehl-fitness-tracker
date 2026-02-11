@@ -24,8 +24,8 @@ app.get('/health', (c) => {
 // Mount the API app at /api
 app.route('/api', apiApp);
 
-// Serve static files from web-build directory (Expo web build)
-const webBuildPath = join(process.cwd(), 'web-build');
+// Serve static files from dist directory (Expo web build)
+const webBuildPath = join(process.cwd(), 'dist');
 if (existsSync(webBuildPath)) {
   // Serve static files for all non-API routes (exclude /api and /health)
   app.use('/*', (c, next) => {
@@ -34,11 +34,11 @@ if (existsSync(webBuildPath)) {
     if (path.startsWith('/api') || path === '/health') {
       return next();
     }
-    return serveStatic({ 
-      root: './web-build'
+    return serveStatic({
+      root: './dist'
     })(c, next);
   });
-  console.log('📁 Serving web build from web-build/');
+  console.log('📁 Serving web build from dist/');
 } else {
   console.log('⚠️  No web build found. Run "bunx expo export --platform web" to build for web.');
 }
@@ -55,7 +55,7 @@ app.get('*', (c) => {
     });
   }
   
-  const indexPath = join(process.cwd(), 'web-build', 'index.html');
+  const indexPath = join(process.cwd(), 'dist', 'index.html');
   if (existsSync(indexPath)) {
     const html = readFileSync(indexPath, 'utf8');
     return c.html(html);
