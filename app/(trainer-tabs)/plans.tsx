@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { ClipboardList, Plus, Send, X, Edit3, Users } from 'lucide-react-native';
+import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
-import type { WorkoutExercise } from '@/types/workout';
+import type { WorkoutExercise, WorkoutPlan } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function TrainerPlansScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
-  const { createWorkoutPlan, assignPlanToUser, workoutPlans } = useWorkouts();
+  const { createWorkoutPlan, assignPlanToUser, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans } = useWorkouts();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -21,6 +22,16 @@ export default function TrainerPlansScreen() {
   const [planName, setPlanName] = useState('');
   const [planDesc, setPlanDesc] = useState('');
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+
+  // Edit state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editPlanId, setEditPlanId] = useState('');
+  const [editPlanName, setEditPlanName] = useState('');
+  const [editPlanDesc, setEditPlanDesc] = useState('');
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePlanId, setDeletePlanId] = useState('');
 
   const sampleExercises: WorkoutExercise[] = [
     { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false, type: 'normal' as const }] },
@@ -65,6 +76,66 @@ export default function TrainerPlansScreen() {
     }
   };
 
+  const openEditModal = (plan: WorkoutPlan) => {
+    setEditPlanId(plan.id);
+    setEditPlanName(plan.name);
+    setEditPlanDesc(plan.description || '');
+    setShowEditModal(true);
+  };
+
+  const handleEditPlan = async () => {
+    if (!editPlanName.trim()) {
+      setStatusMessage({ type: 'error', text: 'Bitte einen Plannamen eingeben.' });
+      return;
+    }
+    try {
+      const plan = workoutPlans.find(p => p.id === editPlanId);
+      if (!plan) return;
+      await updateWorkoutPlan(editPlanId, {
+        ...plan,
+        name: editPlanName.trim(),
+        description: editPlanDesc.trim(),
+      });
+      setShowEditModal(false);
+      setStatusMessage({ type: 'success', text: 'Plan wurde aktualisiert.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Plan konnte nicht aktualisiert werden.' });
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    try {
+      await deletePlan(deletePlanId);
+      setShowDeleteConfirm(false);
+      setDeletePlanId('');
+      setStatusMessage({ type: 'success', text: 'Trainingsplan wurde geloescht.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Plan konnte nicht geloescht werden.' });
+    }
+  };
+
+  const handleDuplicatePlan = async (planId: string) => {
+    try {
+      await duplicatePlan(planId);
+      setStatusMessage({ type: 'success', text: 'Plan wurde dupliziert.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Plan konnte nicht dupliziert werden.' });
+    }
+  };
+
+  const getAssignedCount = (plan: WorkoutPlan) => {
+    return plan.assignedTo?.length || 0;
+  };
+
+  const getDeleteMessage = () => {
+    const plan = workoutPlans.find(p => p.id === deletePlanId);
+    const count = plan?.assignedTo?.length || 0;
+    if (count > 0) {
+      return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Moechten Sie ihn trotzdem loeschen?`;
+    }
+    return 'Moechten Sie diesen Trainingsplan wirklich loeschen?';
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
       {statusMessage && (
@@ -98,28 +169,68 @@ export default function TrainerPlansScreen() {
           </View>
         ) : (
           <View style={styles.plansList}>
-            {workoutPlans.map((plan) => (
-              <View key={plan.id} style={styles.planCard}>
-                <View style={styles.planInfo}>
-                  <Text style={styles.planName}>{plan.name}</Text>
-                  {plan.description ? <Text style={styles.planDesc}>{plan.description}</Text> : null}
-                  <Text style={styles.planMeta}>{plan.exercises.length} Uebungen</Text>
+            {workoutPlans.map((plan) => {
+              const assignedCount = getAssignedCount(plan);
+              return (
+                <View key={plan.id} style={styles.planCard}>
+                  <View style={styles.planInfo}>
+                    <Text style={styles.planName}>{plan.name}</Text>
+                    {plan.description ? <Text style={styles.planDesc}>{plan.description}</Text> : null}
+                    <Text style={styles.planMeta}>{plan.exercises.length} Uebungen</Text>
+                    {assignedCount > 0 && (
+                      <View style={styles.assignedBadge}>
+                        <Users size={12} color={Colors.accent} />
+                        <Text style={styles.assignedText}>
+                          {assignedCount} Kunde{assignedCount !== 1 ? 'n' : ''} zugewiesen
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.planActions}>
+                    <TouchableOpacity style={styles.actionIcon} onPress={() => openEditModal(plan)}>
+                      <Edit3 size={16} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionIcon} onPress={() => handleDuplicatePlan(plan.id)}>
+                      <Copy size={16} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionIcon}
+                      onPress={() => {
+                        setSelectedPlanId(plan.id);
+                        setSelectedClientId('');
+                        setShowAssignModal(true);
+                      }}
+                    >
+                      <Send size={16} color={Colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionIcon}
+                      onPress={() => {
+                        setDeletePlanId(plan.id);
+                        setShowDeleteConfirm(true);
+                      }}
+                    >
+                      <Trash2 size={16} color={Colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.assignButton}
-                  onPress={() => {
-                    setSelectedPlanId(plan.id);
-                    setSelectedClientId('');
-                    setShowAssignModal(true);
-                  }}
-                >
-                  <Send size={16} color={Colors.accent} />
-                </TouchableOpacity>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Trainingsplan loeschen"
+        message={getDeleteMessage()}
+        confirmText="Loeschen"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={handleDeletePlan}
+        onCancel={() => { setShowDeleteConfirm(false); setDeletePlanId(''); }}
+      />
 
       {/* Plan erstellen Modal */}
       <Modal visible={showCreateModal} animationType="slide" presentationStyle="pageSheet">
@@ -146,6 +257,37 @@ export default function TrainerPlansScreen() {
               <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePlan}>
                 <ClipboardList size={18} color={Colors.text} />
                 <Text style={styles.primaryButtonText}>Plan erstellen</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* Plan bearbeiten Modal */}
+      <Modal visible={showEditModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Trainingsplan bearbeiten</Text>
+            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <X size={24} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.row}>
+              <ClipboardList size={18} color={Colors.textSecondary} />
+              <TextInput value={editPlanName} onChangeText={setEditPlanName} placeholder="Planname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
+            </View>
+            <View style={styles.row}>
+              <Edit3 size={18} color={Colors.textSecondary} />
+              <TextInput value={editPlanDesc} onChangeText={setEditPlanDesc} placeholder="Beschreibung (optional)" placeholderTextColor={Colors.textMuted} style={styles.input} multiline />
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
+                <Text style={styles.cancelButtonText}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleEditPlan}>
+                <Edit3 size={18} color={Colors.text} />
+                <Text style={styles.primaryButtonText}>Speichern</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -215,7 +357,10 @@ const styles = StyleSheet.create({
   planName: { fontSize: 16, fontWeight: '600', color: Colors.text },
   planDesc: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   planMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 4 },
-  assignButton: { padding: Spacing.sm },
+  assignedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  assignedText: { fontSize: 11, color: Colors.accent },
+  planActions: { flexDirection: 'column', alignItems: 'center', gap: Spacing.xs },
+  actionIcon: { padding: Spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   input: { flex: 1, height: 44, paddingHorizontal: Spacing.sm, color: Colors.text, fontSize: 15 },
   modalContainer: { flex: 1, backgroundColor: Colors.background },

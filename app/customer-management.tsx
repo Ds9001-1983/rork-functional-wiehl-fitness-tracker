@@ -1,17 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target } from 'lucide-react-native';
+import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target, Edit3, Check, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 
 import type { User as UserType } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
-  const { clients } = useClients();
+  const { clients, updateClient, removeClient } = useClients();
 
   
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -19,6 +20,13 @@ export default function CustomerManagementScreen() {
   const [showClientDetails, setShowClientDetails] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
 
@@ -71,6 +79,53 @@ export default function CustomerManagementScreen() {
     // Navigate to schedule-training with pre-selected client
     setShowClientDetails(false);
     router.push(`/schedule-training?clientId=${selectedClient.id}`);
+  };
+
+  const startEditing = () => {
+    if (!selectedClient) return;
+    setEditName(selectedClient.name);
+    setEditPhone(selectedClient.phone || '');
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+  };
+
+  const saveClientEdit = async () => {
+    if (!selectedClient) return;
+    if (!editName.trim()) {
+      setStatusMessage({ type: 'error', text: 'Bitte einen Namen eingeben.' });
+      return;
+    }
+    try {
+      await updateClient(selectedClient.id, {
+        name: editName.trim(),
+        phone: editPhone.trim() || undefined,
+      });
+      setSelectedClient({
+        ...selectedClient,
+        name: editName.trim(),
+        phone: editPhone.trim(),
+      });
+      setIsEditing(false);
+      setStatusMessage({ type: 'success', text: 'Kundendaten wurden aktualisiert.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Kundendaten konnten nicht aktualisiert werden.' });
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!selectedClient) return;
+    try {
+      await removeClient(selectedClient.id);
+      setShowDeleteConfirm(false);
+      setShowClientDetails(false);
+      setIsEditing(false);
+      setStatusMessage({ type: 'success', text: 'Kunde wurde entfernt.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Kunde konnte nicht entfernt werden.' });
+    }
   };
 
   const openClientDetails = (client: UserType) => {
@@ -180,7 +235,7 @@ export default function CustomerManagementScreen() {
               <Text style={styles.modalTitle}>
                 {selectedClient?.name}
               </Text>
-              <TouchableOpacity onPress={() => setShowClientDetails(false)}>
+              <TouchableOpacity onPress={() => { setShowClientDetails(false); setIsEditing(false); }}>
                 <X size={24} color={Colors.text} />
               </TouchableOpacity>
             </View>
@@ -190,20 +245,64 @@ export default function CustomerManagementScreen() {
                 <>
                   {/* Client Info */}
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Kontaktdaten</Text>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text style={styles.sectionTitle}>Kontaktdaten</Text>
+                      {!isEditing ? (
+                        <TouchableOpacity onPress={startEditing} style={styles.editIconButton}>
+                          <Edit3 size={18} color={Colors.accent} />
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={styles.editActionsRow}>
+                          <TouchableOpacity onPress={cancelEditing} style={styles.editIconButton}>
+                            <X size={18} color={Colors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={saveClientEdit} style={styles.editIconButton}>
+                            <Check size={18} color={Colors.accent} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.infoCard}>
-                      <Text style={styles.infoLabel}>E-Mail:</Text>
-                      <Text style={styles.infoValue}>{selectedClient.email}</Text>
-                      {selectedClient.phone && (
+                      {isEditing ? (
                         <>
+                          <Text style={styles.infoLabel}>Name:</Text>
+                          <TextInput
+                            value={editName}
+                            onChangeText={setEditName}
+                            style={styles.textInput}
+                            placeholder="Name"
+                            placeholderTextColor={Colors.textMuted}
+                          />
                           <Text style={styles.infoLabel}>Telefon:</Text>
-                          <Text style={styles.infoValue}>{selectedClient.phone}</Text>
+                          <TextInput
+                            value={editPhone}
+                            onChangeText={setEditPhone}
+                            style={styles.textInput}
+                            placeholder="Telefonnummer"
+                            placeholderTextColor={Colors.textMuted}
+                            keyboardType="phone-pad"
+                          />
+                          <Text style={styles.infoLabel}>E-Mail:</Text>
+                          <Text style={[styles.infoValue, { opacity: 0.5 }]}>{selectedClient.email}</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={styles.infoLabel}>Name:</Text>
+                          <Text style={styles.infoValue}>{selectedClient.name}</Text>
+                          <Text style={styles.infoLabel}>E-Mail:</Text>
+                          <Text style={styles.infoValue}>{selectedClient.email}</Text>
+                          {selectedClient.phone && (
+                            <>
+                              <Text style={styles.infoLabel}>Telefon:</Text>
+                              <Text style={styles.infoValue}>{selectedClient.phone}</Text>
+                            </>
+                          )}
+                          <Text style={styles.infoLabel}>Mitglied seit:</Text>
+                          <Text style={styles.infoValue}>
+                            {new Date(selectedClient.joinDate).toLocaleDateString('de-DE')}
+                          </Text>
                         </>
                       )}
-                      <Text style={styles.infoLabel}>Mitglied seit:</Text>
-                      <Text style={styles.infoValue}>
-                        {new Date(selectedClient.joinDate).toLocaleDateString('de-DE')}
-                      </Text>
                     </View>
                   </View>
 
@@ -270,12 +369,19 @@ export default function CustomerManagementScreen() {
 
                   {/* Action Buttons */}
                   <View style={styles.actionButtons}>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.primaryButton}
                       onPress={handleCreatePlanForClient}
                     >
                       <Plus size={18} color={Colors.text} />
                       <Text style={styles.primaryButtonText}>Trainingsplan erstellen</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 size={18} color={Colors.error} />
+                      <Text style={styles.deleteButtonText}>Kunde entfernen</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -284,6 +390,19 @@ export default function CustomerManagementScreen() {
           </View>
         </Modal>
 
+        {/* Delete Confirmation */}
+        {selectedClient && (
+          <ConfirmDialog
+            visible={showDeleteConfirm}
+            title="Kunde entfernen"
+            message={`Moechten Sie ${selectedClient.name} wirklich entfernen? Diese Aktion kann nicht rueckgaengig gemacht werden.`}
+            confirmText="Entfernen"
+            cancelText="Abbrechen"
+            destructive
+            onConfirm={handleDeleteClient}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
+        )}
 
       </View>
     </>
@@ -662,5 +781,35 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '500' as const,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  editIconButton: {
+    padding: Spacing.xs,
+  },
+  editActionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.error,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginLeft: Spacing.sm,
   },
 });

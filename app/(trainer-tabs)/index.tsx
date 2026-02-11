@@ -212,7 +212,9 @@ export default function TrainerClientsScreen() {
       {/* Kundenliste */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Meine Kunden ({clients.length})</Text>
+          <TouchableOpacity onPress={() => router.push('/customer-management')}>
+            <Text style={styles.cardTitle}>Meine Kunden ({clients.length})</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.manageButton} onPress={() => router.push('/customer-management')}>
             <Users size={18} color={Colors.text} />
             <Text style={styles.manageButtonText}>Verwalten</Text>

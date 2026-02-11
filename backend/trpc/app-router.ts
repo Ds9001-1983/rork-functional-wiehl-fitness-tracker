@@ -3,6 +3,7 @@ import hiRoute from "./routes/example/hi/route";
 import createClient from "./routes/clients/create";
 import listClients from "./routes/clients/list";
 import deleteClient from "./routes/clients/delete";
+import updateClient from "./routes/clients/update";
 import createInvitation from "./routes/invitations/create";
 import listInvitations from "./routes/invitations/list";
 import { loginProcedure } from "./routes/auth/login";
@@ -38,6 +39,7 @@ export const appRouter = createTRPCRouter({
     create: createClient,
     list: listClients,
     delete: deleteClient,
+    update: updateClient,
   }),
   invitations: createTRPCRouter({
     create: createInvitation,

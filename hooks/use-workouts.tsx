@@ -33,6 +33,8 @@ interface WorkoutState {
   assignPlanToUser: (planId: string, userId: string) => Promise<void>;
   saveRoutine: (routine: Omit<Routine, 'id' | 'timesUsed'>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
+  deletePlan: (planId: string) => Promise<void>;
+  duplicatePlan: (planId: string) => Promise<void>;
   refreshFromServer: () => Promise<void>;
 }
 
@@ -466,6 +468,32 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
   }, [routines]);
 
+  const deletePlan = useCallback(async (planId: string) => {
+    try {
+      await trpcClient.plans.delete.mutate({ id: planId });
+    } catch (error) {
+      // Local fallback
+    }
+
+    const updatedPlans = workoutPlans.filter(p => p.id !== planId);
+    setWorkoutPlans(updatedPlans);
+    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+  }, [workoutPlans]);
+
+  const duplicatePlan = useCallback(async (planId: string) => {
+    const plan = workoutPlans.find(p => p.id === planId);
+    if (!plan) return;
+
+    await createWorkoutPlan({
+      name: `${plan.name} (Kopie)`,
+      description: plan.description,
+      exercises: JSON.parse(JSON.stringify(plan.exercises)),
+      createdBy: plan.createdBy,
+      assignedTo: [],
+      schedule: plan.schedule,
+    });
+  }, [workoutPlans, createWorkoutPlan]);
+
   return useMemo(() => ({
     workouts,
     workoutPlans,
@@ -494,6 +522,8 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     assignPlanToUser,
     saveRoutine,
     deleteRoutine,
+    deletePlan,
+    duplicatePlan,
     refreshFromServer,
-  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, refreshFromServer]);
+  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, deletePlan, duplicatePlan, refreshFromServer]);
 });
