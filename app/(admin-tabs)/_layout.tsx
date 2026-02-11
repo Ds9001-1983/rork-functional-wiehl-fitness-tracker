@@ -1,9 +1,17 @@
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { BarChart3, Users, Settings, User } from "lucide-react-native";
 import React from "react";
 import { Colors } from "@/constants/colors";
+import { useAuth } from "@/hooks/use-auth";
+import LoadingScreen from "@/components/LoadingScreen";
 
 export default function AdminTabLayout() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) return <LoadingScreen />;
+  if (!isAuthenticated) return <Redirect href="/login" />;
+  if (user?.role !== 'admin') return <Redirect href="/(tabs)" />;
+
   return (
     <Tabs
       screenOptions={{
