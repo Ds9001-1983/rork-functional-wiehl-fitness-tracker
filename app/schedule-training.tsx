@@ -248,7 +248,16 @@ export default function ScheduleTrainingScreen() {
         }} 
       />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
-        
+
+        {/* Zurueck-Button */}
+        <TouchableOpacity
+          style={styles.backBar}
+          onPress={() => router.push('/trainer')}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backBarText}>Zurück zum Trainer Center</Text>
+        </TouchableOpacity>
+
         {/* Kunde auswählen */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -613,6 +622,21 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: Spacing.sm,
+  },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  backBarText: {
+    color: Colors.accent,
+    fontSize: 16,
+    fontWeight: '500' as const,
   },
   card: {
     backgroundColor: Colors.surface,
