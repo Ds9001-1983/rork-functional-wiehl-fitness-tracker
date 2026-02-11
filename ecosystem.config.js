@@ -2,7 +2,8 @@ module.exports = {
   apps: [{
     name: 'fitness-api',
     script: 'backend-server.ts',
-    interpreter: 'bun',
+    interpreter: '/root/.bun/bin/bun',
+    exec_mode: 'fork',
     instances: 1,
     autorestart: true,
     watch: false,
