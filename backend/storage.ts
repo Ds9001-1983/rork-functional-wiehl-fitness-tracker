@@ -68,8 +68,16 @@ let useDatabase = false;
 // In-memory fallback storage
 let users: StoredUser[] = [
   {
+    id: 'admin-1',
+    email: 'admin@functional-wiehl.de',
+    password: bcrypt.hashSync('admin123', 10),
+    role: 'admin',
+    passwordChanged: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
     id: 'trainer-1',
-    email: 'app@functional-wiehl.de',
+    email: 'trainer@functional-wiehl.de',
     password: bcrypt.hashSync('trainer123', 10),
     role: 'trainer',
     passwordChanged: true,
@@ -219,10 +227,38 @@ async function initializeTables() {
     await addColumnIfNotExists('clients', 'starter_password', 'VARCHAR(255)');
     await addColumnIfNotExists('clients', 'avatar', 'TEXT');
 
+    // Seed default users if they don't exist
+    await seedDefaultUsers();
+
     console.log('[Storage] Database tables initialized');
   } catch (err) {
     console.log('[Storage] Failed to initialize tables:', err);
     useDatabase = false;
+  }
+}
+
+async function seedDefaultUsers() {
+  if (!pool) return;
+
+  const defaultUsers = [
+    { email: 'admin@functional-wiehl.de', password: 'admin123', role: 'admin' },
+    { email: 'trainer@functional-wiehl.de', password: 'trainer123', role: 'trainer' },
+  ];
+
+  for (const user of defaultUsers) {
+    try {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [user.email]);
+      if (existing.rows.length === 0) {
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        await pool.query(
+          `INSERT INTO users (email, password, role, password_changed) VALUES ($1, $2, $3, true)`,
+          [user.email, hashedPassword, user.role]
+        );
+        console.log(`[Storage] Created default ${user.role}: ${user.email}`);
+      }
+    } catch (err) {
+      console.log(`[Storage] Could not seed ${user.email}:`, err);
+    }
   }
 }
 

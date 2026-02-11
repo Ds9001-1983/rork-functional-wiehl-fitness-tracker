@@ -39,7 +39,7 @@ export const loginProcedure = publicProcedure
 
       const userData = {
         id: user.id,
-        name: clientData?.name || (user.role === 'trainer' ? 'Functional Wiehl Trainer' : email.split('@')[0]),
+        name: clientData?.name || (user.role === 'admin' ? 'Administrator' : user.role === 'trainer' ? 'Functional Wiehl Trainer' : email.split('@')[0]),
         email: user.email,
         phone: clientData?.phone,
         role: user.role,

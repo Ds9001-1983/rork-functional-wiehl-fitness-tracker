@@ -18,9 +18,9 @@ describe('Storage: Users', () => {
   });
 
   it('should find the default trainer user by email', async () => {
-    const user = await storage.users.findByEmail('app@functional-wiehl.de');
+    const user = await storage.users.findByEmail('trainer@functional-wiehl.de');
     expect(user).not.toBeNull();
-    expect(user!.email).toBe('app@functional-wiehl.de');
+    expect(user!.email).toBe('trainer@functional-wiehl.de');
     expect(user!.role).toBe('trainer');
   });
 
