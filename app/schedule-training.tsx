@@ -26,7 +26,9 @@ export default function ScheduleTrainingScreen() {
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [recurringEndDate, setRecurringEndDate] = useState<string>('');
   const [showWeekdaySelector, setShowWeekdaySelector] = useState<boolean>(false);
-  
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
   const weekdays = [
     { id: 1, name: 'Montag', short: 'Mo' },
     { id: 2, name: 'Dienstag', short: 'Di' },
@@ -98,56 +100,58 @@ export default function ScheduleTrainingScreen() {
   };
   
   const handleScheduleTraining = async () => {
+    setStatusMessage(null);
+
     if (!selectedClientId) {
-      Alert.alert('Fehler', 'Bitte einen Kunden auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte einen Kunden auswählen.' });
       return;
     }
-    
+
     if (!planName.trim()) {
-      Alert.alert('Fehler', 'Bitte einen Plannamen eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte einen Plannamen eingeben.' });
       return;
     }
-    
+
     if (selectedExercises.length === 0) {
-      Alert.alert('Fehler', 'Bitte mindestens eine Übung auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Übung auswählen.' });
       return;
     }
-    
+
     if (isRecurring) {
       if (selectedWeekdays.length === 0) {
-        Alert.alert('Fehler', 'Bitte mindestens einen Wochentag auswählen');
+        setStatusMessage({ type: 'error', text: 'Bitte mindestens einen Wochentag auswählen.' });
         return;
       }
-      
+
       if (!recurringEndDate) {
-        Alert.alert('Fehler', 'Bitte ein Enddatum für die Wiederholung eingeben');
+        setStatusMessage({ type: 'error', text: 'Bitte ein Enddatum für die Wiederholung eingeben (Format: YYYY-MM-DD).' });
         return;
       }
     }
-    
+
+    setIsSaving(true);
+
     try {
       let trainingDates: Date[] = [];
-      
+
       if (isRecurring) {
-        // Wiederkehrende Termine generieren
         trainingDates = generateRecurringDates(
           selectedDate,
           recurringEndDate,
           selectedWeekdays
         );
       } else {
-        // Einzeltermin
         const trainingDate = new Date(selectedDate);
-        trainingDate.setHours(12, 0, 0, 0); // Set to noon as default
+        trainingDate.setHours(12, 0, 0, 0);
         trainingDates = [trainingDate];
       }
-      
+
       if (trainingDates.length === 0) {
-        Alert.alert('Fehler', 'Keine gültigen Trainingstermine gefunden');
+        setStatusMessage({ type: 'error', text: 'Keine gültigen Trainingstermine im gewählten Zeitraum gefunden.' });
+        setIsSaving(false);
         return;
       }
-      
-      // Erstelle Übungen basierend auf der Auswahl
+
       const workoutExercises = selectedExercises.map((exerciseId, index) => ({
         id: `ex_${Date.now()}_${index}`,
         exerciseId,
@@ -162,11 +166,9 @@ export default function ScheduleTrainingScreen() {
         ],
         notes: ''
       }));
-      
-      // Automatischer Trainingsname basierend auf Plan und Kunde
+
       const autoTrainingName = `${planName} - ${selectedClient!.name}`;
-      
-      // Alle Trainings erstellen
+
       for (const trainingDate of trainingDates) {
         const workout: Omit<Workout, 'id'> = {
           name: autoTrainingName,
@@ -176,27 +178,17 @@ export default function ScheduleTrainingScreen() {
           userId: selectedClientId,
           createdBy: user?.id,
         };
-        
+
         await createWorkout(workout);
       }
-      
-      // Erfolgs-Nachricht
-      const message = isRecurring 
+
+      const message = isRecurring
         ? `${trainingDates.length} Trainingstermine wurden für ${selectedClient!.name} geplant.`
         : `Das Training wurde für ${selectedClient!.name} am ${new Date(selectedDate).toLocaleDateString('de-DE')} geplant.`;
-      
-      Alert.alert(
-        '✅ Training(s) geplant!',
-        message + `\n\n${selectedExercises.length} Übungen wurden hinzugefügt.`,
-        [
-          { 
-            text: 'Zurück zum Trainer Center', 
-            onPress: () => router.push('/trainer')
-          }
-        ]
-      );
-      
-      // Felder zurücksetzen
+
+      setStatusMessage({ type: 'success', text: message });
+
+      // Felder zuruecksetzen
       setSelectedClientId('');
       setPlanName('');
       setSelectedExercises([]);
@@ -204,10 +196,17 @@ export default function ScheduleTrainingScreen() {
       setIsRecurring(false);
       setSelectedWeekdays([]);
       setRecurringEndDate('');
-      
+
+      // Nach 2 Sekunden zurueck zum Trainer Center
+      setTimeout(() => {
+        router.push('/trainer');
+      }, 2000);
+
     } catch (error) {
       console.error('Fehler beim Planen des Trainings:', error);
-      Alert.alert('Fehler', 'Training konnte nicht geplant werden. Bitte versuchen Sie es erneut.');
+      setStatusMessage({ type: 'error', text: 'Training konnte nicht gespeichert werden. Bitte erneut versuchen.' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -447,7 +446,7 @@ export default function ScheduleTrainingScreen() {
               <View style={styles.recurringContainer}>
                 <View style={styles.fullWidth}>
                   <Text style={styles.label}>Wochentage</Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.weekdaySelector}
                     onPress={() => setShowWeekdaySelector(!showWeekdaySelector)}
                   >
@@ -457,16 +456,16 @@ export default function ScheduleTrainingScreen() {
                     ]}>
                       {getSelectedWeekdaysText()}
                     </Text>
-                    <ChevronDown 
-                      size={18} 
-                      color={Colors.textSecondary} 
+                    <ChevronDown
+                      size={18}
+                      color={Colors.textSecondary}
                       style={[
                         styles.weekdaySelectorIcon,
                         showWeekdaySelector && styles.weekdaySelectorIconRotated
                       ]}
                     />
                   </TouchableOpacity>
-                  
+
                   {showWeekdaySelector && (
                     <View style={styles.weekdayOptions}>
                       {weekdays.map((day) => (
@@ -491,6 +490,34 @@ export default function ScheduleTrainingScreen() {
                       ))}
                     </View>
                   )}
+                </View>
+
+                <View style={styles.fullWidth}>
+                  <Text style={styles.label}>Startdatum</Text>
+                  <View style={styles.row}>
+                    <Calendar size={18} color={Colors.textSecondary} />
+                    <TextInput
+                      value={selectedDate}
+                      onChangeText={setSelectedDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={Colors.textMuted}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.fullWidth}>
+                  <Text style={styles.label}>Enddatum</Text>
+                  <View style={styles.row}>
+                    <Calendar size={18} color={Colors.textSecondary} />
+                    <TextInput
+                      value={recurringEndDate}
+                      onChangeText={setRecurringEndDate}
+                      placeholder="YYYY-MM-DD (z.B. 2026-06-30)"
+                      placeholderTextColor={Colors.textMuted}
+                      style={styles.input}
+                    />
+                  </View>
                 </View>
               </View>
             )}
@@ -541,13 +568,25 @@ export default function ScheduleTrainingScreen() {
               )}
             </View>
             
-            <TouchableOpacity 
-              style={styles.scheduleButton} 
+            {statusMessage && (
+              <View style={[
+                styles.statusBanner,
+                statusMessage.type === 'error' ? styles.statusError : styles.statusSuccess
+              ]}>
+                <Text style={styles.statusText}>
+                  {statusMessage.type === 'success' ? '✅ ' : '⚠️ '}{statusMessage.text}
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.scheduleButton, isSaving && styles.disabledButton]}
               onPress={handleScheduleTraining}
+              disabled={isSaving}
             >
               <Calendar size={18} color={Colors.text} />
               <Text style={styles.scheduleButtonText}>
-                {isRecurring ? 'Wiederkehrende Trainings erstellen' : 'Trainingsplan erstellen'}
+                {isSaving ? 'Wird gespeichert...' : isRecurring ? 'Wiederkehrende Trainings erstellen' : 'Trainingsplan erstellen'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -848,6 +887,30 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  statusBanner: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  statusError: {
+    backgroundColor: '#FF4444' + '30',
+    borderWidth: 1,
+    borderColor: '#FF4444',
+  },
+  statusSuccess: {
+    backgroundColor: '#44BB44' + '30',
+    borderWidth: 1,
+    borderColor: '#44BB44',
+  },
+  statusText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    textAlign: 'center',
   },
   recurringToggle: {
     flexDirection: 'row',

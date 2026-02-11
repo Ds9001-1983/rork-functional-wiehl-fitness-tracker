@@ -8,6 +8,7 @@ const workoutSetSchema = z.object({
   weight: z.number(),
   completed: z.boolean(),
   restTime: z.number().optional(),
+  type: z.string().optional(),
 });
 
 const workoutExerciseSchema = z.object({
