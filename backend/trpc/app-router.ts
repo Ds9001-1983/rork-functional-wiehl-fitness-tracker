@@ -20,6 +20,12 @@ import updateProfile from "./routes/profile/update";
 import adminStats from "./routes/admin/stats";
 import adminUsers from "./routes/admin/users";
 
+// Diagnostic: verify all admin route imports loaded
+console.log('[Router] Admin route imports:', {
+  adminStats: typeof adminStats,
+  adminUsers: typeof adminUsers,
+});
+
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
     hi: hiRoute,
@@ -58,5 +64,8 @@ export const appRouter = createTRPCRouter({
     users: adminUsers,
   }),
 });
+
+// Diagnostic: log all registered procedure paths
+console.log('[Router] Registered procedures:', Object.keys(appRouter._def.procedures));
 
 export type AppRouter = typeof appRouter;

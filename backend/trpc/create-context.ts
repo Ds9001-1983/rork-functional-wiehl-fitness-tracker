@@ -1,18 +1,13 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
-// Dynamic require for Bun compatibility
+// Load jsonwebtoken - require() works in both Bun and Node.js
 let jwtModule: any = null;
 try {
   jwtModule = require('jsonwebtoken');
+  console.log('[Auth] jsonwebtoken loaded successfully');
 } catch {
-  try {
-    // Fallback for ESM
-    const m = await import('jsonwebtoken');
-    jwtModule = m.default || m;
-  } catch {
-    console.warn('[Auth] jsonwebtoken not available - JWT auth disabled');
-  }
+  console.warn('[Auth] jsonwebtoken not available - JWT auth disabled');
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || 'functional-wiehl-beta-secret-2026';
