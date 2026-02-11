@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   TextInput,
 } from 'react-native';
@@ -15,6 +14,8 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb, exerciseCategories } from '@/data/exercises';
 import { RoutineExercise } from '@/types/workout';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function RoutinesScreen() {
   const router = useRouter();
@@ -25,14 +26,17 @@ export default function RoutinesScreen() {
   const [newRoutineExercises, setNewRoutineExercises] = useState<RoutineExercise[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{id: string; name: string} | null>(null);
 
   const handleCreateRoutine = async () => {
     if (!newRoutineName.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Namen ein.');
+      setStatusMessage({ type: 'error', text: 'Bitte gib einen Namen ein.' });
       return;
     }
     if (newRoutineExercises.length === 0) {
-      Alert.alert('Fehler', 'Fuege mindestens eine Uebung hinzu.');
+      setStatusMessage({ type: 'error', text: 'Fuege mindestens eine Uebung hinzu.' });
       return;
     }
 
@@ -48,18 +52,8 @@ export default function RoutinesScreen() {
   };
 
   const handleDeleteRoutine = (routineId: string, name: string) => {
-    Alert.alert(
-      'Routine loeschen',
-      `"${name}" wirklich loeschen?`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Loeschen',
-          style: 'destructive',
-          onPress: () => deleteRoutine(routineId),
-        },
-      ]
-    );
+    setDeleteTarget({ id: routineId, name });
+    setShowDeleteConfirm(true);
   };
 
   const handleStartRoutine = (routine: any) => {
@@ -106,6 +100,16 @@ export default function RoutinesScreen() {
             <Text style={styles.title}>Meine Routinen</Text>
             <Text style={styles.subtitle}>Erstelle Vorlagen fuer deine Workouts</Text>
           </View>
+
+          {statusMessage && (
+            <View style={{ marginHorizontal: Spacing.lg }}>
+              <StatusBanner
+                type={statusMessage.type}
+                text={statusMessage.text}
+                onDismiss={() => setStatusMessage(null)}
+              />
+            </View>
+          )}
 
           {routines.length === 0 ? (
             <View style={styles.emptyState}>
@@ -299,6 +303,26 @@ export default function RoutinesScreen() {
             </View>
           </Modal>
         </Modal>
+
+        <ConfirmDialog
+          visible={showDeleteConfirm}
+          title="Routine loeschen"
+          message={deleteTarget ? `"${deleteTarget.name}" wirklich loeschen?` : ''}
+          confirmText="Loeschen"
+          cancelText="Abbrechen"
+          destructive
+          onConfirm={() => {
+            if (deleteTarget) {
+              deleteRoutine(deleteTarget.id);
+            }
+            setShowDeleteConfirm(false);
+            setDeleteTarget(null);
+          }}
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setDeleteTarget(null);
+          }}
+        />
       </View>
     </>
   );

@@ -264,6 +264,10 @@ async function seedDefaultUsers() {
 
 console.log('[Storage] Initializing storage system...');
 
+export function getDatabaseStatus(): { connected: boolean } {
+  return { connected: useDatabase && pool !== null };
+}
+
 export const storage = {
   users: {
     findByEmail: async (email: string): Promise<StoredUser | null> => {

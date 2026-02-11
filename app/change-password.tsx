@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Brand } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function ChangePasswordScreen() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const validatePassword = (password: string): boolean => {
     return password.length >= 6;
@@ -33,59 +36,40 @@ export default function ChangePasswordScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Fehler', 'Bitte alle Felder ausfüllen');
+      setStatusMessage({ type: 'error', text: 'Bitte alle Felder ausfüllen' });
       return;
     }
 
     if (!validatePassword(newPassword)) {
-      Alert.alert('Fehler', 'Das neue Passwort muss mindestens 6 Zeichen lang sein');
+      setStatusMessage({ type: 'error', text: 'Das neue Passwort muss mindestens 6 Zeichen lang sein' });
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Fehler', 'Die Passwörter stimmen nicht überein');
+      setStatusMessage({ type: 'error', text: 'Die Passwörter stimmen nicht überein' });
       return;
     }
 
     if (currentPassword === newPassword) {
-      Alert.alert('Fehler', 'Das neue Passwort muss sich vom aktuellen unterscheiden');
+      setStatusMessage({ type: 'error', text: 'Das neue Passwort muss sich vom aktuellen unterscheiden' });
       return;
     }
 
     setIsLoading(true);
     try {
       await updatePassword(currentPassword, newPassword);
-      
-      Alert.alert(
-        'Passwort geändert! 🎉',
-        'Ihr Passwort wurde erfolgreich geändert. Sie können jetzt die App verwenden.',
-        [
-          {
-            text: 'Weiter zur App',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]
-      );
+      setStatusMessage({ type: 'success', text: 'Ihr Passwort wurde erfolgreich geändert. Sie werden weitergeleitet...' });
+      setTimeout(() => router.replace('/(tabs)'), 2000);
     } catch (error) {
       console.error('Fehler beim Ändern des Passworts:', error);
-      Alert.alert('Fehler', 'Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.');
+      setStatusMessage({ type: 'error', text: 'Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.' });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSkip = () => {
-    Alert.alert(
-      'Passwort später ändern?',
-      'Sie können Ihr Passwort jederzeit in den Einstellungen ändern. Möchten Sie trotzdem fortfahren?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Fortfahren',
-          onPress: () => router.replace('/(tabs)'),
-        },
-      ]
-    );
+    setShowSkipConfirm(true);
   };
 
   return (
@@ -110,6 +94,14 @@ export default function ChangePasswordScreen() {
         </View>
 
         <View style={styles.form}>
+          {statusMessage && (
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          )}
+
           <View style={styles.inputContainer}>
             <Lock size={20} color={Colors.textMuted} style={styles.inputIcon} />
             <TextInput
@@ -214,6 +206,19 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={showSkipConfirm}
+        title="Passwort später ändern?"
+        message="Sie können Ihr Passwort jederzeit in den Einstellungen ändern. Möchten Sie trotzdem fortfahren?"
+        confirmText="Fortfahren"
+        cancelText="Abbrechen"
+        onConfirm={() => {
+          setShowSkipConfirm(false);
+          router.replace('/(tabs)');
+        }}
+        onCancel={() => setShowSkipConfirm(false)}
+      />
     </SafeAreaView>
   );
 }

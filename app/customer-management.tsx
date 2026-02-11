@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 
 import type { User as UserType } from '@/types/workout';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function CustomerManagementScreen() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<UserType | null>(null);
   const [showClientDetails, setShowClientDetails] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
@@ -62,7 +64,7 @@ export default function CustomerManagementScreen() {
 
   const handleCreatePlanForClient = () => {
     if (!selectedClient) {
-      Alert.alert('Fehler', 'Kein Kunde ausgewählt');
+      setStatusMessage({ type: 'error', text: 'Kein Kunde ausgewählt' });
       return;
     }
 
@@ -88,6 +90,15 @@ export default function CustomerManagementScreen() {
     <>
       <Stack.Screen options={{ title: 'Kundenverwaltung' }} />
       <View style={styles.container}>
+        {statusMessage && (
+          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          </View>
+        )}
         {/* Search Header */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBox}>

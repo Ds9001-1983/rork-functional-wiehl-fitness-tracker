@@ -8,24 +8,33 @@ import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
+import LoadingScreen from "@/components/LoadingScreen";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  console.log('🔄 RootLayoutNav - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
-  
-  if (isLoading) {
-    return null; // Show loading or splash screen
+function getInitialRoute(role?: string): string {
+  switch (role) {
+    case 'admin': return '(admin-tabs)';
+    case 'trainer': return '(trainer-tabs)';
+    default: return '(tabs)';
   }
-  
+}
+
+function RootLayoutNav() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  const initialRoute = isAuthenticated ? getInitialRoute(user?.role) : 'login';
+
   return (
-    <Stack 
-      initialRouteName={isAuthenticated ? "(tabs)" : "login"}
-      screenOptions={{ 
+    <Stack
+      initialRouteName={initialRoute}
+      screenOptions={{
         headerBackTitle: "Zurück",
         headerStyle: {
           backgroundColor: '#000000',
@@ -35,6 +44,8 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(trainer-tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
       <Stack.Screen name="trainer" options={{ title: 'Trainer Center' }} />
       <Stack.Screen name="change-password" options={{ title: 'Passwort ändern' }} />

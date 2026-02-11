@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   TextInput,
   Modal,
 } from 'react-native';
@@ -15,6 +14,8 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -44,32 +47,23 @@ export default function ProfileScreen() {
   const personalRecords = getPersonalRecords();
   const recordCount = Object.keys(personalRecords).length;
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Abmelden',
-      'Moechtest du dich wirklich abmelden?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Abmelden',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              router.replace('/login');
-            } catch (error) {
-              console.error('[Profile] Fehler beim Logout:', error);
-              Alert.alert('Fehler', 'Beim Abmelden ist ein Fehler aufgetreten.');
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      await logout();
+      router.replace('/login');
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: 'Beim Abmelden ist ein Fehler aufgetreten.' });
+    }
   };
 
   const handleSaveProfile = async () => {
     if (!editName.trim()) {
-      Alert.alert('Fehler', 'Name darf nicht leer sein.');
+      setStatusMessage({ type: 'error', text: 'Name darf nicht leer sein.' });
       return;
     }
 
@@ -80,9 +74,9 @@ export default function ProfileScreen() {
         phone: editPhone.trim() || undefined,
       });
       setShowEditModal(false);
-      Alert.alert('Gespeichert', 'Dein Profil wurde aktualisiert.');
+      setStatusMessage({ type: 'success', text: 'Dein Profil wurde aktualisiert.' });
     } catch (error) {
-      Alert.alert('Fehler', 'Profil konnte nicht gespeichert werden.');
+      setStatusMessage({ type: 'error', text: 'Profil konnte nicht gespeichert werden.' });
     } finally {
       setIsSaving(false);
     }
@@ -100,7 +94,26 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      <ConfirmDialog
+        visible={showLogoutConfirm}
+        title="Abmelden"
+        message="Moechtest du dich wirklich abmelden?"
+        confirmText="Abmelden"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
       <ScrollView showsVerticalScrollIndicator={false}>
+        {statusMessage && (
+          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          </View>
+        )}
         <View style={styles.header}>
           <TouchableOpacity style={styles.avatar} onPress={() => setShowEditModal(true)}>
             <User size={40} color={Colors.text} />
@@ -112,7 +125,7 @@ export default function ProfileScreen() {
           <Text style={styles.email}>{user?.email || ''}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>
-              {user?.role === 'trainer' ? 'Trainer' : 'Kunde'}
+              {user?.role === 'admin' ? 'Administrator' : user?.role === 'trainer' ? 'Trainer' : 'Kunde'}
             </Text>
           </View>
         </View>

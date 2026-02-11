@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
@@ -16,6 +15,7 @@ import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises } from '@/data/exercises';
 import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
@@ -23,6 +23,8 @@ export default function ActiveWorkoutScreen() {
   const [duration, setDuration] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -55,40 +57,12 @@ export default function ActiveWorkoutScreen() {
     return null;
   }, [getWorkoutHistory]);
 
-  const handleFinishWorkout = async () => {
-    Alert.alert(
-      'Workout beenden',
-      'Workout speichern und beenden?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Speichern',
-          onPress: async () => {
-            await saveWorkout();
-            endWorkout();
-            router.back();
-          },
-        },
-      ]
-    );
+  const handleFinishWorkout = () => {
+    setShowFinishConfirm(true);
   };
 
   const handleDiscardWorkout = () => {
-    Alert.alert(
-      'Workout verwerfen',
-      'Workout wirklich verwerfen? Alle Daten gehen verloren.',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Verwerfen',
-          style: 'destructive',
-          onPress: () => {
-            endWorkout();
-            router.back();
-          },
-        },
-      ]
-    );
+    setShowDiscardConfirm(true);
   };
 
   const handleAddExercise = () => {
@@ -216,6 +190,36 @@ export default function ActiveWorkoutScreen() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        <ConfirmDialog
+          visible={showFinishConfirm}
+          title="Workout beenden"
+          message="Workout speichern und beenden?"
+          confirmText="Speichern"
+          cancelText="Abbrechen"
+          onConfirm={async () => {
+            setShowFinishConfirm(false);
+            await saveWorkout();
+            endWorkout();
+            router.back();
+          }}
+          onCancel={() => setShowFinishConfirm(false)}
+        />
+
+        <ConfirmDialog
+          visible={showDiscardConfirm}
+          title="Workout verwerfen"
+          message="Workout wirklich verwerfen? Alle Daten gehen verloren."
+          confirmText="Verwerfen"
+          cancelText="Abbrechen"
+          destructive
+          onConfirm={() => {
+            setShowDiscardConfirm(false);
+            endWorkout();
+            router.back();
+          }}
+          onCancel={() => setShowDiscardConfirm(false)}
+        />
       </View>
     </>
   );

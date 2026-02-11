@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat } from 'lucide-react-native';
@@ -175,19 +174,6 @@ export default function WorkoutScreen() {
             </TouchableOpacity>
           )}
         </View>
-
-        {user?.role === 'trainer' && (
-          <View style={styles.trainerSection}>
-            <Text style={styles.sectionTitle}>Trainer Bereich</Text>
-            <TouchableOpacity
-              testID="open-trainer-center"
-              style={styles.trainerButton}
-              onPress={() => router.push('/trainer' as never)}
-            >
-              <Text style={styles.trainerButtonText}>Trainer Center</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Recent Workouts */}
         <View style={styles.recentSection}>
@@ -372,23 +358,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500' as const,
     marginLeft: Spacing.sm,
-  },
-  trainerSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  trainerButton: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-  },
-  trainerButtonText: {
-    color: Colors.accent,
-    fontSize: 16,
-    fontWeight: '500' as const,
-    textAlign: 'center',
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,

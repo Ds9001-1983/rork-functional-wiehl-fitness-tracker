@@ -17,6 +17,8 @@ import updatePlan from "./routes/plans/update";
 import deletePlan from "./routes/plans/delete";
 import assignPlan from "./routes/plans/assign";
 import updateProfile from "./routes/profile/update";
+import adminStats from "./routes/admin/stats";
+import adminUsers from "./routes/admin/users";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -50,6 +52,10 @@ export const appRouter = createTRPCRouter({
   }),
   profile: createTRPCRouter({
     update: updateProfile,
+  }),
+  admin: createTRPCRouter({
+    stats: adminStats,
+    users: adminUsers,
   }),
 });
 

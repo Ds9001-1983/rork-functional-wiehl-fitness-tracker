@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { CheckSquare, Square, ArrowLeft, Save, Dumbbell, Clock, Target } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
@@ -8,6 +8,7 @@ import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises } from '@/data/exercises';
 import type { Exercise } from '@/types/workout';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function TrainingUnitsSelectionScreen() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export default function TrainingUnitsSelectionScreen() {
   }>();
   
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
   
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   
@@ -66,12 +68,12 @@ export default function TrainingUnitsSelectionScreen() {
   
   const handleSaveSelection = async () => {
     if (selectedExercises.length === 0) {
-      Alert.alert('Fehler', 'Bitte mindestens eine Übung auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Übung auswählen' });
       return;
     }
-    
+
     if (!selectedPlan) {
-      Alert.alert('Fehler', 'Trainingsplan nicht gefunden');
+      setStatusMessage({ type: 'error', text: 'Trainingsplan nicht gefunden' });
       return;
     }
     
@@ -100,20 +102,15 @@ export default function TrainingUnitsSelectionScreen() {
       
       await updateWorkoutPlan(selectedPlan.id, updatedPlan);
       
-      Alert.alert(
-        '✅ Trainingseinheiten gespeichert!',
-        `${selectedExercises.length} Übungen wurden dem Trainingsplan "${selectedPlan.name}" hinzugefügt und sind jetzt für ${selectedClient?.name} verfügbar.`,
-        [
-          {
-            text: 'Zurück zum Trainer Center',
-            onPress: () => router.push('/trainer')
-          }
-        ]
-      );
-      
+      setStatusMessage({
+        type: 'success',
+        text: `${selectedExercises.length} Übungen wurden dem Trainingsplan "${selectedPlan.name}" hinzugefügt und sind jetzt für ${selectedClient?.name} verfügbar.`,
+      });
+      setTimeout(() => router.push('/trainer'), 1500);
+
     } catch (error) {
       console.error('Fehler beim Speichern der Trainingseinheiten:', error);
-      Alert.alert('Fehler', 'Trainingseinheiten konnten nicht gespeichert werden.');
+      setStatusMessage({ type: 'error', text: 'Trainingseinheiten konnten nicht gespeichert werden.' });
     }
   };
   
@@ -146,7 +143,16 @@ export default function TrainingUnitsSelectionScreen() {
         }} 
       />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
-        
+        {statusMessage && (
+          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          </View>
+        )}
+
         {/* Header Info */}
         <View style={styles.headerCard}>
           <View style={styles.headerInfo}>

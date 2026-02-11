@@ -1,0 +1,48 @@
+import { Tabs } from "expo-router";
+import { Users, ClipboardList, User } from "lucide-react-native";
+import React from "react";
+import { Colors } from "@/constants/colors";
+
+export default function TrainerTabLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: Colors.tabBarActive,
+        tabBarInactiveTintColor: Colors.tabBarInactive,
+        tabBarStyle: {
+          backgroundColor: Colors.tabBar,
+          borderTopColor: Colors.border,
+        },
+        headerStyle: {
+          backgroundColor: Colors.primary,
+        },
+        headerTintColor: Colors.text,
+        headerTitleStyle: {
+          fontWeight: '600' as const,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Kunden",
+          tabBarIcon: ({ color }) => <Users size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="plans"
+        options={{
+          title: "Trainingspläne",
+          tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+        }}
+      />
+    </Tabs>
+  );
+}

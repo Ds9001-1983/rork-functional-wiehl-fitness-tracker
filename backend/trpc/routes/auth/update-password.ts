@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../create-context';
+import { protectedProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export const updatePasswordProcedure = publicProcedure
+export const updatePasswordProcedure = protectedProcedure
   .input(z.object({
     userId: z.string(),
     currentPassword: z.string(),
@@ -10,8 +10,6 @@ export const updatePasswordProcedure = publicProcedure
   }))
   .mutation(async ({ input }) => {
     const { userId, currentPassword, newPassword } = input;
-
-    console.log('[Server] Password update request for user:', userId);
 
     // Find the user to verify current password
     // We need to look up by ID, so we check all clients
@@ -41,6 +39,5 @@ export const updatePasswordProcedure = publicProcedure
       throw new Error('PASSWORD_UPDATE_FAILED');
     }
 
-    console.log('[Server] Password updated successfully for user:', userId);
     return { success: true };
   });

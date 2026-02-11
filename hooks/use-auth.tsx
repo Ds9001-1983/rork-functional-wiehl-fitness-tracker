@@ -51,6 +51,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
       if (result.success && result.user) {
         await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        if (result.token) {
+          await AsyncStorage.setItem('authToken', result.token);
+        }
         setUser(result.user);
         return result.user;
       }
@@ -75,6 +78,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const logout = useCallback(async () => {
     try {
       await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('authToken');
       setUser(null);
     } catch (error) {
       console.error('[Auth] Logout Fehler:', error);
@@ -116,7 +120,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         await AsyncStorage.setItem('savedPassword', newPassword);
       }
 
-      console.log('[Auth] Passwort erfolgreich auf dem Server geaendert fuer:', user.email);
     } catch (error: any) {
       const errorMessage = error.message || error.data?.message || '';
 
@@ -125,7 +128,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
       if (errorMessage.includes('CONNECTION_FAILED') || errorMessage.includes('fetch')) {
         // Fallback: Update locally only
-        console.log('[Auth] Server nicht erreichbar, lokales Update.');
         const updatedUser = { ...user, passwordChanged: true };
         setUser(updatedUser);
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
@@ -144,7 +146,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         ...updates,
       });
     } catch (error) {
-      console.log('[Auth] Server-Profilupdate fehlgeschlagen, lokal gespeichert.');
+      // Server profile update failed, saved locally
     }
 
     // Update local state regardless
@@ -153,8 +155,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
   }, [user]);
 
-  const resetPassword = useCallback(async (email: string) => {
-    console.log('[Auth] Passwort-Reset angefordert fuer:', email);
+  const resetPassword = useCallback(async (_email: string) => {
     // TODO: Implement email-based password reset when email service is available
     return Promise.resolve();
   }, []);

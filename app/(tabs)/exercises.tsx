@@ -8,7 +8,6 @@ import {
   TextInput,
   Modal,
   Linking,
-  Alert,
 } from 'react-native';
 import { Search, X, Youtube, Plus, Dumbbell, Clock, TrendingUp } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
@@ -16,6 +15,7 @@ import { exercises as defaultExercises, exerciseCategories } from '@/data/exerci
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { Exercise, ExerciseCategory } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
+import StatusBanner from '@/components/StatusBanner';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ExercisesScreen() {
@@ -33,6 +33,7 @@ export default function ExercisesScreen() {
     muscleGroups: '',
     instructions: '',
   });
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   // Load custom exercises
   React.useEffect(() => {
@@ -70,7 +71,7 @@ export default function ExercisesScreen() {
 
   const handleCreateExercise = async () => {
     if (!newExercise.name.trim()) {
-      Alert.alert('Fehler', 'Bitte gib einen Namen ein.');
+      setStatusMessage({ type: 'error', text: 'Bitte gib einen Namen ein.' });
       return;
     }
 
@@ -100,6 +101,15 @@ export default function ExercisesScreen() {
 
   return (
     <View style={styles.container}>
+      {statusMessage && (
+        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
+          <StatusBanner
+            type={statusMessage.type}
+            text={statusMessage.text}
+            onDismiss={() => setStatusMessage(null)}
+          />
+        </View>
+      )}
       <View style={styles.searchContainer}>
         <Search size={20} color={Colors.textMuted} style={styles.searchIcon} />
         <TextInput
