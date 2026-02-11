@@ -85,8 +85,9 @@ export default function TrainerClientsScreen() {
         // Email client couldn't open, but client was created
       }
     } catch (error: any) {
-      const msg = error?.message?.includes('EMAIL_EXISTS') ? 'Diese E-Mail ist bereits registriert.' :
-                  error?.message?.includes('PHONE_EXISTS') ? 'Diese Telefonnummer ist bereits registriert.' :
+      const errorMsg = error?.message || '';
+      const msg = errorMsg.includes('EMAIL_EXISTS') ? 'Diese E-Mail ist bereits registriert.' :
+                  errorMsg.includes('PHONE_EXISTS') ? 'Diese Telefonnummer ist bereits registriert.' :
                   'Fehler beim Anlegen des Kunden.';
       setStatusMessage({ type: 'error', text: msg });
     }

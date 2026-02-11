@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { publicProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
@@ -12,26 +13,26 @@ export default publicProcedure
   .mutation(async ({ input }) => {
     // Check if client with this email or phone already exists
     const existingClients = await storage.clients.getAll();
-    
+
     // Check for duplicate email
     const existingClientByEmail = existingClients.find(client => client.email === input.email);
     if (existingClientByEmail) {
       console.log('[Server] Client with email already exists:', input.email);
-      throw new Error('CLIENT_EMAIL_EXISTS');
+      throw new TRPCError({ code: 'CONFLICT', message: 'EMAIL_EXISTS' });
     }
-    
+
     // Check for duplicate phone number (if provided)
     if (input.phone && input.phone.trim()) {
       const existingClientByPhone = existingClients.find(client => client.phone === input.phone);
       if (existingClientByPhone) {
         console.log('[Server] Client with phone already exists:', input.phone);
-        throw new Error('CLIENT_PHONE_EXISTS');
+        throw new TRPCError({ code: 'CONFLICT', message: 'PHONE_EXISTS' });
       }
     }
-    
+
     const starterPassword = input.starterPassword || 'TEMP123'; // Fallback password
     console.log('[Server] Creating client with password:', starterPassword);
-    
+
     const newClient = await storage.clients.create({
       name: input.name,
       email: input.email,
@@ -48,9 +49,7 @@ export default publicProcedure
         personalRecords: {},
       },
     });
-    
-    console.log('[Server] Created client:', newClient.id, 'with password:', newClient.starterPassword);
-    const allClients = await storage.clients.getAll();
-    console.log('[Server] All clients after creation:', allClients.map(c => ({ id: c.id, email: c.email, password: c.starterPassword })));
+
+    console.log('[Server] Created client:', newClient.id);
     return newClient;
   });

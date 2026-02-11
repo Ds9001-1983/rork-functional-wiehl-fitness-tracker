@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
@@ -34,7 +35,7 @@ export default publicProcedure
     const plan = await storage.workoutPlans.update(id, updates);
 
     if (!plan) {
-      throw new Error('PLAN_NOT_FOUND');
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'PLAN_NOT_FOUND' });
     }
 
     console.log('[Server] Updated plan:', id);

@@ -60,15 +60,16 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
       throw new Error('LOGIN_FAILED');
     } catch (error: any) {
-      const errorMessage = error.message || error.data?.message || error.shape?.message || error.code;
+      const errorMessage = error.message || error.data?.message || error.shape?.message || '';
+      const trpcCode = error.data?.code || error.code || '';
 
-      if (errorMessage === 'CONNECTION_FAILED' || errorMessage?.includes('fetch')) {
+      if (errorMessage === 'CONNECTION_FAILED' || errorMessage?.includes('fetch') || errorMessage?.includes('Failed to fetch')) {
         throw new Error('CONNECTION_FAILED');
       }
-      if (errorMessage === 'USER_NOT_INVITED' || errorMessage?.includes('USER_NOT_INVITED')) {
+      if (errorMessage.includes('USER_NOT_INVITED') || trpcCode === 'NOT_FOUND') {
         throw new Error('USER_NOT_INVITED');
       }
-      if (errorMessage === 'INVALID_PASSWORD' || errorMessage?.includes('INVALID_PASSWORD')) {
+      if (errorMessage.includes('INVALID_PASSWORD') || trpcCode === 'UNAUTHORIZED') {
         throw new Error('INVALID_PASSWORD');
       }
       throw new Error('INVALID_CREDENTIALS');

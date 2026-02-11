@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, signJWT } from '../../create-context';
 import { storage } from '../../../storage';
 
@@ -16,13 +17,19 @@ export const loginProcedure = publicProcedure
       const user = await storage.users.findByEmail(email);
 
       if (!user) {
-        throw new Error('USER_NOT_INVITED');
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'USER_NOT_INVITED',
+        });
       }
 
       const isValidPassword = await storage.users.verifyPassword(password, user.password);
 
       if (!isValidPassword) {
-        throw new Error('INVALID_PASSWORD');
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'INVALID_PASSWORD',
+        });
       }
 
       // Get client profile data
@@ -59,10 +66,15 @@ export const loginProcedure = publicProcedure
       return { success: true, user: userData, token };
 
     } catch (error: any) {
-      if (error.message === 'USER_NOT_INVITED' || error.message === 'INVALID_PASSWORD') {
+      // Re-throw TRPCErrors as-is (they already have proper HTTP status codes)
+      if (error instanceof TRPCError) {
         throw error;
       }
 
-      throw new Error('CONNECTION_FAILED');
+      console.error('[Login] Unexpected error:', error.message);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'CONNECTION_FAILED',
+      });
     }
   });
