@@ -6,18 +6,21 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { TrendingUp, Award, Target, Activity, Trophy, BarChart3 } from 'lucide-react-native';
+import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { useGamification } from '@/hooks/use-gamification';
 import { StatsCard } from '@/components/StatsCard';
 import { exercises as exerciseDatabase } from '@/data/exercises';
+import { LEVEL_NAMES } from '@/types/gamification';
 
-type StatsTab = 'overview' | 'records' | 'muscles';
+type StatsTab = 'overview' | 'records' | 'muscles' | 'achievements';
 
 export default function StatsScreen() {
   const { user } = useAuth();
-  const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume } = useWorkouts();
+  const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume, workouts } = useWorkouts();
+  const { gamification, unlockedBadges, level, levelName, xpProgress, allBadges, recalculateFromWorkouts } = useGamification();
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
 
   useEffect(() => {
@@ -25,6 +28,13 @@ export default function StatsScreen() {
       setCurrentUserId(user.id);
     }
   }, [user?.id, setCurrentUserId]);
+
+  // Recalculate gamification data when workouts change
+  useEffect(() => {
+    if (user?.id && workouts.length > 0) {
+      recalculateFromWorkouts(workouts, user.id);
+    }
+  }, [user?.id, workouts.length]);
 
   const userWorkouts = getWorkoutHistory();
   const personalRecords = getPersonalRecords();
@@ -50,37 +60,6 @@ export default function StatsScreen() {
     return exercise?.name || exerciseId;
   };
 
-  const calculateStreak = () => {
-    const completedDates = userWorkouts
-      .filter(w => w.completed)
-      .map(w => new Date(w.date).toDateString())
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-
-    let streak = 0;
-    const today = new Date();
-
-    for (let i = 0; i < completedDates.length; i++) {
-      const expectedDate = new Date(today);
-      expectedDate.setDate(expectedDate.getDate() - i);
-      if (completedDates[i] === expectedDate.toDateString()) {
-        streak++;
-      } else if (i === 0) {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        if (completedDates[0] === yesterday.toDateString()) {
-          streak++;
-        } else {
-          break;
-        }
-      } else {
-        break;
-      }
-    }
-
-    return streak;
-  };
-
   const sortedRecords = Object.entries(personalRecords)
     .sort(([, a], [, b]) => b - a);
 
@@ -92,17 +71,34 @@ export default function StatsScreen() {
 
   const maxMuscleVolume = sortedMuscleVolume.length > 0 ? sortedMuscleVolume[0][1] : 1;
 
+  const unlockedIds = new Set(unlockedBadges.map(b => b.badgeId));
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Deine Statistiken</Text>
-          <Text style={styles.subtitle}>Verfolge deinen Fortschritt</Text>
+          <View>
+            <Text style={styles.title}>Deine Statistiken</Text>
+          </View>
+          <View style={styles.levelBadge}>
+            <Zap size={14} color={Colors.warning} />
+            <Text style={styles.levelText}>Lvl {level}</Text>
+            <Text style={styles.xpText}>{gamification.xp} XP</Text>
+          </View>
+        </View>
+
+        {/* XP Progress Bar */}
+        <View style={styles.xpBarContainer}>
+          <View style={styles.xpBarBg}>
+            <View style={[styles.xpBarFill, { width: `${xpProgress.progress * 100}%` }]} />
+          </View>
+          <Text style={styles.xpBarLabel}>{levelName} - {xpProgress.current} / {xpProgress.needed} XP</Text>
         </View>
 
         <View style={styles.tabBar}>
           {([
             { key: 'overview', label: 'Uebersicht' },
+            { key: 'achievements', label: 'Erfolge' },
             { key: 'records', label: 'Rekorde' },
             { key: 'muscles', label: 'Muskeln' },
           ] as const).map(tab => (
@@ -141,10 +137,35 @@ export default function StatsScreen() {
               />
               <StatsCard
                 title="Aktuelle Serie"
-                value={`${calculateStreak()} Tage`}
+                value={`${gamification.currentStreak} Tage`}
                 icon={<Award size={20} color={Colors.error} />}
                 color={Colors.error}
               />
+            </View>
+
+            {/* Streak Info Card */}
+            <View style={styles.section}>
+              <View style={styles.streakCard}>
+                <View style={styles.streakRow}>
+                  <View style={styles.streakItem}>
+                    <Text style={styles.streakValue}>{gamification.currentStreak}</Text>
+                    <Text style={styles.streakLabel}>Aktuelle Serie</Text>
+                  </View>
+                  <View style={styles.streakDivider} />
+                  <View style={styles.streakItem}>
+                    <Text style={styles.streakValue}>{gamification.longestStreak}</Text>
+                    <Text style={styles.streakLabel}>Laengste Serie</Text>
+                  </View>
+                  <View style={styles.streakDivider} />
+                  <View style={styles.streakItem}>
+                    <View style={styles.freezeRow}>
+                      <Shield size={16} color="#42A5F5" />
+                      <Text style={styles.streakValue}>{gamification.streakFreezes}</Text>
+                    </View>
+                    <Text style={styles.streakLabel}>Streak Freeze</Text>
+                  </View>
+                </View>
+              </View>
             </View>
 
             <View style={styles.section}>
@@ -202,6 +223,69 @@ export default function StatsScreen() {
                 </View>
               )}
             </View>
+          </>
+        )}
+
+        {activeTab === 'achievements' && (
+          <>
+            {/* Summary */}
+            <View style={styles.achievementSummary}>
+              <View style={styles.achievementSummaryCard}>
+                <Text style={styles.achievementSummaryValue}>{unlockedBadges.length}</Text>
+                <Text style={styles.achievementSummaryLabel}>Freigeschaltet</Text>
+              </View>
+              <View style={styles.achievementSummaryCard}>
+                <Text style={styles.achievementSummaryValue}>{allBadges.length - unlockedBadges.length}</Text>
+                <Text style={styles.achievementSummaryLabel}>Offen</Text>
+              </View>
+            </View>
+
+            {/* Badge Categories */}
+            {(['consistency', 'milestone', 'performance', 'special'] as const).map(category => {
+              const categoryNames: Record<string, string> = {
+                consistency: 'Konsistenz',
+                milestone: 'Meilensteine',
+                performance: 'Leistung',
+                special: 'Spezial',
+              };
+              const categoryBadges = allBadges.filter(b => b.category === category);
+
+              return (
+                <View key={category} style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Award size={20} color={Colors.accent} />
+                    <Text style={styles.sectionTitle}>{categoryNames[category]}</Text>
+                  </View>
+                  <View style={styles.badgeGrid}>
+                    {categoryBadges.map(badge => {
+                      const isUnlocked = unlockedIds.has(badge.id);
+                      const userBadge = unlockedBadges.find(b => b.badgeId === badge.id);
+                      return (
+                        <View
+                          key={badge.id}
+                          style={[styles.badgeCard, !isUnlocked && styles.badgeCardLocked]}
+                        >
+                          <Text style={[styles.badgeIcon, !isUnlocked && styles.badgeIconLocked]}>
+                            {badge.icon}
+                          </Text>
+                          <Text style={[styles.badgeName, !isUnlocked && styles.badgeNameLocked]}>
+                            {badge.name}
+                          </Text>
+                          <Text style={[styles.badgeDesc, !isUnlocked && styles.badgeDescLocked]}>
+                            {badge.description}
+                          </Text>
+                          {isUnlocked && userBadge && (
+                            <Text style={styles.badgeDate}>
+                              {new Date(userBadge.unlockedAt).toLocaleDateString('de-DE')}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
           </>
         )}
 
@@ -288,246 +372,75 @@ export default function StatsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    padding: Spacing.lg,
-    paddingTop: Spacing.md,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold' as const,
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: 3,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    borderRadius: BorderRadius.sm,
-  },
-  tabActive: {
-    backgroundColor: Colors.accent,
-  },
-  tabText: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    fontWeight: '500' as const,
-  },
-  tabTextActive: {
-    color: Colors.text,
-    fontWeight: '600' as const,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  section: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  sectionTitleStandalone: {
-    fontSize: 20,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: Spacing.md,
-  },
-  recordsSubtext: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    marginBottom: Spacing.md,
-  },
-  weekChart: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  dayColumn: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  barContainer: {
-    height: 100,
-    justifyContent: 'flex-end',
-    marginBottom: Spacing.sm,
-  },
-  bar: {
-    width: 30,
-    backgroundColor: Colors.accent,
-    borderRadius: BorderRadius.sm,
-  },
-  dayLabel: {
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  dayCount: {
-    fontSize: 10,
-    color: Colors.accent,
-    fontWeight: '600' as const,
-    marginTop: 2,
-  },
-  recordsList: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  recordItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  recordItemLast: {
-    borderBottomWidth: 0,
-  },
-  recordLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  recordRank: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: Colors.accent,
-    width: 30,
-  },
-  recordName: {
-    fontSize: 16,
-    color: Colors.text,
-    flex: 1,
-  },
-  recordValue: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.accent,
-  },
-  detailedRecord: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  detailedRecordLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  detailedRecordInfo: {
-    flex: 1,
-  },
-  recordDetail: {
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginTop: 2,
-  },
-  detailedRecordRight: {
-    alignItems: 'center',
-    marginLeft: Spacing.md,
-  },
-  estimated1RM: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.accent,
-  },
-  estimated1RMLabel: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    textTransform: 'uppercase',
-  },
-  muscleList: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  muscleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  muscleName: {
-    width: 120,
-    fontSize: 13,
-    color: Colors.text,
-  },
-  muscleBarContainer: {
-    flex: 1,
-    height: 16,
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: BorderRadius.sm,
-    marginHorizontal: Spacing.sm,
-    overflow: 'hidden',
-  },
-  muscleBar: {
-    height: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: BorderRadius.sm,
-  },
-  muscleSets: {
-    width: 60,
-    fontSize: 12,
-    color: Colors.textMuted,
-    textAlign: 'right',
-  },
-  emptyRecords: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-    marginTop: Spacing.md,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: Colors.textMuted,
-    marginTop: Spacing.sm,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { padding: Spacing.lg, paddingTop: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  title: { fontSize: 28, fontWeight: 'bold' as const, color: Colors.text },
+  levelBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.warning, gap: 4 },
+  levelText: { fontSize: 12, fontWeight: '600' as const, color: Colors.warning },
+  xpText: { fontSize: 11, color: Colors.textMuted },
+  xpBarContainer: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md },
+  xpBarBg: { height: 6, backgroundColor: Colors.surfaceLight, borderRadius: 3, overflow: 'hidden' },
+  xpBarFill: { height: '100%', backgroundColor: Colors.warning, borderRadius: 3 },
+  xpBarLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2, textAlign: 'right' },
+  tabBar: { flexDirection: 'row', marginHorizontal: Spacing.lg, marginBottom: Spacing.lg, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: 3, borderWidth: 1, borderColor: Colors.border },
+  tab: { flex: 1, paddingVertical: Spacing.sm, alignItems: 'center', borderRadius: BorderRadius.sm },
+  tabActive: { backgroundColor: Colors.accent },
+  tabText: { fontSize: 13, color: Colors.textMuted, fontWeight: '500' as const },
+  tabTextActive: { color: Colors.text, fontWeight: '600' as const },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, marginBottom: Spacing.xl },
+  section: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.xl },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  sectionTitle: { fontSize: 20, fontWeight: '600' as const, color: Colors.text },
+  sectionTitleStandalone: { fontSize: 20, fontWeight: '600' as const, color: Colors.text, marginBottom: Spacing.md },
+  recordsSubtext: { fontSize: 13, color: Colors.textMuted, marginBottom: Spacing.md },
+  streakCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  streakRow: { flexDirection: 'row', alignItems: 'center' },
+  streakItem: { flex: 1, alignItems: 'center' },
+  streakDivider: { width: 1, height: 40, backgroundColor: Colors.border },
+  streakValue: { fontSize: 24, fontWeight: '700' as const, color: Colors.accent },
+  streakLabel: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
+  freezeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  weekChart: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: Colors.surface, padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border },
+  dayColumn: { flex: 1, alignItems: 'center' },
+  barContainer: { height: 100, justifyContent: 'flex-end', marginBottom: Spacing.sm },
+  bar: { width: 30, backgroundColor: Colors.accent, borderRadius: BorderRadius.sm },
+  dayLabel: { fontSize: 12, color: Colors.textMuted },
+  dayCount: { fontSize: 10, color: Colors.accent, fontWeight: '600' as const, marginTop: 2 },
+  recordsList: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  recordItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  recordItemLast: { borderBottomWidth: 0 },
+  recordLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  recordRank: { fontSize: 14, fontWeight: '700' as const, color: Colors.accent, width: 30 },
+  recordName: { fontSize: 16, color: Colors.text, flex: 1 },
+  recordValue: { fontSize: 16, fontWeight: '600' as const, color: Colors.accent },
+  detailedRecord: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  detailedRecordLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  detailedRecordInfo: { flex: 1 },
+  recordDetail: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  detailedRecordRight: { alignItems: 'center', marginLeft: Spacing.md },
+  estimated1RM: { fontSize: 18, fontWeight: '700' as const, color: Colors.accent },
+  estimated1RMLabel: { fontSize: 10, color: Colors.textMuted, textTransform: 'uppercase' },
+  muscleList: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  muscleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm },
+  muscleName: { width: 120, fontSize: 13, color: Colors.text },
+  muscleBarContainer: { flex: 1, height: 16, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.sm, marginHorizontal: Spacing.sm, overflow: 'hidden' },
+  muscleBar: { height: '100%', backgroundColor: Colors.accent, borderRadius: BorderRadius.sm },
+  muscleSets: { width: 60, fontSize: 12, color: Colors.textMuted, textAlign: 'right' },
+  achievementSummary: { flexDirection: 'row', paddingHorizontal: Spacing.lg, gap: Spacing.md, marginBottom: Spacing.lg },
+  achievementSummaryCard: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  achievementSummaryValue: { fontSize: 28, fontWeight: '700' as const, color: Colors.accent },
+  achievementSummaryLabel: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  badgeCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.accent, flexGrow: 0, flexShrink: 0, flexBasis: '47%' },
+  badgeCardLocked: { borderColor: Colors.border, opacity: 0.5 },
+  badgeIcon: { fontSize: 28, marginBottom: 4 },
+  badgeIconLocked: { opacity: 0.4 },
+  badgeName: { fontSize: 14, fontWeight: '600' as const, color: Colors.text, marginBottom: 2 },
+  badgeNameLocked: { color: Colors.textMuted },
+  badgeDesc: { fontSize: 11, color: Colors.textSecondary },
+  badgeDescLocked: { color: Colors.textMuted },
+  badgeDate: { fontSize: 10, color: Colors.accent, marginTop: 4 },
+  emptyRecords: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  emptyText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
+  emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },
 });

@@ -9,22 +9,26 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Save, Timer, MessageSquare } from 'lucide-react-native';
+import { Plus, Save, Timer, MessageSquare, Zap } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { useGamification } from '@/hooks/use-gamification';
 import { exercises } from '@/data/exercises';
 import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { getRandomMessage, workoutCompleteMessages } from '@/data/coaching-messages';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const { activeWorkout, updateSet, addSet, removeSet, saveWorkout, endWorkout, getWorkoutHistory, updateExerciseNotes } = useWorkouts();
+  const { processWorkoutComplete, coachingTone } = useGamification();
   const [duration, setDuration] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [completionResult, setCompletionResult] = useState<{ notifications: string[]; message: string } | null>(null);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -199,7 +203,44 @@ export default function ActiveWorkoutScreen() {
           cancelText="Abbrechen"
           onConfirm={async () => {
             setShowFinishConfirm(false);
+            if (!activeWorkout) return;
+
+            const completedWorkout = {
+              ...activeWorkout,
+              completed: true as const,
+              duration: Date.now() - new Date(activeWorkout.date).getTime(),
+            };
+
             await saveWorkout();
+
+            // Process gamification
+            try {
+              const existingCompleted = getWorkoutHistory().filter(w => w.completed);
+              const allWorkouts = [...existingCompleted, completedWorkout];
+              const records: Record<string, number> = {};
+              for (const w of allWorkouts) {
+                for (const ex of w.exercises) {
+                  for (const s of ex.sets) {
+                    if (s.completed && s.weight > 0) {
+                      if (!records[ex.exerciseId] || s.weight > records[ex.exerciseId]) {
+                        records[ex.exerciseId] = s.weight;
+                      }
+                    }
+                  }
+                }
+              }
+              const notifications = await processWorkoutComplete(completedWorkout, allWorkouts, Object.keys(records).length);
+              const tone = (coachingTone || 'motivator') as keyof typeof workoutCompleteMessages;
+              const message = getRandomMessage(workoutCompleteMessages[tone] || workoutCompleteMessages.motivator);
+
+              if (notifications.length > 0 || message) {
+                setCompletionResult({ notifications, message });
+                return; // Show completion overlay before navigating back
+              }
+            } catch (e) {
+              // Gamification errors shouldn't block workout save
+            }
+
             endWorkout();
             router.back();
           }}
@@ -220,6 +261,30 @@ export default function ActiveWorkoutScreen() {
           }}
           onCancel={() => setShowDiscardConfirm(false)}
         />
+
+        {/* Workout Completion Overlay */}
+        {completionResult && (
+          <View style={styles.completionOverlay}>
+            <View style={styles.completionCard}>
+              <Zap size={36} color={Colors.warning} style={{ marginBottom: Spacing.sm }} />
+              <Text style={styles.completionTitle}>Workout abgeschlossen!</Text>
+              <Text style={styles.completionMessage}>{completionResult.message}</Text>
+              {completionResult.notifications.map((n, i) => (
+                <Text key={i} style={styles.completionNotification}>{n}</Text>
+              ))}
+              <TouchableOpacity
+                style={styles.completionButton}
+                onPress={() => {
+                  setCompletionResult(null);
+                  endWorkout();
+                  router.back();
+                }}
+              >
+                <Text style={styles.completionButtonText}>Weiter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
     </>
   );
@@ -373,5 +438,54 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: 'center',
     marginTop: Spacing.xxl,
+  },
+  completionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+    zIndex: 100,
+  },
+  completionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  completionTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: Colors.accent,
+    marginBottom: Spacing.sm,
+  },
+  completionMessage: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    lineHeight: 22,
+  },
+  completionNotification: {
+    fontSize: 16,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.xs,
+    fontWeight: '500' as const,
+  },
+  completionButton: {
+    backgroundColor: Colors.accent,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.lg,
+  },
+  completionButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
 });

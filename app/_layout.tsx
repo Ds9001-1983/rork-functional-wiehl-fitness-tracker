@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
+import { GamificationProvider } from "@/hooks/use-gamification";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -71,9 +72,11 @@ export default function RootLayout() {
           <AuthProvider>
             <ClientsProvider>
               <WorkoutProvider>
-                <ErrorBoundary>
-                  <RootLayoutNav />
-                </ErrorBoundary>
+                <GamificationProvider>
+                  <ErrorBoundary>
+                    <RootLayoutNav />
+                  </ErrorBoundary>
+                </GamificationProvider>
               </WorkoutProvider>
             </ClientsProvider>
           </AuthProvider>

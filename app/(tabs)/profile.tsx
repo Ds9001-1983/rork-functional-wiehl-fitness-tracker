@@ -9,11 +9,12 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { useGamification } from '@/hooks/use-gamification';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
 
@@ -22,6 +23,7 @@ export default function ProfileScreen() {
   const { user, logout, switchRole, updateProfile, isAuthenticated, isLoading } = useAuth();
   const { clients } = useClients();
   const { getWorkoutHistory, getPersonalRecords } = useWorkouts();
+  const { gamification, level, levelName, xpProgress, unlockedBadges } = useGamification();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState('');
@@ -123,10 +125,23 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           <Text style={styles.name}>Hallo {user?.name || 'Benutzer'}</Text>
           <Text style={styles.email}>{user?.email || ''}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>
-              {user?.role === 'admin' ? 'Administrator' : user?.role === 'trainer' ? 'Trainer' : 'Kunde'}
-            </Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>
+                {user?.role === 'admin' ? 'Administrator' : user?.role === 'trainer' ? 'Trainer' : 'Kunde'}
+              </Text>
+            </View>
+            <View style={styles.levelBadge}>
+              <Zap size={12} color={Colors.warning} />
+              <Text style={styles.levelBadgeText}>Lvl {level} - {levelName}</Text>
+            </View>
+          </View>
+          {/* XP Progress */}
+          <View style={styles.xpContainer}>
+            <View style={styles.xpBarBg}>
+              <View style={[styles.xpBarFill, { width: `${xpProgress.progress * 100}%` }]} />
+            </View>
+            <Text style={styles.xpLabel}>{gamification.xp} XP - {xpProgress.current}/{xpProgress.needed} zum naechsten Level</Text>
           </View>
         </View>
 
@@ -138,12 +153,12 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.quickStatDivider} />
           <View style={styles.quickStatItem}>
-            <Text style={styles.quickStatValue}>{recordCount}</Text>
-            <Text style={styles.quickStatLabel}>Rekorde</Text>
+            <Text style={styles.quickStatValue}>{unlockedBadges.length}</Text>
+            <Text style={styles.quickStatLabel}>Badges</Text>
           </View>
           <View style={styles.quickStatDivider} />
           <View style={styles.quickStatItem}>
-            <Text style={styles.quickStatValue}>{user?.stats?.currentStreak || 0}</Text>
+            <Text style={styles.quickStatValue}>{gamification.currentStreak}</Text>
             <Text style={styles.quickStatLabel}>Streak</Text>
           </View>
         </View>
@@ -324,6 +339,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginBottom: Spacing.sm,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
   roleBadge: {
     backgroundColor: Colors.accent,
     paddingHorizontal: Spacing.md,
@@ -334,6 +354,43 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: '500' as const,
+  },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.warning,
+    gap: 4,
+  },
+  levelBadgeText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.warning,
+  },
+  xpContainer: {
+    width: '100%',
+    paddingHorizontal: Spacing.md,
+  },
+  xpBarBg: {
+    height: 6,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: Colors.warning,
+    borderRadius: 3,
+  },
+  xpLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
   },
   quickStats: {
     flexDirection: 'row',
