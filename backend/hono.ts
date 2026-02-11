@@ -23,15 +23,6 @@ app.use('/trpc/*', trpcServer({
   endpoint: '/api/trpc',  // Tell tRPC where it's mounted in the full URL path
 }));
 
-// Debug: list all registered tRPC procedures
-app.get('/debug/routes', (c) => {
-  const procedures = Object.keys(appRouter._def.procedures);
-  return c.json({
-    totalRoutes: procedures.length,
-    procedures,
-  });
-});
-
 // Healthcheck
 app.get('/health', (c) => c.text('ok'));
 

@@ -3,6 +3,7 @@ import { serveStatic } from 'hono/bun';
 import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import apiApp from './backend/hono';
+import { appRouter } from './backend/trpc/app-router';
 
 // Load environment variables
 const port = parseInt(process.env.BACKEND_PORT || '3000');
@@ -18,6 +19,15 @@ app.get('/health', (c) => {
     status: 'healthy', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+// Debug: list all registered tRPC procedures (before sub-app mount)
+app.get('/api/debug/routes', (c) => {
+  const procedures = Object.keys(appRouter._def.procedures);
+  return c.json({
+    totalRoutes: procedures.length,
+    procedures,
   });
 });
 
