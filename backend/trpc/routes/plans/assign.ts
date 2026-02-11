@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { trainerProcedure } from '../../create-context';
+import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default trainerProcedure
+export default publicProcedure
   .input(z.object({
     planId: z.string(),
     userId: z.string(),

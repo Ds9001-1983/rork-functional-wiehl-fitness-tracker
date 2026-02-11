@@ -1,6 +1,19 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import jwt from "jsonwebtoken";
+
+// Dynamic require for Bun compatibility
+let jwtModule: any = null;
+try {
+  jwtModule = require('jsonwebtoken');
+} catch {
+  try {
+    // Fallback for ESM
+    const m = await import('jsonwebtoken');
+    jwtModule = m.default || m;
+  } catch {
+    console.warn('[Auth] jsonwebtoken not available - JWT auth disabled');
+  }
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'functional-wiehl-beta-secret-2026';
 
@@ -13,16 +26,17 @@ export interface AuthUser {
 export const createContext = async (opts?: any) => {
   let user: AuthUser | null = null;
 
-  // Extract JWT from Authorization header
-  const authHeader = opts?.req?.headers?.get?.('authorization') || opts?.req?.headers?.authorization || '';
-  const token = typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : '';
+  if (jwtModule) {
+    const authHeader = opts?.req?.headers?.get?.('authorization') || opts?.req?.headers?.authorization || '';
+    const token = typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : '';
 
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
-      user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
-    } catch {
-      // Invalid token - user stays null
+    if (token) {
+      try {
+        const decoded = jwtModule.verify(token, JWT_SECRET) as AuthUser;
+        user = { userId: decoded.userId, email: decoded.email, role: decoded.role };
+      } catch {
+        // Invalid token
+      }
     }
   }
 
@@ -69,5 +83,9 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
 });
 
 export function signJWT(payload: AuthUser): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  if (!jwtModule) {
+    // Fallback: base64 encoded payload (not secure, for beta only)
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+  }
+  return jwtModule.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }

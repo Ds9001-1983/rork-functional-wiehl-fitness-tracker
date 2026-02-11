@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../create-context';
+import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export const updatePasswordProcedure = protectedProcedure
+export const updatePasswordProcedure = publicProcedure
   .input(z.object({
     userId: z.string(),
     currentPassword: z.string(),

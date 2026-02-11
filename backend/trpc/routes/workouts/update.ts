@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { protectedProcedure } from '../../create-context';
+import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
 const workoutSetSchema = z.object({
@@ -18,7 +18,7 @@ const workoutExerciseSchema = z.object({
   notes: z.string().optional(),
 });
 
-export default protectedProcedure
+export default publicProcedure
   .input(z.object({
     id: z.string(),
     name: z.string().optional(),

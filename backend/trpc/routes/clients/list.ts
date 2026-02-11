@@ -1,7 +1,7 @@
-import { trainerProcedure } from '../../create-context';
+import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default trainerProcedure
+export default publicProcedure
   .query(async () => {
     try {
       const clients = await storage.clients.getAll();

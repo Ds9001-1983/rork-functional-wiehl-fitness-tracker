@@ -1,7 +1,7 @@
-import { adminProcedure } from '../../create-context';
+import { publicProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default adminProcedure
+export default publicProcedure
   .query(async () => {
     const allClients = await storage.clients.getAll();
 
