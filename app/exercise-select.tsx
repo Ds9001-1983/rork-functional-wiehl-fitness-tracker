@@ -10,34 +10,23 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, X, Youtube, Plus, Dumbbell, Clock, TrendingUp } from 'lucide-react-native';
+import { Search, X, Youtube, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { exercises as defaultExercises, exerciseCategories } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
-import { Exercise, ExerciseCategory } from '@/types/workout';
+import { Exercise } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
-import StatusBanner from '@/components/StatusBanner';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function ExercisesScreen() {
+export default function ExerciseSelectScreen() {
   const router = useRouter();
-  const { activeWorkout, addExerciseToWorkout, getExerciseHistory } = useWorkouts();
+  const { addExerciseToWorkout, getExerciseHistory } = useWorkouts();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [customExercises, setCustomExercises] = useState<Exercise[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newExercise, setNewExercise] = useState({
-    name: '',
-    category: 'chest' as ExerciseCategory,
-    equipment: '',
-    muscleGroups: '',
-    instructions: '',
-  });
-  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
-  // Load custom exercises
   React.useEffect(() => {
     AsyncStorage.getItem('customExercises').then(data => {
       if (data) setCustomExercises(JSON.parse(data));
@@ -59,10 +48,10 @@ export default function ExercisesScreen() {
   };
 
   const handleAddToWorkout = () => {
-    if (selectedExercise && activeWorkout) {
+    if (selectedExercise) {
       addExerciseToWorkout(selectedExercise.id);
       setModalVisible(false);
-      router.push('/active-workout');
+      router.back();
     }
   };
 
@@ -72,47 +61,10 @@ export default function ExercisesScreen() {
     }
   };
 
-  const handleCreateExercise = async () => {
-    if (!newExercise.name.trim()) {
-      setStatusMessage({ type: 'error', text: 'Bitte gib einen Namen ein.' });
-      return;
-    }
-
-    const exercise: Exercise = {
-      id: `custom-${Date.now()}`,
-      name: newExercise.name.trim(),
-      category: newExercise.category,
-      equipment: newExercise.equipment.trim() || undefined,
-      muscleGroups: newExercise.muscleGroups
-        .split(',')
-        .map(mg => mg.trim())
-        .filter(mg => mg.length > 0),
-      instructions: newExercise.instructions.trim() || undefined,
-      isCustom: true,
-    };
-
-    const updated = [...customExercises, exercise];
-    setCustomExercises(updated);
-    await AsyncStorage.setItem('customExercises', JSON.stringify(updated));
-
-    setNewExercise({ name: '', category: 'chest', equipment: '', muscleGroups: '', instructions: '' });
-    setShowCreateModal(false);
-  };
-
-  // Get exercise history for detail modal
   const exerciseHistory = selectedExercise ? getExerciseHistory(selectedExercise.id) : [];
 
   return (
     <View style={styles.container}>
-      {statusMessage && (
-        <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
-          <StatusBanner
-            type={statusMessage.type}
-            text={statusMessage.text}
-            onDismiss={() => setStatusMessage(null)}
-          />
-        </View>
-      )}
       <View style={styles.searchContainer}>
         <Search size={20} color={Colors.textMuted} style={styles.searchIcon} />
         <TextInput
@@ -163,15 +115,6 @@ export default function ExercisesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.exercisesList}
       >
-        {/* Create Custom Exercise Button */}
-        <TouchableOpacity
-          style={styles.createExerciseCard}
-          onPress={() => setShowCreateModal(true)}
-        >
-          <Plus size={20} color={Colors.accent} />
-          <Text style={styles.createExerciseText}>Eigene Uebung erstellen</Text>
-        </TouchableOpacity>
-
         {filteredExercises.map((exercise) => (
           <ExerciseCard
             key={exercise.id}
@@ -224,7 +167,6 @@ export default function ExercisesScreen() {
                 </View>
               )}
 
-              {/* Exercise History */}
               {exerciseHistory.length > 0 && (
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>
@@ -257,94 +199,12 @@ export default function ExercisesScreen() {
                 </TouchableOpacity>
               )}
 
-              {activeWorkout && (
-                <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
-                  <Plus size={20} color={Colors.text} />
-                  <Text style={styles.addButtonText}>Zum Workout hinzufuegen</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
+                <Plus size={20} color={Colors.text} />
+                <Text style={styles.addButtonText}>Zum Workout hinzufuegen</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
-      </Modal>
-
-      {/* Create Exercise Modal */}
-      <Modal
-        animationType="slide"
-        visible={showCreateModal}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <View style={styles.createModalContainer}>
-          <View style={styles.createModalHeader}>
-            <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <X size={24} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.createModalTitle}>Neue Uebung</Text>
-            <TouchableOpacity onPress={handleCreateExercise}>
-              <Text style={styles.saveButton}>Speichern</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.createModalBody}>
-            <Text style={styles.inputLabel}>Name *</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="z.B. Cable Lateral Raise"
-              placeholderTextColor={Colors.textMuted}
-              value={newExercise.name}
-              onChangeText={(name) => setNewExercise(prev => ({ ...prev, name }))}
-            />
-
-            <Text style={styles.inputLabel}>Kategorie</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryPickerScroll}>
-              {exerciseCategories.map(cat => (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={[
-                    styles.categoryPickerChip,
-                    newExercise.category === cat.id && styles.categoryPickerChipActive,
-                  ]}
-                  onPress={() => setNewExercise(prev => ({ ...prev, category: cat.id as ExerciseCategory }))}
-                >
-                  <Text style={[
-                    styles.categoryPickerText,
-                    newExercise.category === cat.id && styles.categoryPickerTextActive,
-                  ]}>
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.inputLabel}>Equipment</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="z.B. Kabelzug, Kurzhanteln"
-              placeholderTextColor={Colors.textMuted}
-              value={newExercise.equipment}
-              onChangeText={(equipment) => setNewExercise(prev => ({ ...prev, equipment }))}
-            />
-
-            <Text style={styles.inputLabel}>Muskelgruppen (kommagetrennt)</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="z.B. Bizeps, Unterarme"
-              placeholderTextColor={Colors.textMuted}
-              value={newExercise.muscleGroups}
-              onChangeText={(muscleGroups) => setNewExercise(prev => ({ ...prev, muscleGroups }))}
-            />
-
-            <Text style={styles.inputLabel}>Anleitung (optional)</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              placeholder="Ausfuehrung beschreiben..."
-              placeholderTextColor={Colors.textMuted}
-              value={newExercise.instructions}
-              onChangeText={(instructions) => setNewExercise(prev => ({ ...prev, instructions }))}
-              multiline
-              numberOfLines={4}
-            />
-          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -411,24 +271,6 @@ const styles = StyleSheet.create({
   exercisesList: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.xl,
-  },
-  createExerciseCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-    borderStyle: 'dashed',
-  },
-  createExerciseText: {
-    color: Colors.accent,
-    fontSize: 14,
-    fontWeight: '500' as const,
-    marginLeft: Spacing.sm,
   },
   modalOverlay: {
     flex: 1,
@@ -525,75 +367,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     marginLeft: Spacing.sm,
-  },
-  createModalContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  createModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  createModalTitle: {
-    fontSize: 18,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  saveButton: {
-    fontSize: 16,
-    color: Colors.accent,
-    fontWeight: '600' as const,
-  },
-  createModalBody: {
-    flex: 1,
-    padding: Spacing.lg,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  textInput: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    color: Colors.text,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  textArea: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  categoryPickerScroll: {
-    maxHeight: 40,
-  },
-  categoryPickerChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface,
-    marginRight: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  categoryPickerChipActive: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
-  },
-  categoryPickerText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  categoryPickerTextActive: {
-    color: Colors.text,
-    fontWeight: '600' as const,
   },
 });

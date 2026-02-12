@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target, Edit3, Check, Trash2 } from 'lucide-react-native';
+import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target, Edit3, Check, Trash2, ClipboardList } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
+import { useWorkouts } from '@/hooks/use-workouts';
 
 import type { User as UserType } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
@@ -13,6 +14,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
   const { clients, updateClient, removeClient } = useClients();
+  const { workoutPlans, updateWorkoutPlan } = useWorkouts();
 
   
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -112,6 +114,26 @@ export default function CustomerManagementScreen() {
       setStatusMessage({ type: 'success', text: 'Kundendaten wurden aktualisiert.' });
     } catch {
       setStatusMessage({ type: 'error', text: 'Kundendaten konnten nicht aktualisiert werden.' });
+    }
+  };
+
+  const getClientPlans = (clientId: string) => {
+    return workoutPlans.filter(p => p.assignedTo?.includes(clientId));
+  };
+
+  const handleUnassignPlan = async (planId: string) => {
+    if (!selectedClient) return;
+    const plan = workoutPlans.find(p => p.id === planId);
+    if (!plan) return;
+    try {
+      const updatedPlan = {
+        ...plan,
+        assignedTo: (plan.assignedTo || []).filter(id => id !== selectedClient.id),
+      };
+      await updateWorkoutPlan(planId, updatedPlan);
+      setStatusMessage({ type: 'success', text: 'Trainingsplan wurde entfernt.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Plan konnte nicht entfernt werden.' });
     }
   };
 
@@ -332,6 +354,37 @@ export default function CustomerManagementScreen() {
                         <Text style={styles.performanceLabel}>Verbesserungen</Text>
                       </View>
                     </View>
+                  </View>
+
+                  {/* Training Plans */}
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Trainingsplaene</Text>
+                    {getClientPlans(selectedClient.id).length === 0 ? (
+                      <View style={styles.emptyPlanState}>
+                        <ClipboardList size={24} color={Colors.textMuted} />
+                        <Text style={styles.emptyPlanText}>Keine Plaene zugewiesen</Text>
+                      </View>
+                    ) : (
+                      getClientPlans(selectedClient.id).map((plan) => (
+                        <View key={plan.id} style={styles.planItem}>
+                          <View style={styles.planItemInfo}>
+                            <Text style={styles.planItemName}>{plan.name}</Text>
+                            {plan.description ? (
+                              <Text style={styles.planItemDesc}>{plan.description}</Text>
+                            ) : null}
+                            <Text style={styles.planItemMeta}>
+                              {plan.exercises.length} Uebungen
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleUnassignPlan(plan.id)}
+                            style={styles.unassignButton}
+                          >
+                            <X size={16} color={Colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    )}
                   </View>
 
                   {/* Recent Visits */}
@@ -794,6 +847,56 @@ const styles = StyleSheet.create({
   editActionsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
+  },
+  emptyPlanState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  emptyPlanText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    marginTop: Spacing.sm,
+  },
+  planItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.sm,
+  },
+  planItemInfo: {
+    flex: 1,
+  },
+  planItemName: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.text,
+  },
+  planItemDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  planItemMeta: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    marginTop: 4,
+  },
+  unassignButton: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
   },
   deleteButton: {
     flexDirection: 'row',

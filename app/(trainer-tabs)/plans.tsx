@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy } from 'lucide-react-native';
+import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -18,7 +18,7 @@ export default function TrainerPlansScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState('');
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [planName, setPlanName] = useState('');
   const [planDesc, setPlanDesc] = useState('');
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
@@ -60,17 +60,28 @@ export default function TrainerPlansScreen() {
     }
   };
 
+  const toggleClientSelection = (clientId: string) => {
+    setSelectedClientIds(prev =>
+      prev.includes(clientId)
+        ? prev.filter(id => id !== clientId)
+        : [...prev, clientId]
+    );
+  };
+
   const handleAssignPlan = async () => {
-    if (!selectedPlanId || !selectedClientId) {
-      setStatusMessage({ type: 'error', text: 'Bitte Plan und Kunde auswaehlen.' });
+    if (!selectedPlanId || selectedClientIds.length === 0) {
+      setStatusMessage({ type: 'error', text: 'Bitte Plan und mindestens einen Kunden auswaehlen.' });
       return;
     }
     try {
-      await assignPlanToUser(selectedPlanId, selectedClientId);
+      for (const clientId of selectedClientIds) {
+        await assignPlanToUser(selectedPlanId, clientId);
+      }
       setShowAssignModal(false);
-      setSelectedClientId('');
+      setSelectedClientIds([]);
       setSelectedPlanId('');
-      setStatusMessage({ type: 'success', text: 'Plan wurde dem Kunden zugewiesen.' });
+      const count = selectedClientIds.length;
+      setStatusMessage({ type: 'success', text: `Plan wurde ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen.` });
     } catch {
       setStatusMessage({ type: 'error', text: 'Plan konnte nicht zugewiesen werden.' });
     }
@@ -197,7 +208,7 @@ export default function TrainerPlansScreen() {
                       style={styles.actionIcon}
                       onPress={() => {
                         setSelectedPlanId(plan.id);
-                        setSelectedClientId('');
+                        setSelectedClientIds([]);
                         setShowAssignModal(true);
                       }}
                     >
@@ -294,11 +305,11 @@ export default function TrainerPlansScreen() {
         </View>
       </Modal>
 
-      {/* Plan zuweisen Modal */}
+      {/* Plan zuweisen Modal (Multi-Select) */}
       <Modal visible={showAssignModal} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Plan einem Kunden zuweisen</Text>
+            <Text style={styles.modalTitle}>Plan Kunden zuweisen</Text>
             <TouchableOpacity onPress={() => setShowAssignModal(false)}>
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
@@ -311,25 +322,51 @@ export default function TrainerPlansScreen() {
                 <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
               </View>
             ) : (
-              clients.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.clientOption, selectedClientId === c.id && styles.clientOptionSelected]}
-                  onPress={() => setSelectedClientId(c.id)}
-                >
-                  <Text style={[styles.clientOptionText, selectedClientId === c.id && styles.clientOptionTextSelected]}>{c.name}</Text>
-                  <Text style={styles.clientOptionEmail}>{c.email}</Text>
-                </TouchableOpacity>
-              ))
+              <>
+                {selectedClientIds.length > 0 && (
+                  <Text style={styles.selectionCount}>{selectedClientIds.length} ausgewaehlt</Text>
+                )}
+                {clients.map((c) => {
+                  const isSelected = selectedClientIds.includes(c.id);
+                  const currentPlan = workoutPlans.find(p => p.id === selectedPlanId);
+                  const alreadyAssigned = currentPlan?.assignedTo?.includes(c.id) || false;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.clientOption, isSelected && styles.clientOptionSelected, alreadyAssigned && styles.clientOptionDisabled]}
+                      onPress={() => !alreadyAssigned && toggleClientSelection(c.id)}
+                      disabled={alreadyAssigned}
+                    >
+                      <View style={styles.clientOptionRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.clientOptionText, isSelected && styles.clientOptionTextSelected]}>{c.name}</Text>
+                          <Text style={styles.clientOptionEmail}>
+                            {c.email}{alreadyAssigned ? ' (bereits zugewiesen)' : ''}
+                          </Text>
+                        </View>
+                        {isSelected && (
+                          <Check size={20} color={Colors.accent} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
             )}
             {clients.length > 0 && (
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={styles.cancelButton} onPress={() => setShowAssignModal(false)}>
                   <Text style={styles.cancelButtonText}>Abbrechen</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.primaryButton, !selectedClientId && { opacity: 0.5 }]} onPress={handleAssignPlan} disabled={!selectedClientId}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, selectedClientIds.length === 0 && { opacity: 0.5 }]}
+                  onPress={handleAssignPlan}
+                  disabled={selectedClientIds.length === 0}
+                >
                   <Send size={18} color={Colors.text} />
-                  <Text style={styles.primaryButtonText}>Zuweisen</Text>
+                  <Text style={styles.primaryButtonText}>
+                    Zuweisen{selectedClientIds.length > 0 ? ` (${selectedClientIds.length})` : ''}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -372,7 +409,10 @@ const styles = StyleSheet.create({
   cancelButtonText: { color: Colors.textSecondary, fontSize: 15, fontWeight: '500' },
   clientOption: { padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.sm, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
   clientOptionSelected: { borderColor: Colors.accent, backgroundColor: Colors.accent + '20' },
+  clientOptionDisabled: { opacity: 0.5 },
+  clientOptionRow: { flexDirection: 'row', alignItems: 'center' },
   clientOptionText: { fontSize: 15, fontWeight: '500', color: Colors.text },
   clientOptionTextSelected: { color: Colors.accent },
   clientOptionEmail: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
+  selectionCount: { fontSize: 14, color: Colors.accent, fontWeight: '600', marginBottom: Spacing.sm },
 });

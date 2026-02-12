@@ -54,6 +54,7 @@ function RootLayoutNav() {
       <Stack.Screen name="schedule-training" options={{ title: 'Training planen' }} />
       <Stack.Screen name="customer-management" options={{ title: 'Kundenverwaltung' }} />
       <Stack.Screen name="training-units-selection" options={{ title: 'Trainingseinheiten auswählen' }} />
+      <Stack.Screen name="exercise-select" options={{ title: 'Uebung auswaehlen' }} />
       <Stack.Screen name="routines" options={{ title: 'Routinen' }} />
       <Stack.Screen name="workout-detail/[id]" options={{ title: 'Workout Details' }} />
     </Stack>

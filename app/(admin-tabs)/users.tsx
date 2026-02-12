@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator } from 'react-native';
-import { Users, Search, User, Shield } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Users, Search, User, Shield, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { trpcClient } from '@/lib/trpc';
+import { useClients } from '@/hooks/use-clients';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface UserEntry {
   id: string;
@@ -13,9 +15,12 @@ interface UserEntry {
 }
 
 export default function AdminUsersScreen() {
+  const { removeClient } = useClients();
   const [users, setUsers] = useState<UserEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -52,6 +57,18 @@ export default function AdminUsersScreen() {
       case 'trainer': return 'Trainer';
       case 'client': return 'Kunde';
       default: return role;
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    try {
+      await removeClient(deleteUserId);
+      setUsers(prev => prev.filter(u => u.id !== deleteUserId));
+      setShowDeleteConfirm(false);
+      setDeleteUserId(null);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
     }
   };
 
@@ -100,8 +117,30 @@ export default function AdminUsersScreen() {
               <Text style={styles.pwBadgeText}>PW</Text>
             </View>
           )}
+          {u.role === 'client' && (
+            <TouchableOpacity
+              style={styles.deleteIcon}
+              onPress={() => {
+                setDeleteUserId(u.id);
+                setShowDeleteConfirm(true);
+              }}
+            >
+              <Trash2 size={18} color={Colors.error} />
+            </TouchableOpacity>
+          )}
         </View>
       ))}
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Benutzer loeschen"
+        message={`Moechten Sie "${users.find(u => u.id === deleteUserId)?.email || ''}" wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.`}
+        confirmText="Loeschen"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={handleDeleteUser}
+        onCancel={() => { setShowDeleteConfirm(false); setDeleteUserId(null); }}
+      />
     </ScrollView>
   );
 }
@@ -123,4 +162,5 @@ const styles = StyleSheet.create({
   userDate: { fontSize: 12, color: Colors.textMuted },
   pwBadge: { backgroundColor: Colors.accent, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   pwBadgeText: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  deleteIcon: { padding: Spacing.xs, marginLeft: Spacing.sm },
 });

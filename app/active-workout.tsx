@@ -70,7 +70,7 @@ export default function ActiveWorkoutScreen() {
   };
 
   const handleAddExercise = () => {
-    router.push('/exercises');
+    router.push('/exercise-select');
   };
 
   const toggleNotes = (index: number) => {
