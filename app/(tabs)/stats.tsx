@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
-import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield } from 'lucide-react-native';
+import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield, HelpCircle, X } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -16,12 +17,15 @@ import { exercises as exerciseDatabase } from '@/data/exercises';
 import { LEVEL_NAMES } from '@/types/gamification';
 
 type StatsTab = 'overview' | 'records' | 'muscles' | 'achievements';
+type TimePeriod = '7d' | '30d' | '90d' | 'all';
 
 export default function StatsScreen() {
   const { user } = useAuth();
   const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume, workouts } = useWorkouts();
   const { gamification, unlockedBadges, level, levelName, xpProgress, allBadges, recalculateFromWorkouts } = useGamification();
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [showXPInfo, setShowXPInfo] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -41,7 +45,15 @@ export default function StatsScreen() {
   const detailedRecords = getDetailedRecords();
   const muscleVolume = getMuscleGroupVolume();
 
-  const totalVolume = userWorkouts.reduce((total, workout) => {
+  const filteredWorkouts = useMemo(() => {
+    if (timePeriod === 'all') return userWorkouts;
+    const days = timePeriod === '7d' ? 7 : timePeriod === '30d' ? 30 : 90;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return userWorkouts.filter(w => new Date(w.date) >= cutoff);
+  }, [userWorkouts, timePeriod]);
+
+  const totalVolume = filteredWorkouts.reduce((total, workout) => {
     return total + workout.exercises.reduce((wTotal, exercise) => {
       return wTotal + exercise.sets.reduce((eTotal, set) => {
         return eTotal + (set.weight * set.reps);
@@ -49,7 +61,7 @@ export default function StatsScreen() {
     }, 0);
   }, 0);
 
-  const totalSets = userWorkouts.reduce((total, workout) => {
+  const totalSets = filteredWorkouts.reduce((total, workout) => {
     return total + workout.exercises.reduce((wTotal, exercise) => {
       return wTotal + exercise.sets.length;
     }, 0);
@@ -80,10 +92,15 @@ export default function StatsScreen() {
           <View>
             <Text style={styles.title}>Deine Statistiken</Text>
           </View>
-          <View style={styles.levelBadge}>
-            <Zap size={14} color={Colors.warning} />
-            <Text style={styles.levelText}>Lvl {level}</Text>
-            <Text style={styles.xpText}>{gamification.xp} XP</Text>
+          <View style={styles.headerRight}>
+            <View style={styles.levelBadge}>
+              <Zap size={14} color={Colors.warning} />
+              <Text style={styles.levelText}>Lvl {level}</Text>
+              <Text style={styles.xpText}>{gamification.xp} XP</Text>
+            </View>
+            <TouchableOpacity onPress={() => setShowXPInfo(true)} style={styles.helpButton}>
+              <HelpCircle size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -116,10 +133,29 @@ export default function StatsScreen() {
 
         {activeTab === 'overview' && (
           <>
+            <View style={styles.filterRow}>
+              {([
+                { key: '7d', label: '7 Tage' },
+                { key: '30d', label: '30 Tage' },
+                { key: '90d', label: '90 Tage' },
+                { key: 'all', label: 'Gesamt' },
+              ] as const).map(filter => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[styles.filterChip, timePeriod === filter.key && styles.filterChipActive]}
+                  onPress={() => setTimePeriod(filter.key)}
+                >
+                  <Text style={[styles.filterChipText, timePeriod === filter.key && styles.filterChipTextActive]}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             <View style={styles.statsGrid}>
               <StatsCard
                 title="Gesamt Workouts"
-                value={userWorkouts.length}
+                value={filteredWorkouts.length}
                 icon={<Activity size={20} color={Colors.accent} />}
                 color={Colors.accent}
               />
@@ -172,7 +208,7 @@ export default function StatsScreen() {
               <Text style={styles.sectionTitleStandalone}>Woechentlicher Fortschritt</Text>
               <View style={styles.weekChart}>
                 {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
-                  const dayWorkouts = userWorkouts.filter(w => {
+                  const dayWorkouts = filteredWorkouts.filter(w => {
                     const workoutDay = new Date(w.date).getDay();
                     return workoutDay === (index + 1) % 7;
                   });
@@ -367,6 +403,50 @@ export default function StatsScreen() {
 
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* XP Info Modal */}
+      <Modal visible={showXPInfo} transparent animationType="fade" onRequestClose={() => setShowXPInfo(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>So funktioniert das XP-System</Text>
+              <TouchableOpacity onPress={() => setShowXPInfo(false)}>
+                <X size={24} color={Colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.xpTable}>
+              <View style={styles.xpRow}>
+                <Text style={styles.xpAction}>Workout abschliessen</Text>
+                <Text style={styles.xpValue}>+50 XP</Text>
+              </View>
+              <View style={styles.xpRow}>
+                <Text style={styles.xpAction}>Persoenlicher Rekord</Text>
+                <Text style={styles.xpValue}>+100 XP</Text>
+              </View>
+              <View style={styles.xpRow}>
+                <Text style={styles.xpAction}>Trainings-Serie (pro Tag)</Text>
+                <Text style={styles.xpValue}>+25 XP</Text>
+              </View>
+            </View>
+
+            <View style={styles.xpLevelInfo}>
+              <Zap size={16} color={Colors.warning} />
+              <Text style={styles.xpLevelText}>
+                Level-Aufstieg: alle 500 XP
+              </Text>
+            </View>
+
+            <Text style={styles.xpCurrentInfo}>
+              Dein Fortschritt: {gamification.xp} XP (Level {level} - {levelName})
+            </Text>
+
+            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowXPInfo(false)}>
+              <Text style={styles.modalCloseButtonText}>Verstanden</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -374,6 +454,8 @@ export default function StatsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { padding: Spacing.lg, paddingTop: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  helpButton: { padding: 4 },
   title: { fontSize: 28, fontWeight: 'bold' as const, color: Colors.text },
   levelBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surface, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: Colors.warning, gap: 4 },
   levelText: { fontSize: 12, fontWeight: '600' as const, color: Colors.warning },
@@ -443,4 +525,22 @@ const styles = StyleSheet.create({
   emptyRecords: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   emptyText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
   emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },
+  filterRow: { flexDirection: 'row', marginHorizontal: Spacing.lg, marginBottom: Spacing.md, gap: Spacing.xs },
+  filterChip: { flex: 1, paddingVertical: Spacing.xs, alignItems: 'center', backgroundColor: Colors.surface, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border },
+  filterChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  filterChipText: { fontSize: 12, color: Colors.textMuted, fontWeight: '500' as const },
+  filterChipTextActive: { color: Colors.background, fontWeight: '600' as const },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
+  modalCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: Colors.border },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+  modalTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text },
+  xpTable: { marginBottom: Spacing.lg },
+  xpRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  xpAction: { fontSize: 14, color: Colors.text },
+  xpValue: { fontSize: 14, fontWeight: '700' as const, color: Colors.accent },
+  xpLevelInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
+  xpLevelText: { fontSize: 14, color: Colors.textSecondary },
+  xpCurrentInfo: { fontSize: 13, color: Colors.textMuted, marginBottom: Spacing.lg },
+  modalCloseButton: { backgroundColor: Colors.accent, padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
+  modalCloseButtonText: { color: Colors.background, fontSize: 16, fontWeight: '600' as const },
 });

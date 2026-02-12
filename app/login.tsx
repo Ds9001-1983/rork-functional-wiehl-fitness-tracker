@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, MessageCircle } from 'lucide-react-native';
+import { Mail, Lock, MessageCircle, Eye, EyeOff } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Brand } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [rememberPassword, setRememberPassword] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showNotInvitedConfirm, setShowNotInvitedConfirm] = useState(false);
 
   useEffect(() => {
@@ -115,17 +116,11 @@ export default function LoginScreen() {
     });
   };
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setStatusMessage({ type: 'error', text: 'Bitte E-Mail-Adresse eingeben.' });
-      return;
-    }
-    try {
-      await resetPassword(email);
-      setStatusMessage({ type: 'success', text: `Wir haben eine E-Mail an ${email} gesendet.` });
-    } catch {
-      setStatusMessage({ type: 'error', text: 'Passwort-Reset konnte nicht gestartet werden.' });
-    }
+  const handleForgotPassword = () => {
+    setStatusMessage({
+      type: 'success',
+      text: 'Bitte kontaktiere deinen Trainer oder das Studio, um dein Passwort zuruecksetzen zu lassen.',
+    });
   };
 
   return (
@@ -179,10 +174,20 @@ export default function LoginScreen() {
               placeholderTextColor={Colors.textMuted}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               returnKeyType="go"
               onSubmitEditing={handleLogin}
             />
+            <TouchableOpacity
+              style={styles.passwordToggle}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff size={20} color={Colors.textMuted} />
+              ) : (
+                <Eye size={20} color={Colors.textMuted} />
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.rememberContainer}>
@@ -297,6 +302,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     color: Colors.text,
     fontSize: 16,
+  },
+  passwordToggle: {
+    padding: Spacing.sm,
+    marginRight: Spacing.xs,
   },
   loginButton: {
     backgroundColor: Colors.accent,

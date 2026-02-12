@@ -258,6 +258,44 @@ export default function ScheduleTrainingScreen() {
           <Text style={styles.backBarText}>Zurück zum Trainer Center</Text>
         </TouchableOpacity>
 
+        {/* Step Indicator */}
+        {(() => {
+          const currentStep = !selectedClientId ? 1 : !planName.trim() ? 2 : selectedExercises.length === 0 ? 3 : 4;
+          const stepLabels = ['Kunde', 'Name', 'Uebungen', 'Datum', 'Fertig'];
+          return (
+            <View style={styles.stepIndicator}>
+              {stepLabels.map((label, index) => {
+                const stepNum = index + 1;
+                const isComplete = stepNum < currentStep;
+                const isActive = stepNum === currentStep;
+                return (
+                  <React.Fragment key={stepNum}>
+                    {index > 0 && (
+                      <View style={[styles.stepLine, isComplete && styles.stepLineComplete]} />
+                    )}
+                    <View style={styles.stepItem}>
+                      <View style={[
+                        styles.stepDot,
+                        isComplete && styles.stepDotComplete,
+                        isActive && styles.stepDotActive,
+                      ]}>
+                        <Text style={[
+                          styles.stepDotText,
+                          (isComplete || isActive) && styles.stepDotTextActive,
+                        ]}>{stepNum}</Text>
+                      </View>
+                      <Text style={[
+                        styles.stepLabel,
+                        (isComplete || isActive) && styles.stepLabelActive,
+                      ]}>{label}</Text>
+                    </View>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          );
+        })()}
+
         {/* Kunde auswählen */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -632,6 +670,61 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  stepDotComplete: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  stepDotText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textMuted,
+  },
+  stepDotTextActive: {
+    color: Colors.background,
+  },
+  stepLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  stepLabelActive: {
+    color: Colors.text,
+    fontWeight: '600' as const,
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: Colors.border,
+    marginHorizontal: 2,
+    marginBottom: 16,
+  },
+  stepLineComplete: {
+    backgroundColor: Colors.success,
   },
   backBarText: {
     color: Colors.accent,

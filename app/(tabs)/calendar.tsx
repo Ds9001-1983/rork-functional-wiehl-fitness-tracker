@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Clock,
   Calendar as CalendarIcon,
+  Plus,
 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -25,7 +26,7 @@ const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 export default function CalendarScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { workouts, workoutPlans } = useWorkouts();
+  const { workouts, workoutPlans, startWorkout } = useWorkouts();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(
@@ -127,11 +128,11 @@ export default function CalendarScreen() {
         {/* Month navigation */}
         <View style={styles.monthNav}>
           <TouchableOpacity onPress={prevMonth} style={styles.navButton}>
-            <ChevronLeft size={24} color={Colors.text} />
+            <ChevronLeft size={28} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.monthLabel}>{monthLabel}</Text>
           <TouchableOpacity onPress={nextMonth} style={styles.navButton}>
-            <ChevronRight size={24} color={Colors.text} />
+            <ChevronRight size={28} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -215,6 +216,16 @@ export default function CalendarScreen() {
             <View style={styles.emptyDay}>
               <CalendarIcon size={32} color={Colors.textMuted} />
               <Text style={styles.emptyDayText}>Kein Training an diesem Tag</Text>
+              <TouchableOpacity
+                style={styles.startWorkoutButton}
+                onPress={() => {
+                  startWorkout();
+                  router.push('/active-workout' as never);
+                }}
+              >
+                <Plus size={16} color={Colors.background} />
+                <Text style={styles.startWorkoutButtonText}>Training starten</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             selectedWorkouts.map(workout => {
@@ -290,8 +301,8 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   navButton: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: BorderRadius.sm,
     backgroundColor: Colors.surface,
     alignItems: 'center',
@@ -351,7 +362,7 @@ const styles = StyleSheet.create({
     // visual handled by todayText
   },
   selectedCell: {
-    backgroundColor: Colors.accent + '30',
+    backgroundColor: Colors.accent,
     borderRadius: BorderRadius.sm,
   },
   dayText: {
@@ -364,6 +375,7 @@ const styles = StyleSheet.create({
   },
   selectedDayText: {
     fontWeight: '700' as const,
+    color: Colors.background,
   },
   dotRow: {
     flexDirection: 'row',
@@ -404,6 +416,21 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 14,
     marginTop: Spacing.sm,
+  },
+  startWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+  },
+  startWorkoutButtonText: {
+    color: Colors.background,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
   workoutCard: {
     flexDirection: 'row',

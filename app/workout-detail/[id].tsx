@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,18 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Clock, Dumbbell, TrendingUp, Trophy, ChevronLeft } from 'lucide-react-native';
+import { Clock, Dumbbell, TrendingUp, Trophy, ChevronLeft, Repeat, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb } from '@/data/exercises';
 import { calculate1RM } from '@/types/workout';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { workouts } = useWorkouts();
+  const { workouts, deleteWorkout, repeatWorkout } = useWorkouts();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const workout = useMemo(() => {
     return workouts.find(w => w.id === id);
@@ -234,7 +236,43 @@ export default function WorkoutDetailScreen() {
             <Text style={styles.emptyExercisesText}>Keine Uebungen in diesem Workout</Text>
           </View>
         )}
+
+        {/* Actions */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity
+            style={styles.repeatButton}
+            onPress={() => {
+              repeatWorkout(workout);
+              router.push('/active-workout' as never);
+            }}
+          >
+            <Repeat size={18} color={Colors.background} />
+            <Text style={styles.repeatButtonText}>Workout wiederholen</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 size={18} color={Colors.error} />
+            <Text style={styles.deleteButtonText}>Loeschen</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Workout loeschen"
+        message={`Moechtest du "${workout.name}" wirklich loeschen? Dies kann nicht rueckgaengig gemacht werden.`}
+        confirmText="Loeschen"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={async () => {
+          setShowDeleteConfirm(false);
+          await deleteWorkout(workout.id);
+          router.back();
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </>
   );
 }
@@ -464,5 +502,40 @@ const styles = StyleSheet.create({
   emptyExercisesText: {
     color: Colors.textMuted,
     fontSize: 14,
+  },
+  actionsSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  repeatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.accent,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  repeatButtonText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  deleteButtonText: {
+    color: Colors.error,
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
 });

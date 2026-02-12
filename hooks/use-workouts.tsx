@@ -33,6 +33,8 @@ interface WorkoutState {
   assignPlanToUser: (planId: string, userId: string) => Promise<void>;
   saveRoutine: (routine: Omit<Routine, 'id' | 'timesUsed'>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
+  deleteWorkout: (workoutId: string) => Promise<void>;
+  repeatWorkout: (workout: Workout) => void;
   deletePlan: (planId: string) => Promise<void>;
   duplicatePlan: (planId: string) => Promise<void>;
   refreshFromServer: () => Promise<void>;
@@ -488,6 +490,44 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
   }, [routines]);
 
+  const deleteWorkout = useCallback(async (workoutId: string) => {
+    try {
+      await trpcClient.workouts.delete.mutate({ id: workoutId });
+    } catch (error) {
+      // Local fallback
+    }
+
+    const updatedWorkouts = workouts.filter(w => w.id !== workoutId);
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+  }, [workouts]);
+
+  const repeatWorkout = useCallback((workout: Workout) => {
+    const newExercises: WorkoutExercise[] = workout.exercises.map(ex => ({
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      exerciseId: ex.exerciseId,
+      sets: ex.sets.map((s, i) => ({
+        id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+        reps: s.reps,
+        weight: s.weight,
+        completed: false,
+        type: s.type || 'normal' as const,
+      })),
+      notes: ex.notes,
+    }));
+
+    const newWorkout: Workout = {
+      id: Date.now().toString(),
+      name: workout.name,
+      date: new Date().toISOString(),
+      exercises: newExercises,
+      completed: false,
+      userId: currentUserId || workout.userId,
+    };
+
+    setActiveWorkout(newWorkout);
+  }, [currentUserId]);
+
   const deletePlan = useCallback(async (planId: string) => {
     try {
       await trpcClient.plans.delete.mutate({ id: planId });
@@ -542,8 +582,10 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     assignPlanToUser,
     saveRoutine,
     deleteRoutine,
+    deleteWorkout,
+    repeatWorkout,
     deletePlan,
     duplicatePlan,
     refreshFromServer,
-  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, deletePlan, duplicatePlan, refreshFromServer]);
+  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, deleteWorkout, repeatWorkout, deletePlan, duplicatePlan, refreshFromServer]);
 });

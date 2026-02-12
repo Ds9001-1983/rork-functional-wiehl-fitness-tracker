@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 
 interface ErrorBoundaryState { hasError: boolean; error?: Error | null }
@@ -23,12 +23,26 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Erro
       return (
         <View style={styles.container} testID="error-boundary">
           <Text style={styles.title}>Etwas ist schiefgelaufen</Text>
-          <Text style={styles.message}>Bitte starte die App neu oder gehe zur vorherigen Seite.</Text>
+          <Text style={styles.message}>Bitte versuche es erneut oder gehe zur Startseite.</Text>
           {this.state.error?.message ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{this.state.error?.message}</Text>
             </View>
           ) : null}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => this.setState({ hasError: false, error: null })}
+            >
+              <Text style={styles.retryButtonText}>Nochmal versuchen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.homeButton}
+              onPress={() => this.setState({ hasError: false, error: null })}
+            >
+              <Text style={styles.homeButtonText}>Zur Startseite</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       );
     }
@@ -67,5 +81,34 @@ const styles = StyleSheet.create({
   errorText: {
     color: Colors.textMuted,
     fontSize: 12,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  retryButtonText: {
+    color: Colors.background,
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  homeButton: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  homeButtonText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
 });
