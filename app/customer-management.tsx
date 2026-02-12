@@ -44,29 +44,16 @@ export default function CustomerManagementScreen() {
     );
   }, [clients, searchQuery]);
 
-  // Mock visit data - in production this would come from a backend
-  const getClientVisits = (clientId: string) => {
-    const mockVisits = [
-      { id: '1', date: '2024-01-15', type: 'Krafttraining', duration: 60, notes: 'Gutes Training, Steigerung bei Bankdrücken' },
-      { id: '2', date: '2024-01-12', type: 'Cardio', duration: 45, notes: 'Ausdauer verbessert' },
-      { id: '3', date: '2024-01-10', type: 'Krafttraining', duration: 75, notes: 'Neue Übungen eingeführt' },
-    ];
-    return mockVisits;
-  };
-
-  // Mock performance data
   const getClientPerformance = (clientId: string) => {
+    const stats = selectedClient?.stats;
+    const recordCount = stats?.personalRecords ? Object.keys(stats.personalRecords).length : 0;
     return {
-      totalWorkouts: selectedClient?.stats?.totalWorkouts || 0,
-      totalVolume: selectedClient?.stats?.totalVolume || 0,
-      currentStreak: selectedClient?.stats?.currentStreak || 0,
-      longestStreak: selectedClient?.stats?.longestStreak || 0,
-      personalRecords: selectedClient?.stats?.personalRecords || {},
-      improvements: [
-        { exercise: 'Bankdrücken', improvement: '+5kg', date: '2024-01-15' },
-        { exercise: 'Kniebeugen', improvement: '+10kg', date: '2024-01-12' },
-        { exercise: 'Kreuzheben', improvement: '+7.5kg', date: '2024-01-10' },
-      ]
+      totalWorkouts: stats?.totalWorkouts || 0,
+      totalVolume: stats?.totalVolume || 0,
+      currentStreak: stats?.currentStreak || 0,
+      longestStreak: stats?.longestStreak || 0,
+      personalRecords: stats?.personalRecords || {},
+      recordCount,
     };
   };
 
@@ -349,9 +336,9 @@ export default function CustomerManagementScreen() {
                       <View style={styles.performanceCard}>
                         <Award size={20} color={Colors.accent} />
                         <Text style={styles.performanceValue}>
-                          {getClientPerformance(selectedClient.id).improvements.length}
+                          {getClientPerformance(selectedClient.id).recordCount}
                         </Text>
-                        <Text style={styles.performanceLabel}>Verbesserungen</Text>
+                        <Text style={styles.performanceLabel}>Rekorde</Text>
                       </View>
                     </View>
                   </View>
@@ -387,38 +374,22 @@ export default function CustomerManagementScreen() {
                     )}
                   </View>
 
-                  {/* Recent Visits */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Letzte Besuche</Text>
-                    {getClientVisits(selectedClient.id).map((visit) => (
-                      <View key={visit.id} style={styles.visitCard}>
-                        <View style={styles.visitHeader}>
-                          <Text style={styles.visitDate}>
-                            {new Date(visit.date).toLocaleDateString('de-DE')}
-                          </Text>
-                          <Text style={styles.visitType}>{visit.type}</Text>
-                        </View>
-                        <Text style={styles.visitDuration}>{visit.duration} Min</Text>
-                        <Text style={styles.visitNotes}>{visit.notes}</Text>
+                  {/* Stats Summary */}
+                  {getClientPerformance(selectedClient.id).totalVolume > 0 && (
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Zusammenfassung</Text>
+                      <View style={styles.infoCard}>
+                        <Text style={styles.infoLabel}>Gesamtvolumen:</Text>
+                        <Text style={styles.infoValue}>
+                          {Math.round(getClientPerformance(selectedClient.id).totalVolume).toLocaleString('de-DE')} kg
+                        </Text>
+                        <Text style={styles.infoLabel}>Laengste Serie:</Text>
+                        <Text style={styles.infoValue}>
+                          {getClientPerformance(selectedClient.id).longestStreak} Tage
+                        </Text>
                       </View>
-                    ))}
-                  </View>
-
-                  {/* Recent Improvements */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Aktuelle Verbesserungen</Text>
-                    {getClientPerformance(selectedClient.id).improvements.map((improvement, index) => (
-                      <View key={index} style={styles.improvementCard}>
-                        <View style={styles.improvementInfo}>
-                          <Text style={styles.improvementExercise}>{improvement.exercise}</Text>
-                          <Text style={styles.improvementDate}>
-                            {new Date(improvement.date).toLocaleDateString('de-DE')}
-                          </Text>
-                        </View>
-                        <Text style={styles.improvementValue}>{improvement.improvement}</Text>
-                      </View>
-                    ))}
-                  </View>
+                    </View>
+                  )}
 
                   {/* Action Buttons */}
                   <View style={styles.actionButtons}>

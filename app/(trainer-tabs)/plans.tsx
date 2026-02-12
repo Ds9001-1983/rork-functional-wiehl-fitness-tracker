@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check } from 'lucide-react-native';
+import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check, Search, Dumbbell } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { exercises as exerciseDb } from '@/data/exercises';
 import type { WorkoutExercise, WorkoutPlan } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -33,27 +34,64 @@ export default function TrainerPlansScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePlanId, setDeletePlanId] = useState('');
 
-  const sampleExercises: WorkoutExercise[] = [
-    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false, type: 'normal' as const }] },
-    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false, type: 'normal' as const }] },
-  ];
+  // Exercise selection state
+  const [createExercises, setCreateExercises] = useState<WorkoutExercise[]>([]);
+  const [exerciseSearch, setExerciseSearch] = useState('');
+  const [editExercises, setEditExercises] = useState<WorkoutExercise[]>([]);
+  const [editExerciseSearch, setEditExerciseSearch] = useState('');
+
+  const generateId = () => Math.random().toString(36).substring(2, 9);
+
+  const makeExerciseEntry = (exerciseId: string): WorkoutExercise => ({
+    id: generateId(),
+    exerciseId,
+    sets: [
+      { id: generateId(), reps: 10, weight: 0, completed: false, type: 'normal' as const },
+      { id: generateId(), reps: 10, weight: 0, completed: false, type: 'normal' as const },
+      { id: generateId(), reps: 10, weight: 0, completed: false, type: 'normal' as const },
+    ],
+  });
+
+  const getExerciseName = (exerciseId: string) => {
+    return exerciseDb.find(e => e.id === exerciseId)?.name || exerciseId;
+  };
+
+  const filteredCreateExercises = exerciseSearch.length > 0
+    ? exerciseDb.filter(e =>
+        e.name.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
+        e.muscleGroups.some(mg => mg.toLowerCase().includes(exerciseSearch.toLowerCase()))
+      ).slice(0, 8)
+    : [];
+
+  const filteredEditExercises = editExerciseSearch.length > 0
+    ? exerciseDb.filter(e =>
+        e.name.toLowerCase().includes(editExerciseSearch.toLowerCase()) ||
+        e.muscleGroups.some(mg => mg.toLowerCase().includes(editExerciseSearch.toLowerCase()))
+      ).slice(0, 8)
+    : [];
 
   const handleCreatePlan = async () => {
     if (!planName.trim()) {
       setStatusMessage({ type: 'error', text: 'Bitte einen Plannamen eingeben.' });
       return;
     }
+    if (createExercises.length === 0) {
+      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Uebung hinzufuegen.' });
+      return;
+    }
     try {
       await createWorkoutPlan({
         name: planName.trim(),
         description: planDesc.trim(),
-        exercises: sampleExercises,
+        exercises: createExercises,
         createdBy: user?.id || '',
         assignedTo: [],
       });
       setShowCreateModal(false);
       setPlanName('');
       setPlanDesc('');
+      setCreateExercises([]);
+      setExerciseSearch('');
       setStatusMessage({ type: 'success', text: `Trainingsplan "${planName}" wurde erstellt.` });
     } catch {
       setStatusMessage({ type: 'error', text: 'Plan konnte nicht erstellt werden.' });
@@ -91,6 +129,8 @@ export default function TrainerPlansScreen() {
     setEditPlanId(plan.id);
     setEditPlanName(plan.name);
     setEditPlanDesc(plan.description || '');
+    setEditExercises([...plan.exercises]);
+    setEditExerciseSearch('');
     setShowEditModal(true);
   };
 
@@ -106,6 +146,7 @@ export default function TrainerPlansScreen() {
         ...plan,
         name: editPlanName.trim(),
         description: editPlanDesc.trim(),
+        exercises: editExercises,
       });
       setShowEditModal(false);
       setStatusMessage({ type: 'success', text: 'Plan wurde aktualisiert.' });
@@ -248,11 +289,11 @@ export default function TrainerPlansScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Neuen Trainingsplan erstellen</Text>
-            <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+            <TouchableOpacity onPress={() => { setShowCreateModal(false); setCreateExercises([]); setExerciseSearch(''); }}>
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.row}>
               <ClipboardList size={18} color={Colors.textSecondary} />
               <TextInput value={planName} onChangeText={setPlanName} placeholder="Planname (z.B. Oberkoerper Push) *" placeholderTextColor={Colors.textMuted} style={styles.input} />
@@ -261,13 +302,77 @@ export default function TrainerPlansScreen() {
               <Edit3 size={18} color={Colors.textSecondary} />
               <TextInput value={planDesc} onChangeText={setPlanDesc} placeholder="Beschreibung (optional)" placeholderTextColor={Colors.textMuted} style={styles.input} multiline />
             </View>
+
+            {/* Selected Exercises */}
+            <Text style={styles.exerciseSectionTitle}>
+              Uebungen ({createExercises.length})
+            </Text>
+            {createExercises.length === 0 ? (
+              <View style={styles.emptyExerciseState}>
+                <Dumbbell size={20} color={Colors.textMuted} />
+                <Text style={styles.emptyExerciseText}>Suche unten, um Uebungen hinzuzufuegen</Text>
+              </View>
+            ) : (
+              createExercises.map((ex) => (
+                <View key={ex.id} style={styles.selectedExercise}>
+                  <View style={styles.selectedExerciseInfo}>
+                    <Text style={styles.selectedExerciseName}>{getExerciseName(ex.exerciseId)}</Text>
+                    <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Saetze</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setCreateExercises(prev => prev.filter(e => e.id !== ex.id))} style={styles.removeExerciseButton}>
+                    <X size={16} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
+
+            {/* Exercise Search */}
+            <View style={[styles.row, { marginTop: Spacing.md }]}>
+              <Search size={18} color={Colors.textSecondary} />
+              <TextInput
+                value={exerciseSearch}
+                onChangeText={setExerciseSearch}
+                placeholder="Uebung suchen..."
+                placeholderTextColor={Colors.textMuted}
+                style={styles.input}
+              />
+              {exerciseSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setExerciseSearch('')}>
+                  <X size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {filteredCreateExercises.map((ex) => {
+              const alreadyAdded = createExercises.some(e => e.exerciseId === ex.id);
+              return (
+                <TouchableOpacity
+                  key={ex.id}
+                  style={[styles.exerciseOption, alreadyAdded && { opacity: 0.4 }]}
+                  onPress={() => {
+                    if (!alreadyAdded) {
+                      setCreateExercises(prev => [...prev, makeExerciseEntry(ex.id)]);
+                      setExerciseSearch('');
+                    }
+                  }}
+                  disabled={alreadyAdded}
+                >
+                  <Dumbbell size={16} color={Colors.accent} />
+                  <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                    <Text style={styles.exerciseOptionName}>{ex.name}</Text>
+                    <Text style={styles.exerciseOptionMeta}>{ex.muscleGroups.join(', ')}</Text>
+                  </View>
+                  {alreadyAdded ? <Check size={16} color={Colors.accent} /> : <Plus size={16} color={Colors.textSecondary} />}
+                </TouchableOpacity>
+              );
+            })}
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowCreateModal(false)}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => { setShowCreateModal(false); setCreateExercises([]); setExerciseSearch(''); }}>
                 <Text style={styles.cancelButtonText}>Abbrechen</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleCreatePlan}>
+              <TouchableOpacity style={[styles.primaryButton, createExercises.length === 0 && { opacity: 0.5 }]} onPress={handleCreatePlan}>
                 <ClipboardList size={18} color={Colors.text} />
-                <Text style={styles.primaryButtonText}>Plan erstellen</Text>
+                <Text style={styles.primaryButtonText}>Plan erstellen ({createExercises.length})</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -283,7 +388,7 @@ export default function TrainerPlansScreen() {
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.row}>
               <ClipboardList size={18} color={Colors.textSecondary} />
               <TextInput value={editPlanName} onChangeText={setEditPlanName} placeholder="Planname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
@@ -292,6 +397,63 @@ export default function TrainerPlansScreen() {
               <Edit3 size={18} color={Colors.textSecondary} />
               <TextInput value={editPlanDesc} onChangeText={setEditPlanDesc} placeholder="Beschreibung (optional)" placeholderTextColor={Colors.textMuted} style={styles.input} multiline />
             </View>
+
+            {/* Edit Exercises */}
+            <Text style={styles.exerciseSectionTitle}>
+              Uebungen ({editExercises.length})
+            </Text>
+            {editExercises.map((ex) => (
+              <View key={ex.id} style={styles.selectedExercise}>
+                <View style={styles.selectedExerciseInfo}>
+                  <Text style={styles.selectedExerciseName}>{getExerciseName(ex.exerciseId)}</Text>
+                  <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Saetze</Text>
+                </View>
+                <TouchableOpacity onPress={() => setEditExercises(prev => prev.filter(e => e.id !== ex.id))} style={styles.removeExerciseButton}>
+                  <X size={16} color={Colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* Exercise Search for Edit */}
+            <View style={[styles.row, { marginTop: Spacing.md }]}>
+              <Search size={18} color={Colors.textSecondary} />
+              <TextInput
+                value={editExerciseSearch}
+                onChangeText={setEditExerciseSearch}
+                placeholder="Uebung suchen..."
+                placeholderTextColor={Colors.textMuted}
+                style={styles.input}
+              />
+              {editExerciseSearch.length > 0 && (
+                <TouchableOpacity onPress={() => setEditExerciseSearch('')}>
+                  <X size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {filteredEditExercises.map((ex) => {
+              const alreadyAdded = editExercises.some(e => e.exerciseId === ex.id);
+              return (
+                <TouchableOpacity
+                  key={ex.id}
+                  style={[styles.exerciseOption, alreadyAdded && { opacity: 0.4 }]}
+                  onPress={() => {
+                    if (!alreadyAdded) {
+                      setEditExercises(prev => [...prev, makeExerciseEntry(ex.id)]);
+                      setEditExerciseSearch('');
+                    }
+                  }}
+                  disabled={alreadyAdded}
+                >
+                  <Dumbbell size={16} color={Colors.accent} />
+                  <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                    <Text style={styles.exerciseOptionName}>{ex.name}</Text>
+                    <Text style={styles.exerciseOptionMeta}>{ex.muscleGroups.join(', ')}</Text>
+                  </View>
+                  {alreadyAdded ? <Check size={16} color={Colors.accent} /> : <Plus size={16} color={Colors.textSecondary} />}
+                </TouchableOpacity>
+              );
+            })}
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
                 <Text style={styles.cancelButtonText}>Abbrechen</Text>
@@ -415,4 +577,15 @@ const styles = StyleSheet.create({
   clientOptionTextSelected: { color: Colors.accent },
   clientOptionEmail: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   selectionCount: { fontSize: 14, color: Colors.accent, fontWeight: '600', marginBottom: Spacing.sm },
+  exerciseSectionTitle: { fontSize: 15, fontWeight: '600', color: Colors.text, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  emptyExerciseState: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed' },
+  emptyExerciseText: { fontSize: 13, color: Colors.textMuted, flex: 1 },
+  selectedExercise: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
+  selectedExerciseInfo: { flex: 1 },
+  selectedExerciseName: { fontSize: 14, fontWeight: '500', color: Colors.text },
+  selectedExerciseMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  removeExerciseButton: { width: 28, height: 28, borderRadius: 14, backgroundColor: Colors.surface, alignItems: 'center', justifyContent: 'center' },
+  exerciseOption: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
+  exerciseOptionName: { fontSize: 14, fontWeight: '500', color: Colors.text },
+  exerciseOptionMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
 });

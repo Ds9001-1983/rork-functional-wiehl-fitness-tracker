@@ -24,7 +24,8 @@ export default function ActiveWorkoutScreen() {
   const { activeWorkout, updateSet, addSet, removeSet, saveWorkout, endWorkout, getWorkoutHistory, updateExerciseNotes } = useWorkouts();
   const { processWorkoutComplete, coachingTone } = useGamification();
   const [duration, setDuration] = useState(0);
-  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [showRestTimer, setShowRestTimer] = useState(true);
+  const [restTimerKey, setRestTimerKey] = useState(0);
   const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -116,7 +117,7 @@ export default function ActiveWorkoutScreen() {
         </View>
 
         {showRestTimer && (
-          <RestTimer defaultSeconds={90} />
+          <RestTimer key={restTimerKey} defaultSeconds={90} autoStart={restTimerKey > 0} />
         )}
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -152,9 +153,9 @@ export default function ActiveWorkoutScreen() {
                 )}
 
                 <View style={styles.setsHeader}>
-                  <Text style={[styles.setsHeaderText, { flex: 0, width: 30 }]}>Satz</Text>
+                  <Text style={[styles.setsHeaderText, { flex: 0, width: 30 }]}>#</Text>
                   {previousSets && <Text style={[styles.setsHeaderText, { width: 44 }]}>Vorher</Text>}
-                  <Text style={styles.setsHeaderText}>Gewicht</Text>
+                  <Text style={styles.setsHeaderText}>kg</Text>
                   <Text style={[styles.setsHeaderText, { flex: 0, width: 24 }]}></Text>
                   <Text style={styles.setsHeaderText}>Wdh</Text>
                   <Text style={[styles.setsHeaderText, { flex: 0, width: 68 }]}></Text>
@@ -165,7 +166,13 @@ export default function ActiveWorkoutScreen() {
                     key={set.id}
                     set={set}
                     setNumber={setIndex + 1}
-                    onUpdate={(update) => updateSet(exerciseIndex, setIndex, update)}
+                    onUpdate={(update) => {
+                      updateSet(exerciseIndex, setIndex, update);
+                      if (update.completed === true) {
+                        setShowRestTimer(true);
+                        setRestTimerKey(prev => prev + 1);
+                      }
+                    }}
                     onRemove={() => removeSet(exerciseIndex, setIndex)}
                     previousWeight={previousSets?.[setIndex]?.weight}
                     previousReps={previousSets?.[setIndex]?.reps}

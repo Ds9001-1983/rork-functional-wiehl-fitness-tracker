@@ -63,8 +63,14 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
     if (value === 0) setRepsText('');
   };
 
+  const fillFromPrevious = () => {
+    if (previousWeight !== undefined && previousReps !== undefined) {
+      onUpdate({ weight: previousWeight, reps: previousReps });
+    }
+  };
+
   return (
-    <View style={[styles.container, set.type === 'warmup' && styles.warmupRow]}>
+    <View style={[styles.container, set.type === 'warmup' && styles.warmupRow, set.completed && styles.completedRow]}>
       {/* Set number / type indicator */}
       <TouchableOpacity onPress={cycleSetType} style={styles.setNumberContainer}>
         {setTypeInfo.short ? (
@@ -74,9 +80,11 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
         )}
       </TouchableOpacity>
 
-      {/* Previous performance hint */}
+      {/* Previous performance hint - tap to fill */}
       {hasPrevious && (
-        <Text style={styles.previousHint}>{previousWeight}x{previousReps}</Text>
+        <TouchableOpacity onPress={fillFromPrevious}>
+          <Text style={styles.previousHint}>{previousWeight}x{previousReps}</Text>
+        </TouchableOpacity>
       )}
 
       <TextInput
@@ -132,6 +140,9 @@ const styles = StyleSheet.create({
   },
   warmupRow: {
     backgroundColor: 'rgba(255, 193, 7, 0.1)',
+  },
+  completedRow: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
   setNumberContainer: {
     width: 30,

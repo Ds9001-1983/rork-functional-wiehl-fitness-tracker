@@ -235,12 +235,23 @@ export default function TrainerClientsScreen() {
                       {c.phone && <Text style={styles.clientDetails}>{c.phone}</Text>}
                       <View style={styles.clientStatusRow}>
                         <Text style={styles.clientStats}>{c.stats?.totalWorkouts || 0} Workouts</Text>
+                        {(() => {
+                          const planCount = workoutPlans.filter(p => p.assignedTo?.includes(c.id)).length;
+                          return planCount > 0 ? (
+                            <View style={styles.planBadge}>
+                              <Text style={styles.planBadgeText}>{planCount} Plan{planCount !== 1 ? 'e' : ''}</Text>
+                            </View>
+                          ) : null;
+                        })()}
                         {c.passwordChanged === false && (
                           <View style={styles.passwordBadge}>
                             <Text style={styles.passwordBadgeText}>PW aendern</Text>
                           </View>
                         )}
                       </View>
+                      {c.joinDate && (
+                        <Text style={styles.clientJoinDate}>Seit {new Date(c.joinDate).toLocaleDateString('de-DE')}</Text>
+                      )}
                     </View>
                   </TouchableOpacity>
                 </Animated.View>
@@ -298,6 +309,9 @@ const styles = StyleSheet.create({
   clientStats: { fontSize: 12, color: Colors.textMuted },
   passwordBadge: { backgroundColor: Colors.accent, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   passwordBadgeText: { fontSize: 11, color: Colors.text, fontWeight: '500' },
+  planBadge: { backgroundColor: '#2196F3', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  planBadgeText: { fontSize: 11, color: '#fff', fontWeight: '500' },
+  clientJoinDate: { fontSize: 11, color: Colors.textMuted, marginTop: 2 },
   deleteButtonContainer: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 120, justifyContent: 'center', alignItems: 'center' },
   holdDeleteButton: { backgroundColor: Colors.error, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', borderRadius: BorderRadius.md },
   holdDeleteButtonActive: { backgroundColor: '#CC0000' },
