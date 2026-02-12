@@ -132,6 +132,34 @@ export default function RoutinesScreen() {
     );
   };
 
+  // Discard confirmation
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null);
+
+  const handleCloseCreateRoutine = () => {
+    if (newRoutineName.trim().length > 0 || newRoutineExercises.length > 0) {
+      setDiscardAction(() => () => {
+        setNewRoutineName('');
+        setNewRoutineExercises([]);
+        setShowCreateModal(false);
+      });
+      setShowDiscardConfirm(true);
+    } else {
+      setShowCreateModal(false);
+    }
+  };
+
+  const handleCloseEditRoutine = () => {
+    const original = routines.find(r => r.id === editRoutineId);
+    const hasChanges = original ? (editRoutineName !== original.name || editRoutineExercises.length !== original.exercises.length) : false;
+    if (hasChanges) {
+      setDiscardAction(() => () => setShowEditModal(false));
+      setShowDiscardConfirm(true);
+    } else {
+      setShowEditModal(false);
+    }
+  };
+
   const filteredEditExercises = exerciseDb.filter(e => {
     const matchesSearch = !editSearchQuery ||
       e.name.toLowerCase().includes(editSearchQuery.toLowerCase()) ||
@@ -236,7 +264,7 @@ export default function RoutinesScreen() {
         <Modal visible={showCreateModal} animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+              <TouchableOpacity onPress={handleCloseCreateRoutine}>
                 <X size={24} color={Colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Neue Routine</Text>
@@ -372,7 +400,7 @@ export default function RoutinesScreen() {
         <Modal visible={showEditModal} animationType="slide">
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+              <TouchableOpacity onPress={handleCloseEditRoutine}>
                 <X size={24} color={Colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Routine bearbeiten</Text>
@@ -521,6 +549,24 @@ export default function RoutinesScreen() {
           onCancel={() => {
             setShowDeleteConfirm(false);
             setDeleteTarget(null);
+          }}
+        />
+
+        <ConfirmDialog
+          visible={showDiscardConfirm}
+          title="Nicht gespeicherte Aenderungen"
+          message="Willst du die Aenderungen verwerfen?"
+          confirmText="Verwerfen"
+          cancelText="Weiter bearbeiten"
+          destructive
+          onConfirm={() => {
+            setShowDiscardConfirm(false);
+            if (discardAction) discardAction();
+            setDiscardAction(null);
+          }}
+          onCancel={() => {
+            setShowDiscardConfirm(false);
+            setDiscardAction(null);
           }}
         />
       </View>

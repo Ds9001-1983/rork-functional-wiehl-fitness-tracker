@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar } from 'lucide-react-native';
+import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -12,7 +12,24 @@ import StatusBanner from '@/components/StatusBanner';
 export default function TrainerClientsScreen() {
   const { user } = useAuth();
   const { clients, addClient, removeClient } = useClients();
-  const { workoutPlans } = useWorkouts();
+  const { workoutPlans, workouts } = useWorkouts();
+
+  const getClientLastWorkout = (clientId: string) => {
+    const clientWorkouts = workouts.filter(w => w.userId === clientId && w.completed);
+    if (clientWorkouts.length === 0) return null;
+    return clientWorkouts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  };
+
+  const getActivityLabel = (clientId: string) => {
+    const lastWorkout = getClientLastWorkout(clientId);
+    if (!lastWorkout) return { text: 'Noch kein Training', color: Colors.textMuted };
+    const daysAgo = Math.floor((Date.now() - new Date(lastWorkout.date).getTime()) / (1000 * 60 * 60 * 24));
+    if (daysAgo === 0) return { text: 'Heute trainiert', color: Colors.success };
+    if (daysAgo === 1) return { text: 'Gestern trainiert', color: Colors.success };
+    if (daysAgo <= 3) return { text: `Vor ${daysAgo} Tagen trainiert`, color: Colors.success };
+    if (daysAgo <= 7) return { text: `Vor ${daysAgo} Tagen trainiert`, color: Colors.warning };
+    return { text: `Kein Training seit ${daysAgo} Tagen`, color: Colors.error };
+  };
 
   const [clientFirstName, setClientFirstName] = useState('');
   const [clientLastName, setClientLastName] = useState('');
@@ -221,7 +238,24 @@ export default function TrainerClientsScreen() {
           </TouchableOpacity>
         </View>
         {clients.length === 0 ? (
-          <Text style={styles.muted}>Noch keine Kunden angelegt</Text>
+          <View style={styles.onboardingCard}>
+            <View style={styles.onboardingHeader}>
+              <Target size={20} color={Colors.accent} />
+              <Text style={styles.onboardingTitle}>Erste Schritte als Trainer</Text>
+            </View>
+            {[
+              { num: '1', text: 'Kunde anlegen - Formular oben ausfuellen' },
+              { num: '2', text: 'Trainingsplan erstellen - Im Plaene-Tab' },
+              { num: '3', text: 'Training planen - Kalender-basiert zuweisen' },
+            ].map(step => (
+              <View key={step.num} style={styles.onboardingStep}>
+                <View style={styles.onboardingStepNumber}>
+                  <Text style={styles.onboardingStepNumberText}>{step.num}</Text>
+                </View>
+                <Text style={styles.onboardingStepText}>{step.text}</Text>
+              </View>
+            ))}
+          </View>
         ) : (
           clients.map((c) => {
             const { panResponder, translateX } = createSwipeHandler(c.id);
@@ -252,6 +286,15 @@ export default function TrainerClientsScreen() {
                       {c.joinDate && (
                         <Text style={styles.clientJoinDate}>Seit {new Date(c.joinDate).toLocaleDateString('de-DE')}</Text>
                       )}
+                      {(() => {
+                        const activity = getActivityLabel(c.id);
+                        return (
+                          <View style={styles.activityRow}>
+                            <Activity size={12} color={activity.color} />
+                            <Text style={[styles.activityText, { color: activity.color }]}>{activity.text}</Text>
+                          </View>
+                        );
+                      })()}
                     </View>
                   </TouchableOpacity>
                 </Animated.View>
@@ -319,4 +362,13 @@ const styles = StyleSheet.create({
   deleteButtonText: { color: Colors.text, fontSize: 11, fontWeight: '500' },
   progressContainer: { width: 60, height: 4, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 2, marginTop: 4 },
   progressBar: { height: '100%', backgroundColor: Colors.text, borderRadius: 2 },
+  onboardingCard: { backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, padding: Spacing.lg, borderLeftWidth: 4, borderLeftColor: Colors.accent, borderWidth: 1, borderColor: Colors.border },
+  onboardingHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  onboardingTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  onboardingStep: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  onboardingStepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.accent, alignItems: 'center', justifyContent: 'center' },
+  onboardingStepNumberText: { fontSize: 13, fontWeight: '700', color: Colors.background },
+  onboardingStepText: { flex: 1, fontSize: 14, color: Colors.text },
+  activityRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  activityText: { fontSize: 11, fontWeight: '500' },
 });

@@ -34,6 +34,55 @@ export default function TrainerPlansScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePlanId, setDeletePlanId] = useState('');
 
+  // Discard confirmation state
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null);
+
+  const hasUnsavedCreateChanges = () => {
+    return planName.trim().length > 0 || planDesc.trim().length > 0 || createExercises.length > 0;
+  };
+
+  const hasUnsavedEditChanges = () => {
+    const plan = workoutPlans.find(p => p.id === editPlanId);
+    if (!plan) return false;
+    return editPlanName !== plan.name || editPlanDesc !== (plan.description || '') || editExercises.length !== plan.exercises.length;
+  };
+
+  const confirmDiscard = (action: () => void) => {
+    setDiscardAction(() => action);
+    setShowDiscardConfirm(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setPlanName('');
+    setPlanDesc('');
+    setCreateExercises([]);
+    setExerciseSearch('');
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditExercises([]);
+    setEditExerciseSearch('');
+  };
+
+  const handleCloseCreate = () => {
+    if (hasUnsavedCreateChanges()) {
+      confirmDiscard(closeCreateModal);
+    } else {
+      closeCreateModal();
+    }
+  };
+
+  const handleCloseEdit = () => {
+    if (hasUnsavedEditChanges()) {
+      confirmDiscard(closeEditModal);
+    } else {
+      closeEditModal();
+    }
+  };
+
   // Exercise selection state
   const [createExercises, setCreateExercises] = useState<WorkoutExercise[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState('');
@@ -111,17 +160,31 @@ export default function TrainerPlansScreen() {
       setStatusMessage({ type: 'error', text: 'Bitte Plan und mindestens einen Kunden auswaehlen.' });
       return;
     }
-    try {
-      for (const clientId of selectedClientIds) {
+
+    const successNames: string[] = [];
+    const failedNames: string[] = [];
+
+    for (const clientId of selectedClientIds) {
+      try {
         await assignPlanToUser(selectedPlanId, clientId);
+        const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
+        successNames.push(name);
+      } catch {
+        const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
+        failedNames.push(name);
       }
-      setShowAssignModal(false);
-      setSelectedClientIds([]);
-      setSelectedPlanId('');
-      const count = selectedClientIds.length;
-      setStatusMessage({ type: 'success', text: `Plan wurde ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen.` });
-    } catch {
-      setStatusMessage({ type: 'error', text: 'Plan konnte nicht zugewiesen werden.' });
+    }
+
+    setShowAssignModal(false);
+    setSelectedClientIds([]);
+    setSelectedPlanId('');
+
+    if (failedNames.length === 0) {
+      setStatusMessage({ type: 'success', text: `Plan zugewiesen an: ${successNames.join(', ')}` });
+    } else if (successNames.length === 0) {
+      setStatusMessage({ type: 'error', text: `Fehler bei: ${failedNames.join(', ')}` });
+    } else {
+      setStatusMessage({ type: 'success', text: `Zugewiesen an: ${successNames.join(', ')}. Fehler bei: ${failedNames.join(', ')}` });
     }
   };
 
@@ -289,7 +352,7 @@ export default function TrainerPlansScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Neuen Trainingsplan erstellen</Text>
-            <TouchableOpacity onPress={() => { setShowCreateModal(false); setCreateExercises([]); setExerciseSearch(''); }}>
+            <TouchableOpacity onPress={handleCloseCreate}>
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
@@ -367,7 +430,7 @@ export default function TrainerPlansScreen() {
             })}
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => { setShowCreateModal(false); setCreateExercises([]); setExerciseSearch(''); }}>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleCloseCreate}>
                 <Text style={styles.cancelButtonText}>Abbrechen</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.primaryButton, createExercises.length === 0 && { opacity: 0.5 }]} onPress={handleCreatePlan}>
@@ -384,7 +447,7 @@ export default function TrainerPlansScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Trainingsplan bearbeiten</Text>
-            <TouchableOpacity onPress={() => setShowEditModal(false)}>
+            <TouchableOpacity onPress={handleCloseEdit}>
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
           </View>
@@ -455,7 +518,7 @@ export default function TrainerPlansScreen() {
             })}
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowEditModal(false)}>
+              <TouchableOpacity style={styles.cancelButton} onPress={handleCloseEdit}>
                 <Text style={styles.cancelButtonText}>Abbrechen</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.primaryButton} onPress={handleEditPlan}>
@@ -535,6 +598,24 @@ export default function TrainerPlansScreen() {
           </ScrollView>
         </View>
       </Modal>
+      {/* Discard Confirmation */}
+      <ConfirmDialog
+        visible={showDiscardConfirm}
+        title="Nicht gespeicherte Aenderungen"
+        message="Willst du die Aenderungen verwerfen?"
+        confirmText="Verwerfen"
+        cancelText="Weiter bearbeiten"
+        destructive
+        onConfirm={() => {
+          setShowDiscardConfirm(false);
+          if (discardAction) discardAction();
+          setDiscardAction(null);
+        }}
+        onCancel={() => {
+          setShowDiscardConfirm(false);
+          setDiscardAction(null);
+        }}
+      />
     </ScrollView>
   );
 }

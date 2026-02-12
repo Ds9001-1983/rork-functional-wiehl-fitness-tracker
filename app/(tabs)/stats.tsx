@@ -25,6 +25,7 @@ export default function StatsScreen() {
   const { gamification, unlockedBadges, level, levelName, xpProgress, allBadges, recalculateFromWorkouts } = useGamification();
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [muscleTimePeriod, setMuscleTimePeriod] = useState<TimePeriod>('7d');
   const [showXPInfo, setShowXPInfo] = useState(false);
 
   useEffect(() => {
@@ -66,6 +67,65 @@ export default function StatsScreen() {
       return wTotal + exercise.sets.length;
     }, 0);
   }, 0);
+
+  // Previous period for trend comparison
+  const previousPeriodWorkouts = useMemo(() => {
+    if (timePeriod === 'all') return [];
+    const days = timePeriod === '7d' ? 7 : timePeriod === '30d' ? 30 : 90;
+    const now = new Date();
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - days);
+    const prevStart = new Date(periodStart);
+    prevStart.setDate(prevStart.getDate() - days);
+    return userWorkouts.filter(w => {
+      const d = new Date(w.date);
+      return d >= prevStart && d < periodStart;
+    });
+  }, [userWorkouts, timePeriod]);
+
+  const previousVolume = previousPeriodWorkouts.reduce((total, workout) => {
+    return total + workout.exercises.reduce((wTotal, exercise) => {
+      return wTotal + exercise.sets.reduce((eTotal, set) => {
+        return eTotal + (set.weight * set.reps);
+      }, 0);
+    }, 0);
+  }, 0);
+
+  const getTrend = (current: number, previous: number) => {
+    if (previous === 0 || timePeriod === 'all') return null;
+    const pct = Math.round(((current - previous) / previous) * 100);
+    if (pct === 0) return null;
+    return { pct, up: pct > 0 };
+  };
+
+  const workoutTrend = getTrend(filteredWorkouts.length, previousPeriodWorkouts.length);
+  const volumeTrend = getTrend(totalVolume, previousVolume);
+
+  // Muscle volume with configurable time period
+  const filteredMuscleVolume = useMemo(() => {
+    const volume: Record<string, number> = {};
+    const mDays = muscleTimePeriod === '7d' ? 7 : muscleTimePeriod === '30d' ? 30 : muscleTimePeriod === '90d' ? 90 : 9999;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - mDays);
+    const mWorkouts = userWorkouts.filter(w => w.completed && (muscleTimePeriod === 'all' || new Date(w.date) >= cutoff));
+
+    for (const workout of mWorkouts) {
+      for (const exercise of workout.exercises) {
+        const exData = exerciseDatabase.find(e => e.id === exercise.exerciseId);
+        if (!exData) continue;
+        const completedSets = exercise.sets.filter(s => s.completed).length;
+        for (const mg of exData.muscleGroups) {
+          volume[mg] = (volume[mg] || 0) + completedSets;
+        }
+      }
+    }
+    return volume;
+  }, [userWorkouts, muscleTimePeriod]);
+
+  const sortedFilteredMuscleVolume = Object.entries(filteredMuscleVolume).sort(([, a], [, b]) => b - a);
+  const maxFilteredMuscleVolume = sortedFilteredMuscleVolume.length > 0 ? sortedFilteredMuscleVolume[0][1] : 1;
+
+  const musclePeriodLabel = muscleTimePeriod === '7d' ? '7 Tage' : muscleTimePeriod === '30d' ? '30 Tage' : muscleTimePeriod === '90d' ? '90 Tage' : 'Gesamt';
 
   const getExerciseName = (exerciseId: string): string => {
     const exercise = exerciseDatabase.find(e => e.id === exerciseId);
@@ -179,6 +239,22 @@ export default function StatsScreen() {
               />
             </View>
 
+            {/* Trend indicators */}
+            {timePeriod !== 'all' && (workoutTrend || volumeTrend) && (
+              <View style={styles.trendRow}>
+                {workoutTrend && (
+                  <Text style={[styles.trendText, workoutTrend.up ? styles.trendUp : styles.trendDown]}>
+                    Workouts: {workoutTrend.up ? '↑' : '↓'} {Math.abs(workoutTrend.pct)}% vs Vorperiode
+                  </Text>
+                )}
+                {volumeTrend && (
+                  <Text style={[styles.trendText, volumeTrend.up ? styles.trendUp : styles.trendDown]}>
+                    Volumen: {volumeTrend.up ? '↑' : '↓'} {Math.abs(volumeTrend.pct)}% vs Vorperiode
+                  </Text>
+                )}
+              </View>
+            )}
+
             {/* Streak Info Card */}
             <View style={styles.section}>
               <View style={styles.streakCard}>
@@ -234,18 +310,23 @@ export default function StatsScreen() {
                 <Trophy size={20} color={Colors.accent} />
                 <Text style={styles.sectionTitle}>Top Bestleistungen</Text>
               </View>
-              {sortedRecords.length > 0 ? (
+              {sortedDetailedRecords.length > 0 ? (
                 <View style={styles.recordsList}>
-                  {sortedRecords.slice(0, 5).map(([exerciseId, weight], index) => (
+                  {sortedDetailedRecords.slice(0, 5).map((record, index) => (
                     <View
-                      key={exerciseId}
-                      style={[styles.recordItem, index === Math.min(4, sortedRecords.length - 1) && styles.recordItemLast]}
+                      key={record.exerciseId}
+                      style={[styles.recordItem, index === Math.min(4, sortedDetailedRecords.length - 1) && styles.recordItemLast]}
                     >
                       <View style={styles.recordLeft}>
                         <Text style={styles.recordRank}>#{index + 1}</Text>
-                        <Text style={styles.recordName}>{getExerciseName(exerciseId)}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.recordName}>{getExerciseName(record.exerciseId)}</Text>
+                          <Text style={styles.recordDate}>
+                            {new Date(record.date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
+                          </Text>
+                        </View>
                       </View>
-                      <Text style={styles.recordValue}>{weight} kg</Text>
+                      <Text style={styles.recordValue}>{record.weight} kg</Text>
                     </View>
                   ))}
                 </View>
@@ -366,39 +447,59 @@ export default function StatsScreen() {
         )}
 
         {activeTab === 'muscles' && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <BarChart3 size={20} color={Colors.accent} />
-              <Text style={styles.sectionTitle}>Muskelgruppen (7 Tage)</Text>
+          <>
+            <View style={styles.filterRow}>
+              {([
+                { key: '7d', label: '7 Tage' },
+                { key: '30d', label: '30 Tage' },
+                { key: '90d', label: '90 Tage' },
+                { key: 'all', label: 'Gesamt' },
+              ] as const).map(filter => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[styles.filterChip, muscleTimePeriod === filter.key && styles.filterChipActive]}
+                  onPress={() => setMuscleTimePeriod(filter.key)}
+                >
+                  <Text style={[styles.filterChipText, muscleTimePeriod === filter.key && styles.filterChipTextActive]}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <BarChart3 size={20} color={Colors.accent} />
+                <Text style={styles.sectionTitle}>Muskelgruppen ({musclePeriodLabel})</Text>
+              </View>
 
-            {sortedMuscleVolume.length > 0 ? (
-              <View style={styles.muscleList}>
-                {sortedMuscleVolume.map(([muscle, sets]) => (
-                  <View key={muscle} style={styles.muscleRow}>
-                    <Text style={styles.muscleName}>{muscle}</Text>
-                    <View style={styles.muscleBarContainer}>
-                      <View
-                        style={[
-                          styles.muscleBar,
-                          { width: `${(sets / maxMuscleVolume) * 100}%` },
-                        ]}
-                      />
+              {sortedFilteredMuscleVolume.length > 0 ? (
+                <View style={styles.muscleList}>
+                  {sortedFilteredMuscleVolume.map(([muscle, sets]) => (
+                    <View key={muscle} style={styles.muscleRow}>
+                      <Text style={styles.muscleName}>{muscle}</Text>
+                      <View style={styles.muscleBarContainer}>
+                        <View
+                          style={[
+                            styles.muscleBar,
+                            { width: `${(sets / maxFilteredMuscleVolume) * 100}%` },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.muscleSets}>{sets} Saetze</Text>
                     </View>
-                    <Text style={styles.muscleSets}>{sets} Saetze</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyRecords}>
-                <BarChart3 size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>Keine Daten fuer diese Woche</Text>
-                <Text style={styles.emptySubtext}>
-                  Trainiere, um deine Muskelgruppen-Verteilung zu sehen.
-                </Text>
-              </View>
-            )}
-          </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyRecords}>
+                  <BarChart3 size={40} color={Colors.textMuted} />
+                  <Text style={styles.emptyText}>Keine Daten fuer diesen Zeitraum</Text>
+                  <Text style={styles.emptySubtext}>
+                    Trainiere, um deine Muskelgruppen-Verteilung zu sehen.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
         )}
 
         <View style={{ height: 20 }} />
@@ -525,6 +626,11 @@ const styles = StyleSheet.create({
   emptyRecords: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   emptyText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
   emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },
+  trendRow: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md, gap: 4 },
+  trendText: { fontSize: 12, fontWeight: '600' as const },
+  trendUp: { color: Colors.success },
+  trendDown: { color: Colors.error },
+  recordDate: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
   filterRow: { flexDirection: 'row', marginHorizontal: Spacing.lg, marginBottom: Spacing.md, gap: Spacing.xs },
   filterChip: { flex: 1, paddingVertical: Spacing.xs, alignItems: 'center', backgroundColor: Colors.surface, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border },
   filterChipActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -93,6 +93,28 @@ export default function WorkoutScreen() {
             })}
           </Text>
         </View>
+
+        {userWorkouts.length === 0 && routines.length === 0 && (
+          <View style={styles.welcomeCard}>
+            <View style={styles.welcomeHeader}>
+              <Target size={20} color={Colors.accent} />
+              <Text style={styles.welcomeTitle}>Willkommen bei Functional Wiehl!</Text>
+            </View>
+            <Text style={styles.welcomeSubtitle}>So startest du in 3 Schritten:</Text>
+            {[
+              { num: '1', text: 'Workout starten - Tippe auf den Button unten' },
+              { num: '2', text: 'Uebungen hinzufuegen - Waehle aus 80+ Uebungen' },
+              { num: '3', text: 'Fortschritt tracken - Sieh deine Statistiken im Stats-Tab' },
+            ].map(step => (
+              <View key={step.num} style={styles.welcomeStep}>
+                <View style={styles.welcomeStepNumber}>
+                  <Text style={styles.welcomeStepNumberText}>{step.num}</Text>
+                </View>
+                <Text style={styles.welcomeStepText}>{step.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.statsRow}>
           <StatsCard
@@ -409,5 +431,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textMuted,
     marginTop: Spacing.xs,
+  },
+  welcomeCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  welcomeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  welcomeTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+  },
+  welcomeStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  welcomeStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeStepNumberText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.background,
+  },
+  welcomeStepText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
   },
 });
