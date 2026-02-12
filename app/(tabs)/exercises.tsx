@@ -172,13 +172,23 @@ export default function ExercisesScreen() {
           <Text style={styles.createExerciseText}>Eigene Uebung erstellen</Text>
         </TouchableOpacity>
 
-        {filteredExercises.map((exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            onPress={() => handleExercisePress(exercise)}
-          />
-        ))}
+        {filteredExercises.length === 0 && (searchQuery.length > 0 || selectedCategory) ? (
+          <View style={styles.emptySearch}>
+            <Search size={32} color={Colors.textMuted} />
+            <Text style={styles.emptySearchText}>Keine Uebungen gefunden</Text>
+            <Text style={styles.emptySearchHint}>
+              {searchQuery.length > 0 ? `Keine Ergebnisse fuer "${searchQuery}"` : 'Keine Uebungen in dieser Kategorie'}
+            </Text>
+          </View>
+        ) : (
+          filteredExercises.map((exercise) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              onPress={() => handleExercisePress(exercise)}
+            />
+          ))
+        )}
       </ScrollView>
 
       {/* Exercise Detail Modal */}
@@ -595,5 +605,21 @@ const styles = StyleSheet.create({
   categoryPickerTextActive: {
     color: Colors.text,
     fontWeight: '600' as const,
+  },
+  emptySearch: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+  },
+  emptySearchText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  emptySearchHint: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
 });

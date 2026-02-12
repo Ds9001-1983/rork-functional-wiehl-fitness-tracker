@@ -84,7 +84,27 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
 
   useEffect(() => {
     loadData();
+    // Restore active workout from AsyncStorage on mount
+    AsyncStorage.getItem('activeWorkout').then(data => {
+      if (data) {
+        try {
+          const restored = JSON.parse(data);
+          if (restored && !restored.completed) {
+            setActiveWorkout(restored);
+          }
+        } catch {}
+      }
+    });
   }, [loadData]);
+
+  // Autosave active workout to AsyncStorage on every change
+  useEffect(() => {
+    if (activeWorkout) {
+      AsyncStorage.setItem('activeWorkout', JSON.stringify(activeWorkout));
+    } else {
+      AsyncStorage.removeItem('activeWorkout');
+    }
+  }, [activeWorkout]);
 
   const refreshFromServer = useCallback(async () => {
     await loadData();

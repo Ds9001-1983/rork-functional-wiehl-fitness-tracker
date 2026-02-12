@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Plus, Trash2, Play, X, Dumbbell } from 'lucide-react-native';
+import { Plus, Trash2, Play, X, Dumbbell, Edit3 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb, exerciseCategories } from '@/data/exercises';
@@ -29,6 +29,15 @@ export default function RoutinesScreen() {
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{id: string; name: string} | null>(null);
+
+  // Edit state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRoutineId, setEditRoutineId] = useState('');
+  const [editRoutineName, setEditRoutineName] = useState('');
+  const [editRoutineExercises, setEditRoutineExercises] = useState<RoutineExercise[]>([]);
+  const [showEditExercisePicker, setShowEditExercisePicker] = useState(false);
+  const [editSearchQuery, setEditSearchQuery] = useState('');
+  const [editSelectedCategory, setEditSelectedCategory] = useState<string | null>(null);
 
   const handleCreateRoutine = async () => {
     if (!newRoutineName.trim()) {
@@ -79,6 +88,58 @@ export default function RoutinesScreen() {
     );
   };
 
+  const openEditRoutine = (routine: any) => {
+    setEditRoutineId(routine.id);
+    setEditRoutineName(routine.name);
+    setEditRoutineExercises([...routine.exercises]);
+    setEditSearchQuery('');
+    setEditSelectedCategory(null);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEditRoutine = async () => {
+    if (!editRoutineName.trim()) {
+      setStatusMessage({ type: 'error', text: 'Bitte gib einen Namen ein.' });
+      return;
+    }
+    if (editRoutineExercises.length === 0) {
+      setStatusMessage({ type: 'error', text: 'Fuege mindestens eine Uebung hinzu.' });
+      return;
+    }
+
+    // Delete old and save new (saveRoutine creates new)
+    await deleteRoutine(editRoutineId);
+    await saveRoutine({
+      name: editRoutineName.trim(),
+      exercises: editRoutineExercises,
+      createdBy: 'self',
+    });
+    setShowEditModal(false);
+    setStatusMessage({ type: 'success', text: 'Routine wurde aktualisiert.' });
+  };
+
+  const addExerciseToEdit = (exerciseId: string) => {
+    setEditRoutineExercises(prev => [
+      ...prev,
+      { exerciseId, sets: 3, reps: 10 },
+    ]);
+    setShowEditExercisePicker(false);
+  };
+
+  const updateEditExercise = (index: number, update: Partial<RoutineExercise>) => {
+    setEditRoutineExercises(prev =>
+      prev.map((e, i) => i === index ? { ...e, ...update } : e)
+    );
+  };
+
+  const filteredEditExercises = exerciseDb.filter(e => {
+    const matchesSearch = !editSearchQuery ||
+      e.name.toLowerCase().includes(editSearchQuery.toLowerCase()) ||
+      e.muscleGroups.some(mg => mg.toLowerCase().includes(editSearchQuery.toLowerCase()));
+    const matchesCategory = !editSelectedCategory || e.category === editSelectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
   const filteredExercises = exerciseDb.filter(e => {
     const matchesSearch = !searchQuery ||
       e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -124,11 +185,14 @@ export default function RoutinesScreen() {
               <View key={routine.id} style={styles.routineCard}>
                 <View style={styles.routineHeader}>
                   <Text style={styles.routineName}>{routine.name}</Text>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteRoutine(routine.id, routine.name)}
-                  >
-                    <Trash2 size={18} color={Colors.error} />
-                  </TouchableOpacity>
+                  <View style={styles.routineActions}>
+                    <TouchableOpacity onPress={() => openEditRoutine(routine)} style={styles.routineActionIcon}>
+                      <Edit3 size={18} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteRoutine(routine.id, routine.name)} style={styles.routineActionIcon}>
+                      <Trash2 size={18} color={Colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.routineExercises}>
@@ -304,6 +368,142 @@ export default function RoutinesScreen() {
           </Modal>
         </Modal>
 
+        {/* Edit Routine Modal */}
+        <Modal visible={showEditModal} animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <X size={24} color={Colors.text} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Routine bearbeiten</Text>
+              <TouchableOpacity onPress={handleSaveEditRoutine}>
+                <Text style={styles.saveButton}>Speichern</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Routine-Name"
+                placeholderTextColor={Colors.textMuted}
+                value={editRoutineName}
+                onChangeText={setEditRoutineName}
+              />
+
+              <Text style={styles.exercisesLabel}>
+                Uebungen ({editRoutineExercises.length})
+              </Text>
+
+              {editRoutineExercises.map((re, index) => (
+                <View key={index} style={styles.exerciseRow}>
+                  <View style={styles.exerciseRowInfo}>
+                    <Text style={styles.exerciseRowName}>
+                      {getExerciseName(re.exerciseId)}
+                    </Text>
+                    <View style={styles.exerciseRowInputs}>
+                      <View style={styles.miniInput}>
+                        <Text style={styles.miniLabel}>Saetze</Text>
+                        <TouchableOpacity
+                          style={styles.miniInputBox}
+                          onPress={() => {
+                            const val = parseInt(String(re.sets)) || 3;
+                            updateEditExercise(index, { sets: val === 5 ? 1 : val + 1 });
+                          }}
+                        >
+                          <Text style={styles.miniInputText}>{re.sets}</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <View style={styles.miniInput}>
+                        <Text style={styles.miniLabel}>Wdh</Text>
+                        <TouchableOpacity
+                          style={styles.miniInputBox}
+                          onPress={() => {
+                            const val = parseInt(String(re.reps)) || 10;
+                            const options = [5, 8, 10, 12, 15, 20];
+                            const nextIdx = (options.indexOf(val) + 1) % options.length;
+                            updateEditExercise(index, { reps: options[nextIdx] });
+                          }}
+                        >
+                          <Text style={styles.miniInputText}>{re.reps || '-'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => setEditRoutineExercises(prev => prev.filter((_, i) => i !== index))}>
+                    <X size={18} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.addExerciseButton}
+                onPress={() => setShowEditExercisePicker(true)}
+              >
+                <Plus size={18} color={Colors.accent} />
+                <Text style={styles.addExerciseText}>Uebung hinzufuegen</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+          {/* Exercise Picker for Edit */}
+          <Modal visible={showEditExercisePicker} animationType="slide">
+            <View style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => setShowEditExercisePicker(false)}>
+                  <X size={24} color={Colors.text} />
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>Uebung waehlen</Text>
+                <View style={{ width: 24 }} />
+              </View>
+
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Suchen..."
+                placeholderTextColor={Colors.textMuted}
+                value={editSearchQuery}
+                onChangeText={setEditSearchQuery}
+              />
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+                <TouchableOpacity
+                  style={[styles.categoryChip, !editSelectedCategory && styles.categoryChipActive]}
+                  onPress={() => setEditSelectedCategory(null)}
+                >
+                  <Text style={[styles.categoryChipText, !editSelectedCategory && styles.categoryChipTextActive]}>
+                    Alle
+                  </Text>
+                </TouchableOpacity>
+                {exerciseCategories.map(cat => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[styles.categoryChip, editSelectedCategory === cat.id && styles.categoryChipActive]}
+                    onPress={() => setEditSelectedCategory(cat.id)}
+                  >
+                    <Text style={[styles.categoryChipText, editSelectedCategory === cat.id && styles.categoryChipTextActive]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <ScrollView style={styles.exercisePickerList}>
+                {filteredEditExercises.map(exercise => (
+                  <TouchableOpacity
+                    key={exercise.id}
+                    style={styles.exercisePickerItem}
+                    onPress={() => addExerciseToEdit(exercise.id)}
+                  >
+                    <Text style={styles.exercisePickerName}>{exercise.name}</Text>
+                    <Text style={styles.exercisePickerMuscles}>
+                      {exercise.muscleGroups.join(' / ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </Modal>
+        </Modal>
+
         <ConfirmDialog
           visible={showDeleteConfirm}
           title="Routine loeschen"
@@ -381,6 +581,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.sm,
+  },
+  routineActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  routineActionIcon: {
+    padding: Spacing.xs,
   },
   routineName: {
     fontSize: 18,

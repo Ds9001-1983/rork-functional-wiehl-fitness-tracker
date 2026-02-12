@@ -180,7 +180,7 @@ export default function WorkoutScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Letzte Workouts</Text>
             {userWorkouts.length > 3 && (
-              <TouchableOpacity onPress={() => router.push('/workout-history' as never)}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/calendar' as never)}>
                 <Text style={styles.seeAllText}>Alle</Text>
               </TouchableOpacity>
             )}

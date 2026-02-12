@@ -159,9 +159,10 @@ const styles = StyleSheet.create({
   },
   previousHint: {
     fontSize: 11,
-    color: Colors.textMuted,
+    color: Colors.accent,
     width: 44,
     textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   input: {
     flex: 1,
