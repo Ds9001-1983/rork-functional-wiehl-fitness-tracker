@@ -2,6 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Workout } from '@/types/workout';
+import { trpcClient } from '@/lib/trpc';
 import {
   UserGamification,
   UserBadge,
@@ -210,7 +211,7 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
   });
   const [coachingTone, setCoachingToneState] = useState<string>(DEFAULT_TONE);
 
-  // Load from AsyncStorage
+  // Load from server first, then AsyncStorage fallback
   useEffect(() => {
     (async () => {
       try {
@@ -220,6 +221,34 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
         ]);
         if (stored) setGamification(JSON.parse(stored));
         if (tone) setCoachingToneState(tone);
+
+        // Try loading from server (overrides local if server has data)
+        const userId = await AsyncStorage.getItem('user').then(u => u ? JSON.parse(u).id : null);
+        if (userId) {
+          try {
+            const serverData = await trpcClient.gamification.get.query({ userId });
+            if (serverData && serverData.xp > 0) {
+              const merged: UserGamification = {
+                xp: serverData.xp,
+                level: serverData.level,
+                badges: serverData.badges || [],
+                currentStreak: serverData.currentStreak,
+                longestStreak: serverData.longestStreak,
+                streakFreezes: serverData.streakFreezes,
+                streakFreezesUsed: serverData.streakFreezesUsed || [],
+                lastActiveDate: serverData.lastActiveDate || '',
+              };
+              setGamification(merged);
+              await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              if (serverData.coachingTone) {
+                setCoachingToneState(serverData.coachingTone);
+                await AsyncStorage.setItem('coachingTone', serverData.coachingTone);
+              }
+            }
+          } catch {
+            // Server unavailable, use local data
+          }
+        }
       } catch {
         // Use defaults
       }
@@ -229,7 +258,25 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
   const save = useCallback(async (data: UserGamification) => {
     setGamification(data);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, []);
+    // Sync to server in background
+    try {
+      const userId = await AsyncStorage.getItem('user').then(u => u ? JSON.parse(u).id : null);
+      if (userId) {
+        trpcClient.gamification.sync.mutate({
+          userId,
+          xp: data.xp,
+          level: data.level,
+          badges: data.badges,
+          currentStreak: data.currentStreak,
+          longestStreak: data.longestStreak,
+          streakFreezes: data.streakFreezes,
+          streakFreezesUsed: data.streakFreezesUsed,
+          lastActiveDate: data.lastActiveDate,
+          coachingTone: coachingTone,
+        }).catch(() => {});
+      }
+    } catch {}
+  }, [coachingTone]);
 
   const setCoachingTone = useCallback(async (tone: string) => {
     setCoachingToneState(tone);

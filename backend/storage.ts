@@ -108,6 +108,12 @@ let clients: StoredClient[] = [
 let invitations: StoredInvitation[] = [];
 let workouts: StoredWorkout[] = [];
 let workoutPlans: StoredWorkoutPlan[] = [];
+let passwordResetTokens: { token: string; userId: string; expiresAt: string; used: boolean }[] = [];
+let bodyMeasurements: { id: string; userId: string; date: string; measurements: Record<string, number> }[] = [];
+let gamificationData: { userId: string; xp: number; level: number; badges: any[]; currentStreak: number; longestStreak: number; streakFreezes: number; streakFreezesUsed: string[]; lastActiveDate: string; coachingTone: string }[] = [];
+let routinesData: { id: string; userId: string; name: string; exercises: any[]; timesUsed: number; lastUsed: string | null; createdAt: string }[] = [];
+let challengesData: { id: string; name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string }[] = [];
+let challengeProgressData: { challengeId: string; userId: string; currentValue: number; updatedAt: string }[] = [];
 let nextId = 100;
 
 const generateId = () => {
@@ -212,6 +218,78 @@ async function initializeTables() {
         schedule JSONB DEFAULT '[]',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        token VARCHAR(255) PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS body_measurements (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        date TIMESTAMP NOT NULL,
+        measurements JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gamification (
+        user_id VARCHAR(50) PRIMARY KEY,
+        xp INTEGER DEFAULT 0,
+        level INTEGER DEFAULT 1,
+        badges JSONB DEFAULT '[]',
+        current_streak INTEGER DEFAULT 0,
+        longest_streak INTEGER DEFAULT 0,
+        streak_freezes INTEGER DEFAULT 2,
+        streak_freezes_used JSONB DEFAULT '[]',
+        last_active_date VARCHAR(20) DEFAULT '',
+        coaching_tone VARCHAR(20) DEFAULT 'motivator',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS routines (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        exercises JSONB DEFAULT '[]',
+        times_used INTEGER DEFAULT 0,
+        last_used TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS challenges (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        type VARCHAR(50) NOT NULL,
+        target INTEGER NOT NULL,
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP NOT NULL,
+        created_by VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS challenge_progress (
+        challenge_id INTEGER REFERENCES challenges(id) ON DELETE CASCADE,
+        user_id VARCHAR(50) NOT NULL,
+        current_value INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (challenge_id, user_id)
       )
     `);
 
@@ -814,6 +892,319 @@ export const storage = {
         plan.assignedTo.push(userId);
       }
       return true;
+    },
+  },
+
+  passwordResets: {
+    create: async (userId: string, token: string, expiresAt: string): Promise<void> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(
+            `INSERT INTO password_reset_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)`,
+            [token, userId, expiresAt]
+          );
+          return;
+        } catch (err) {
+          console.log('[Storage] DB insert failed for reset token:', err);
+        }
+      }
+      passwordResetTokens.push({ token, userId, expiresAt, used: false });
+    },
+
+    validate: async (token: string): Promise<{ userId: string } | null> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT user_id FROM password_reset_tokens WHERE token = $1 AND used = FALSE AND expires_at > NOW()`,
+            [token]
+          );
+          if (result.rows.length === 0) return null;
+          return { userId: result.rows[0].user_id.toString() };
+        } catch (err) {
+          console.log('[Storage] DB query failed for reset token:', err);
+        }
+      }
+      const entry = passwordResetTokens.find(t => t.token === token && !t.used && new Date(t.expiresAt) > new Date());
+      return entry ? { userId: entry.userId } : null;
+    },
+
+    markUsed: async (token: string): Promise<void> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(`UPDATE password_reset_tokens SET used = TRUE WHERE token = $1`, [token]);
+          return;
+        } catch (err) {
+          console.log('[Storage] DB update failed for reset token:', err);
+        }
+      }
+      const entry = passwordResetTokens.find(t => t.token === token);
+      if (entry) entry.used = true;
+    },
+  },
+
+  measurements: {
+    create: async (data: { userId: string; date: string; measurements: Record<string, number> }): Promise<{ id: string }> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO body_measurements (user_id, date, measurements) VALUES ($1, $2, $3) RETURNING id::text`,
+            [data.userId, data.date, JSON.stringify(data.measurements)]
+          );
+          return { id: result.rows[0].id };
+        } catch (err) {
+          console.log('[Storage] DB insert failed for measurement:', err);
+        }
+      }
+      const id = generateId();
+      bodyMeasurements.push({ id, ...data });
+      return { id };
+    },
+
+    getByUserId: async (userId: string): Promise<{ id: string; userId: string; date: string; measurements: Record<string, number> }[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, user_id as "userId", date, measurements FROM body_measurements WHERE user_id = $1 ORDER BY date DESC`,
+            [userId]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for measurements:', err);
+        }
+      }
+      return bodyMeasurements.filter(m => m.userId === userId).sort((a, b) => b.date.localeCompare(a.date));
+    },
+  },
+
+  gamification: {
+    get: async (userId: string): Promise<any | null> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT user_id as "userId", xp, level, badges, current_streak as "currentStreak",
+             longest_streak as "longestStreak", streak_freezes as "streakFreezes",
+             streak_freezes_used as "streakFreezesUsed", last_active_date as "lastActiveDate",
+             coaching_tone as "coachingTone"
+             FROM gamification WHERE user_id = $1`,
+            [userId]
+          );
+          return result.rows[0] || null;
+        } catch (err) {
+          console.log('[Storage] DB query failed for gamification:', err);
+        }
+      }
+      return gamificationData.find(g => g.userId === userId) || null;
+    },
+
+    sync: async (userId: string, data: any): Promise<void> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(
+            `INSERT INTO gamification (user_id, xp, level, badges, current_streak, longest_streak,
+             streak_freezes, streak_freezes_used, last_active_date, coaching_tone, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+             ON CONFLICT (user_id) DO UPDATE SET
+             xp = $2, level = $3, badges = $4, current_streak = $5, longest_streak = $6,
+             streak_freezes = $7, streak_freezes_used = $8, last_active_date = $9, coaching_tone = $10, updated_at = NOW()`,
+            [userId, data.xp, data.level, JSON.stringify(data.badges),
+             data.currentStreak, data.longestStreak, data.streakFreezes,
+             JSON.stringify(data.streakFreezesUsed || []), data.lastActiveDate, data.coachingTone || 'motivator']
+          );
+          return;
+        } catch (err) {
+          console.log('[Storage] DB sync failed for gamification:', err);
+        }
+      }
+      const idx = gamificationData.findIndex(g => g.userId === userId);
+      const entry = { userId, ...data };
+      if (idx >= 0) gamificationData[idx] = entry;
+      else gamificationData.push(entry);
+    },
+
+    leaderboard: async (limit: number = 20): Promise<any[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT g.user_id as "userId", g.xp, g.level, g.current_streak as "currentStreak",
+             g.badges, c.name
+             FROM gamification g
+             LEFT JOIN clients c ON g.user_id = c.user_id::text
+             ORDER BY g.xp DESC LIMIT $1`,
+            [limit]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for leaderboard:', err);
+        }
+      }
+      return gamificationData
+        .sort((a, b) => b.xp - a.xp)
+        .slice(0, limit)
+        .map(g => ({ userId: g.userId, xp: g.xp, level: g.level, currentStreak: g.currentStreak, badges: g.badges }));
+    },
+  },
+
+  routines: {
+    getByUserId: async (userId: string): Promise<any[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, user_id as "userId", name, exercises, times_used as "timesUsed",
+             last_used as "lastUsed", created_at as "createdAt"
+             FROM routines WHERE user_id = $1 ORDER BY created_at DESC`,
+            [userId]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for routines:', err);
+        }
+      }
+      return routinesData.filter(r => r.userId === userId);
+    },
+
+    create: async (data: { userId: string; name: string; exercises: any[] }): Promise<{ id: string }> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO routines (user_id, name, exercises) VALUES ($1, $2, $3) RETURNING id::text`,
+            [data.userId, data.name, JSON.stringify(data.exercises)]
+          );
+          return { id: result.rows[0].id };
+        } catch (err) {
+          console.log('[Storage] DB insert failed for routine:', err);
+        }
+      }
+      const id = generateId();
+      routinesData.push({ id, userId: data.userId, name: data.name, exercises: data.exercises, timesUsed: 0, lastUsed: null, createdAt: new Date().toISOString() });
+      return { id };
+    },
+
+    update: async (id: string, updates: { name?: string; exercises?: any[]; timesUsed?: number; lastUsed?: string }): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const setClauses: string[] = [];
+          const values: any[] = [];
+          let idx = 1;
+          if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
+          if (updates.exercises !== undefined) { setClauses.push(`exercises = $${idx++}`); values.push(JSON.stringify(updates.exercises)); }
+          if (updates.timesUsed !== undefined) { setClauses.push(`times_used = $${idx++}`); values.push(updates.timesUsed); }
+          if (updates.lastUsed !== undefined) { setClauses.push(`last_used = $${idx++}`); values.push(updates.lastUsed); }
+          if (setClauses.length === 0) return false;
+          values.push(id);
+          const result = await pool.query(`UPDATE routines SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+          return (result.rowCount ?? 0) > 0;
+        } catch (err) {
+          console.log('[Storage] DB update failed for routine:', err);
+        }
+      }
+      const routine = routinesData.find(r => r.id === id);
+      if (!routine) return false;
+      Object.assign(routine, updates);
+      return true;
+    },
+
+    delete: async (id: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query('DELETE FROM routines WHERE id = $1', [id]);
+          return (result.rowCount ?? 0) > 0;
+        } catch (err) {
+          console.log('[Storage] DB delete failed for routine:', err);
+        }
+      }
+      const len = routinesData.length;
+      routinesData = routinesData.filter(r => r.id !== id);
+      return routinesData.length < len;
+    },
+  },
+
+  challenges: {
+    create: async (data: { name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string }): Promise<{ id: string }> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO challenges (name, description, type, target, start_date, end_date, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
+            [data.name, data.description, data.type, data.target, data.startDate, data.endDate, data.createdBy]
+          );
+          return { id: result.rows[0].id };
+        } catch (err) {
+          console.log('[Storage] DB insert failed for challenge:', err);
+        }
+      }
+      const id = generateId();
+      challengesData.push({ id, ...data });
+      return { id };
+    },
+
+    getActive: async (): Promise<any[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, name, description, type, target, start_date as "startDate",
+             end_date as "endDate", created_by as "createdBy"
+             FROM challenges WHERE end_date >= NOW() ORDER BY start_date DESC`
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for challenges:', err);
+        }
+      }
+      const now = new Date().toISOString();
+      return challengesData.filter(c => c.endDate >= now);
+    },
+
+    join: async (challengeId: string, userId: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(
+            `INSERT INTO challenge_progress (challenge_id, user_id, current_value) VALUES ($1, $2, 0)
+             ON CONFLICT (challenge_id, user_id) DO NOTHING`,
+            [challengeId, userId]
+          );
+          return true;
+        } catch (err) {
+          console.log('[Storage] DB insert failed for challenge join:', err);
+        }
+      }
+      if (!challengeProgressData.find(p => p.challengeId === challengeId && p.userId === userId)) {
+        challengeProgressData.push({ challengeId, userId, currentValue: 0, updatedAt: new Date().toISOString() });
+      }
+      return true;
+    },
+
+    updateProgress: async (challengeId: string, userId: string, value: number): Promise<void> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(
+            `UPDATE challenge_progress SET current_value = $1, updated_at = NOW() WHERE challenge_id = $2 AND user_id = $3`,
+            [value, challengeId, userId]
+          );
+          return;
+        } catch (err) {
+          console.log('[Storage] DB update failed for challenge progress:', err);
+        }
+      }
+      const entry = challengeProgressData.find(p => p.challengeId === challengeId && p.userId === userId);
+      if (entry) { entry.currentValue = value; entry.updatedAt = new Date().toISOString(); }
+    },
+
+    getProgress: async (challengeId: string): Promise<any[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT cp.user_id as "userId", cp.current_value as "currentValue", c.name
+             FROM challenge_progress cp
+             LEFT JOIN clients c ON cp.user_id = c.user_id::text
+             WHERE cp.challenge_id = $1 ORDER BY cp.current_value DESC`,
+            [challengeId]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for challenge progress:', err);
+        }
+      }
+      return challengeProgressData.filter(p => p.challengeId === challengeId).sort((a, b) => b.currentValue - a.currentValue);
     },
   },
 };

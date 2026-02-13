@@ -89,11 +89,10 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   }, []);
 
   const switchRole = useCallback(() => {
-    if (user) {
-      const newUser = {
-        ...user,
-        role: user.role === 'client' ? 'trainer' : 'client',
-      } as User;
+    if (user && (user.role === 'trainer' || user.role === 'admin')) {
+      // Only trainers/admins can switch to client view and back
+      const newRole = user.role === 'client' ? 'trainer' : 'client';
+      const newUser = { ...user, role: newRole } as User;
       setUser(newUser);
       AsyncStorage.setItem('user', JSON.stringify(newUser));
     }

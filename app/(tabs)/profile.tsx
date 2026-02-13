@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -182,6 +182,30 @@ export default function ProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Edit3 size={20} color={Colors.textMuted} />
               <Text style={styles.menuItemText}>Profil bearbeiten</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/body-measurements')}>
+            <View style={styles.menuItemLeft}>
+              <Ruler size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Koerpermasse</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/leaderboard')}>
+            <View style={styles.menuItemLeft}>
+              <Trophy size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Rangliste</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/challenges')}>
+            <View style={styles.menuItemLeft}>
+              <Target size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Challenges</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>

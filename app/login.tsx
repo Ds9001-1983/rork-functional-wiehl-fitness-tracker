@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, MessageCircle, Eye, EyeOff } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Brand } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
+import { trpcClient } from '@/lib/trpc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
@@ -116,11 +117,30 @@ export default function LoginScreen() {
     });
   };
 
-  const handleForgotPassword = () => {
-    setStatusMessage({
-      type: 'success',
-      text: 'Bitte kontaktiere deinen Trainer oder das Studio, um dein Passwort zuruecksetzen zu lassen.',
-    });
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    const targetEmail = resetEmail || email;
+    if (!targetEmail) {
+      setStatusMessage({ type: 'error', text: 'Bitte gib zuerst deine E-Mail-Adresse ein.' });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      await trpcClient.auth.requestReset.mutate({ email: targetEmail });
+      setStatusMessage({
+        type: 'success',
+        text: 'Falls ein Konto mit dieser E-Mail existiert, wurde ein Reset-Link gesendet.',
+      });
+    } catch {
+      setStatusMessage({
+        type: 'success',
+        text: 'Falls ein Konto mit dieser E-Mail existiert, wurde ein Reset-Link gesendet.',
+      });
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (
