@@ -18,7 +18,7 @@ Sprache der UI: Deutsch (de-DE). Zukunft: B2B SaaS White-Label Plattform fuer Fi
 ## Wichtige Befehle
 ```bash
 bun run server          # Backend starten (Port 3000)
-bun test                # Tests ausfuehren (19 Tests)
+bun test                # Tests ausfuehren (24 Tests)
 bun run build-web       # Web-Build mit Expo
 bun run deploy          # Vollstaendiges Deployment
 ```
@@ -31,24 +31,26 @@ app/                    # Expo Router Screens (File-based routing)
   (admin-tabs)/         # Admin-Dashboard (Stats, Users, System)
   active-workout.tsx    # Aktives Workout mit Timer
   workout-detail/[id].tsx  # Workout-Detail-Ansicht
-  routines.tsx          # Routinen-Verwaltung (sortierbar)
-  onboarding.tsx        # 3-Schritt Wizard (Ziel, Level, Trainingstage)
+  routines.tsx          # Routinen-Verwaltung (sortierbar, Server-Sync)
+  onboarding.tsx        # 3-Schritt Wizard (Ziel, Level, Trainingstage) + Auto-Routing
   leaderboard.tsx       # Studio-Rangliste nach XP
   challenges.tsx        # Studio-Challenges (Trainer erstellt, Mitglieder treten bei)
   body-measurements.tsx # Koerpermasse-Tracking + Trends
+  notifications.tsx     # In-App Benachrichtigungen (Bell-Icon + FlatList)
   reset-password.tsx    # Token-basierter Passwort-Reset
 backend/
   hono.ts               # Hono Server Entry (Bun.serve)
-  storage.ts             # Zentrale Daten-Abstraktion (11 Tabellen, DB + Memory)
+  storage.ts             # Zentrale Daten-Abstraktion (12 Tabellen, DB + Memory)
   trpc/
-    app-router.ts        # Alle tRPC Routes (31 Prozeduren)
+    app-router.ts        # Alle tRPC Routes (35 Prozeduren)
     create-context.ts    # tRPC Context, JWT, Role-Middleware
     routes/              # Einzelne tRPC Prozeduren
 hooks/
   use-auth.tsx           # Auth mit Server-Sync + Reset
-  use-workouts.tsx       # Workouts, Plans, Routinen, Records, MuscleVolume
+  use-workouts.tsx       # Workouts, Plans, Routinen (Server-Sync), Records, MuscleVolume
   use-clients.tsx        # Client-Management (Trainer)
   use-gamification.tsx   # XP, Badges, Streaks, Levels (Server-Sync)
+  use-notifications.tsx  # In-App Benachrichtigungen (Server-Sync)
 components/
   RestTimer.tsx          # Rest-Timer (konfigurierbar, Play/Pause, Vibration)
   WorkoutSetRow.tsx      # Set-Eingabe mit Typen (Normal/Warmup/Dropset/Failure)
@@ -65,10 +67,10 @@ types/
   workout.ts             # Workout, Exercise, BodyMeasurement, PersonalRecord
   gamification.ts        # XP, Levels, Badges, Streaks
 __tests__/
-  storage.test.ts        # 19 Storage-Layer Tests
+  storage.test.ts        # 24 Storage-Layer Tests
 ```
 
-## tRPC API Routes (31 Prozeduren)
+## tRPC API Routes (35 Prozeduren)
 - `auth.login` / `auth.updatePassword` / `auth.requestReset` / `auth.resetPassword`
 - `clients.create` / `clients.list` / `clients.delete` / `clients.update`
 - `invitations.create` / `invitations.list`
@@ -80,14 +82,15 @@ __tests__/
 - `gamification.get` / `gamification.sync` / `gamification.leaderboard`
 - `routines.create` / `routines.list` / `routines.update` / `routines.delete`
 - `challenges.create` / `challenges.list` / `challenges.join` / `challenges.progress`
+- `notifications.list` / `notifications.markRead` / `notifications.markAllRead` / `notifications.unreadCount`
 
-## DB-Tabellen (11)
+## DB-Tabellen (12)
 `users`, `clients`, `invitations`, `workouts`, `workout_plans`,
 `password_reset_tokens`, `body_measurements`, `gamification`,
-`routines`, `challenges`, `challenge_progress`
+`routines`, `challenges`, `challenge_progress`, `notifications`
 
 ## Architektur-Entscheidungen
-- **Provider Pattern**: AuthProvider > ClientsProvider > WorkoutProvider > GamificationProvider
+- **Provider Pattern**: AuthProvider > ClientsProvider > WorkoutProvider > GamificationProvider > NotificationProvider
 - **Dual Storage**: PostgreSQL primaer, AsyncStorage als lokaler Fallback
 - **Client-Erstellung**: Erstellt IMMER sowohl `users`- als auch `clients`-Tabellen-Eintraege
 - **tRPC**: Alle Routes nutzen `storage`-Abstraktion (nie direkt DB)
@@ -97,7 +100,7 @@ __tests__/
 - **postinstall**: Fuehrt `patch-metro-exports.js` automatisch aus
 
 ## Bekannte Einschraenkungen
-- Push-Notifications: Noch nicht implementiert
+- Native Push-Notifications: In-App Notification Center implementiert (kein Service Worker / expo-notifications)
 - Mobile Builds: Nicht getestet (nur Web)
 - Multi-Tenant: Noch nicht implementiert (aktuell Single-Studio)
 - Passwort-Reset E-Mail: Braucht RESEND_API_KEY in .env
