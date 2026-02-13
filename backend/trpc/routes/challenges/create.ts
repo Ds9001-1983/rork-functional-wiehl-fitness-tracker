@@ -12,5 +12,24 @@ export default trainerProcedure
     endDate: z.string(),
   }))
   .mutation(async ({ input, ctx }) => {
-    return storage.challenges.create({ ...input, createdBy: ctx.user.userId });
+    const result = await storage.challenges.create({ ...input, createdBy: ctx.user.userId });
+
+    // Notify all users with gamification data (active users)
+    try {
+      const leaderboardUsers = await storage.gamification.leaderboard(100);
+      for (const entry of leaderboardUsers) {
+        if (entry.userId !== ctx.user.userId) {
+          await storage.notifications.create({
+            userId: entry.userId,
+            title: 'Neue Challenge!',
+            body: `"${input.name}" - Tritt jetzt bei und zeig was du kannst!`,
+            type: 'challenge',
+          });
+        }
+      }
+    } catch {
+      // Non-critical, skip notification errors
+    }
+
+    return result;
   });

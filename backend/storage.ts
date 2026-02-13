@@ -114,6 +114,7 @@ let gamificationData: { userId: string; xp: number; level: number; badges: any[]
 let routinesData: { id: string; userId: string; name: string; exercises: any[]; timesUsed: number; lastUsed: string | null; createdAt: string }[] = [];
 let challengesData: { id: string; name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string }[] = [];
 let challengeProgressData: { challengeId: string; userId: string; currentValue: number; updatedAt: string }[] = [];
+let notificationsData: { id: string; userId: string; title: string; body: string; type: string; read: boolean; data: any; createdAt: string }[] = [];
 let nextId = 100;
 
 const generateId = () => {
@@ -290,6 +291,19 @@ async function initializeTables() {
         current_value INTEGER DEFAULT 0,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (challenge_id, user_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        body TEXT NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        read BOOLEAN DEFAULT FALSE,
+        data JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -1205,6 +1219,85 @@ export const storage = {
         }
       }
       return challengeProgressData.filter(p => p.challengeId === challengeId).sort((a, b) => b.currentValue - a.currentValue);
+    },
+  },
+
+  notifications: {
+    create: async (data: { userId: string; title: string; body: string; type: string; data?: any }): Promise<{ id: string }> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO notifications (user_id, title, body, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id::text`,
+            [data.userId, data.title, data.body, data.type, JSON.stringify(data.data || {})]
+          );
+          return { id: result.rows[0].id };
+        } catch (err) {
+          console.log('[Storage] DB insert failed for notification:', err);
+        }
+      }
+      const id = generateId();
+      notificationsData.push({ id, userId: data.userId, title: data.title, body: data.body, type: data.type, read: false, data: data.data || {}, createdAt: new Date().toISOString() });
+      return { id };
+    },
+
+    getByUserId: async (userId: string, limit: number = 50): Promise<any[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, user_id as "userId", title, body, type, read, data, created_at as "createdAt"
+             FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2`,
+            [userId, limit]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for notifications:', err);
+        }
+      }
+      return notificationsData
+        .filter(n => n.userId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit);
+    },
+
+    markRead: async (id: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(`UPDATE notifications SET read = TRUE WHERE id = $1`, [id]);
+          return (result.rowCount ?? 0) > 0;
+        } catch (err) {
+          console.log('[Storage] DB update failed for notification:', err);
+        }
+      }
+      const notif = notificationsData.find(n => n.id === id);
+      if (notif) { notif.read = true; return true; }
+      return false;
+    },
+
+    markAllRead: async (userId: string): Promise<void> => {
+      if (useDatabase && pool) {
+        try {
+          await pool.query(`UPDATE notifications SET read = TRUE WHERE user_id = $1`, [userId]);
+          return;
+        } catch (err) {
+          console.log('[Storage] DB update failed for mark all notifications:', err);
+        }
+      }
+      notificationsData.filter(n => n.userId === userId).forEach(n => { n.read = true; });
+    },
+
+    getUnreadCount: async (userId: string): Promise<{ count: number }> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT COUNT(*)::integer as count FROM notifications WHERE user_id = $1 AND read = FALSE`,
+            [userId]
+          );
+          return { count: result.rows[0].count };
+        } catch (err) {
+          console.log('[Storage] DB query failed for unread count:', err);
+        }
+      }
+      return { count: notificationsData.filter(n => n.userId === userId && !n.read).length };
     },
   },
 };

@@ -35,6 +35,10 @@ import createChallenge from "./routes/challenges/create";
 import listChallenges from "./routes/challenges/list";
 import joinChallenge from "./routes/challenges/join";
 import challengeProgress from "./routes/challenges/progress";
+import listNotifications from "./routes/notifications/list";
+import markReadNotification from "./routes/notifications/mark-read";
+import markAllReadNotifications from "./routes/notifications/mark-all-read";
+import unreadCountNotifications from "./routes/notifications/unread-count";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -96,6 +100,12 @@ export const appRouter = createTRPCRouter({
     list: listChallenges,
     join: joinChallenge,
     progress: challengeProgress,
+  }),
+  notifications: createTRPCRouter({
+    list: listNotifications,
+    markRead: markReadNotification,
+    markAllRead: markAllReadNotifications,
+    unreadCount: unreadCountNotifications,
   }),
 });
 

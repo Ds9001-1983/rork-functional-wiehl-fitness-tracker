@@ -353,3 +353,65 @@ describe('Personal Records Calculation', () => {
     expect(records['squat']).toBe(120);
   });
 });
+
+describe('Storage: Notifications', () => {
+  let storage: any;
+
+  beforeEach(async () => {
+    const mod = await import('../backend/storage');
+    storage = mod.storage;
+  });
+
+  it('should create a notification', async () => {
+    const result = await storage.notifications.create({
+      userId: 'user-1',
+      title: 'Test Notification',
+      body: 'Dies ist eine Test-Benachrichtigung',
+      type: 'system',
+    });
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
+  it('should list notifications for user', async () => {
+    await storage.notifications.create({ userId: 'notif-user', title: 'Notif 1', body: 'Body 1', type: 'badge' });
+    await storage.notifications.create({ userId: 'notif-user', title: 'Notif 2', body: 'Body 2', type: 'streak' });
+    await storage.notifications.create({ userId: 'other-user', title: 'Other', body: 'Other body', type: 'system' });
+
+    const notifs = await storage.notifications.getByUserId('notif-user');
+    expect(notifs.length).toBeGreaterThanOrEqual(2);
+    expect(notifs.every((n: any) => n.userId === 'notif-user')).toBe(true);
+  });
+
+  it('should mark a notification as read', async () => {
+    const { id } = await storage.notifications.create({ userId: 'read-user', title: 'Read me', body: 'To be read', type: 'system' });
+    const result = await storage.notifications.markRead(id);
+    expect(result).toBe(true);
+
+    const notifs = await storage.notifications.getByUserId('read-user');
+    const found = notifs.find((n: any) => n.id === id);
+    expect(found?.read).toBe(true);
+  });
+
+  it('should mark all notifications as read', async () => {
+    await storage.notifications.create({ userId: 'allread-user', title: 'N1', body: 'B1', type: 'badge' });
+    await storage.notifications.create({ userId: 'allread-user', title: 'N2', body: 'B2', type: 'level' });
+
+    await storage.notifications.markAllRead('allread-user');
+
+    const notifs = await storage.notifications.getByUserId('allread-user');
+    expect(notifs.every((n: any) => n.read === true)).toBe(true);
+  });
+
+  it('should return correct unread count', async () => {
+    await storage.notifications.create({ userId: 'count-user', title: 'U1', body: 'B1', type: 'badge' });
+    await storage.notifications.create({ userId: 'count-user', title: 'U2', body: 'B2', type: 'streak' });
+    const { id } = await storage.notifications.create({ userId: 'count-user', title: 'U3', body: 'B3', type: 'system' });
+
+    // Mark one as read
+    await storage.notifications.markRead(id);
+
+    const { count } = await storage.notifications.getUnreadCount('count-user');
+    expect(count).toBeGreaterThanOrEqual(2);
+  });
+});

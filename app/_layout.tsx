@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { GamificationProvider } from "@/hooks/use-gamification";
+import { NotificationProvider } from "@/hooks/use-notifications";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -63,6 +64,7 @@ function RootLayoutNav() {
       <Stack.Screen name="body-measurements" options={{ title: 'Koerpermasse' }} />
       <Stack.Screen name="leaderboard" options={{ title: 'Rangliste' }} />
       <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
+      <Stack.Screen name="notifications" options={{ title: 'Benachrichtigungen' }} />
     </Stack>
   );
 }
@@ -80,10 +82,12 @@ export default function RootLayout() {
             <ClientsProvider>
               <WorkoutProvider>
                 <GamificationProvider>
-                  <ErrorBoundary>
-                    <OfflineBanner />
-                    <RootLayoutNav />
-                  </ErrorBoundary>
+                  <NotificationProvider>
+                    <ErrorBoundary>
+                      <OfflineBanner />
+                      <RootLayoutNav />
+                    </ErrorBoundary>
+                  </NotificationProvider>
                 </GamificationProvider>
               </WorkoutProvider>
             </ClientsProvider>

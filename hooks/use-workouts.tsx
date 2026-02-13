@@ -53,32 +53,47 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const loadData = useCallback(async () => {
     try {
       try {
-        const [serverWorkouts, serverPlans] = await Promise.all([
+        const [serverWorkouts, serverPlans, serverRoutines] = await Promise.all([
           currentUserId
             ? trpcClient.workouts.list.query({ userId: currentUserId })
             : trpcClient.workouts.list.query(),
           trpcClient.plans.list.query(),
+          currentUserId
+            ? trpcClient.routines.list.query({ userId: currentUserId })
+            : Promise.resolve(null),
         ]);
 
         setWorkouts(serverWorkouts as Workout[]);
         setWorkoutPlans(serverPlans as WorkoutPlan[]);
+
+        if (serverRoutines) {
+          const mappedRoutines: Routine[] = (serverRoutines as any[]).map(r => ({
+            id: r.id,
+            name: r.name,
+            exercises: r.exercises,
+            createdBy: r.userId || currentUserId || '',
+            timesUsed: r.timesUsed || 0,
+            lastUsed: r.lastUsed || undefined,
+          }));
+          setRoutines(mappedRoutines);
+          await AsyncStorage.setItem('routines', JSON.stringify(mappedRoutines));
+        }
 
         await Promise.all([
           AsyncStorage.setItem('workouts', JSON.stringify(serverWorkouts)),
           AsyncStorage.setItem('workoutPlans', JSON.stringify(serverPlans)),
         ]);
       } catch (serverError) {
-        const [storedWorkouts, storedPlans] = await Promise.all([
+        const [storedWorkouts, storedPlans, storedRoutines] = await Promise.all([
           AsyncStorage.getItem('workouts'),
           AsyncStorage.getItem('workoutPlans'),
+          AsyncStorage.getItem('routines'),
         ]);
 
         if (storedWorkouts) setWorkouts(JSON.parse(storedWorkouts));
         if (storedPlans) setWorkoutPlans(JSON.parse(storedPlans));
+        if (storedRoutines) setRoutines(JSON.parse(storedRoutines));
       }
-
-      const storedRoutines = await AsyncStorage.getItem('routines');
-      if (storedRoutines) setRoutines(JSON.parse(storedRoutines));
     } catch (error) {
       console.error('[Workouts] Error loading data:', error);
     } finally {
@@ -161,6 +176,13 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     );
     setRoutines(updatedRoutines);
     AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+
+    // Sync timesUsed to server in background
+    trpcClient.routines.update.mutate({
+      id: routine.id,
+      timesUsed: routine.timesUsed + 1,
+      lastUsed: new Date().toISOString(),
+    }).catch(() => {});
 
     setActiveWorkout(newWorkout);
   }, [routines, currentUserId]);
@@ -475,16 +497,31 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [workoutPlans]);
 
   const saveRoutine = useCallback(async (routine: Omit<Routine, 'id' | 'timesUsed'>) => {
-    const newRoutine: Routine = {
-      ...routine,
-      id: Date.now().toString(),
-      timesUsed: 0,
-    };
+    let newRoutine: Routine;
+
+    try {
+      const serverResult = await trpcClient.routines.create.mutate({
+        userId: routine.createdBy || currentUserId || '',
+        name: routine.name,
+        exercises: routine.exercises,
+      });
+      newRoutine = {
+        ...routine,
+        id: (serverResult as any).id || Date.now().toString(),
+        timesUsed: 0,
+      };
+    } catch {
+      newRoutine = {
+        ...routine,
+        id: Date.now().toString(),
+        timesUsed: 0,
+      };
+    }
 
     const updatedRoutines = [...routines, newRoutine];
     setRoutines(updatedRoutines);
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
-  }, [routines]);
+  }, [routines, currentUserId]);
 
   const updateRoutine = useCallback(async (routineId: string, updates: Partial<Omit<Routine, 'id'>>) => {
     const updatedRoutines = routines.map(r =>
@@ -492,9 +529,25 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     );
     setRoutines(updatedRoutines);
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+    try {
+      await trpcClient.routines.update.mutate({
+        id: routineId,
+        name: updates.name,
+        exercises: updates.exercises,
+        timesUsed: updates.timesUsed,
+        lastUsed: updates.lastUsed,
+      });
+    } catch {
+      // Local fallback
+    }
   }, [routines]);
 
   const deleteRoutine = useCallback(async (routineId: string) => {
+    try {
+      await trpcClient.routines.delete.mutate({ id: routineId });
+    } catch {
+      // Local fallback
+    }
     const updatedRoutines = routines.filter(r => r.id !== routineId);
     setRoutines(updatedRoutines);
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
