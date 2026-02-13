@@ -22,15 +22,20 @@ const getBaseUrl = () => {
 const baseUrl = getBaseUrl();
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
   try {
     const token = await AsyncStorage.getItem('authToken');
     if (token) {
-      return { Authorization: `Bearer ${token}` };
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const studioId = await AsyncStorage.getItem('studioId');
+    if (studioId) {
+      headers['X-Studio-Id'] = studioId;
     }
   } catch {
     // AsyncStorage not available
   }
-  return {};
+  return headers;
 }
 
 // React Query client for React components

@@ -2,8 +2,8 @@ import { adminProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
 export default adminProcedure
-  .query(async () => {
-    const allClients = await storage.clients.getAll();
+  .query(async ({ ctx }) => {
+    const allClients = await storage.clients.getAll(ctx.user.studioId);
 
     return allClients.map(c => ({
       id: c.id,

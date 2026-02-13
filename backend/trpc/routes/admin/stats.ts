@@ -2,9 +2,9 @@ import { adminProcedure } from '../../create-context';
 import { storage, getDatabaseStatus } from '../../../storage';
 
 export default adminProcedure
-  .query(async () => {
-    const allClients = await storage.clients.getAll();
-    const allWorkouts = await storage.workouts.getAll();
+  .query(async ({ ctx }) => {
+    const allClients = await storage.clients.getAll(ctx.user.studioId);
+    const allWorkouts = await storage.workouts.getAll(ctx.user.studioId);
     const dbStatus = getDatabaseStatus();
 
     const totalUsers = allClients.length;

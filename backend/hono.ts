@@ -9,7 +9,7 @@ const app = new Hono();
 // CORS middleware
 app.use('/*', cors({
   origin: process.env.CORS_ORIGIN || '*',
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Studio-Id'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 

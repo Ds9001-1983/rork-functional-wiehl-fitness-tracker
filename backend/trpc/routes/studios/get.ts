@@ -3,5 +3,6 @@ import { storage } from '../../../storage';
 
 export default protectedProcedure
   .query(async ({ ctx }) => {
-    return storage.challenges.getActive(ctx.user.studioId);
+    const studio = await storage.studios.getById(ctx.user.studioId);
+    return studio;
   });

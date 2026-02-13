@@ -1,18 +1,18 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { publicProcedure } from "../../create-context";
+import { trainerProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
-export default publicProcedure
+export default trainerProcedure
   .input(z.object({
     name: z.string(),
     email: z.string().email(),
     phone: z.string().optional(),
     starterPassword: z.string().optional(),
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input, ctx }) => {
     // Check if client with this email or phone already exists
-    const existingClients = await storage.clients.getAll();
+    const existingClients = await storage.clients.getAll(ctx.user.studioId);
 
     // Check for duplicate email
     const existingClientByEmail = existingClients.find(client => client.email === input.email);
@@ -50,6 +50,11 @@ export default publicProcedure
       },
     });
 
-    console.log('[Server] Created client:', newClient.id);
+    console.log('[Server] Created client:', newClient.id, 'studio:', ctx.user.studioId);
     return newClient;
+
+    // Add new user as studio member
+    try {
+      await storage.studioMembers.add(ctx.user.studioId, newClient.id || newClient.userId || '', 'client');
+    } catch { /* non-critical */ }
   });

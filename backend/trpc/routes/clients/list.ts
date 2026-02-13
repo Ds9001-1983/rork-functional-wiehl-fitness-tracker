@@ -1,12 +1,12 @@
 import { TRPCError } from '@trpc/server';
-import { publicProcedure } from '../../create-context';
+import { protectedProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default publicProcedure
-  .query(async () => {
+export default protectedProcedure
+  .query(async ({ ctx }) => {
     try {
-      const clients = await storage.clients.getAll();
-      console.log('[Server] Fetched clients:', clients.length);
+      const clients = await storage.clients.getAll(ctx.user.studioId);
+      console.log('[Server] Fetched clients:', clients.length, 'studio:', ctx.user.studioId);
       return clients;
     } catch (error: any) {
       console.error('[Server] Error fetching clients:', error.message);

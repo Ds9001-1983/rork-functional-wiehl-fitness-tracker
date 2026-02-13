@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../create-context';
+import { protectedProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
 const workoutSetSchema = z.object({
@@ -18,7 +18,7 @@ const workoutExerciseSchema = z.object({
   notes: z.string().optional(),
 });
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({
     userId: z.string(),
     name: z.string(),
@@ -28,7 +28,7 @@ export default publicProcedure
     completed: z.boolean(),
     createdBy: z.string().optional(),
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ input, ctx }) => {
     const workout = await storage.workouts.create({
       userId: input.userId,
       name: input.name,
@@ -37,6 +37,7 @@ export default publicProcedure
       exercises: input.exercises,
       completed: input.completed,
       createdBy: input.createdBy,
+      studioId: ctx.user.studioId,
     });
 
     console.log('[Server] Created workout:', workout.id, 'for user:', input.userId);

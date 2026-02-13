@@ -39,6 +39,10 @@ import listNotifications from "./routes/notifications/list";
 import markReadNotification from "./routes/notifications/mark-read";
 import markAllReadNotifications from "./routes/notifications/mark-all-read";
 import unreadCountNotifications from "./routes/notifications/unread-count";
+import getStudio from "./routes/studios/get";
+import updateStudio from "./routes/studios/update";
+import listStudios from "./routes/studios/list";
+import createStudio from "./routes/studios/create";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -106,6 +110,12 @@ export const appRouter = createTRPCRouter({
     markRead: markReadNotification,
     markAllRead: markAllReadNotifications,
     unreadCount: unreadCountNotifications,
+  }),
+  studios: createTRPCRouter({
+    get: getStudio,
+    update: updateStudio,
+    list: listStudios,
+    create: createStudio,
   }),
 });
 
