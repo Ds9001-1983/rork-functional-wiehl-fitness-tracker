@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { getRandomMessage, workoutCompleteMessages } from '@/data/coaching-messages';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
@@ -26,6 +27,18 @@ export default function ActiveWorkoutScreen() {
   const [duration, setDuration] = useState(0);
   const [showRestTimer, setShowRestTimer] = useState(true);
   const [restTimerKey, setRestTimerKey] = useState(0);
+  const [restTimerDefault, setRestTimerDefault] = useState(90);
+
+  useEffect(() => {
+    AsyncStorage.getItem('restTimerDefault').then(val => {
+      if (val) setRestTimerDefault(parseInt(val, 10));
+    });
+  }, []);
+
+  const handleRestTimerDefaultChange = useCallback((newDefault: number) => {
+    setRestTimerDefault(newDefault);
+    AsyncStorage.setItem('restTimerDefault', newDefault.toString());
+  }, []);
   const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -117,7 +130,7 @@ export default function ActiveWorkoutScreen() {
         </View>
 
         {showRestTimer && (
-          <RestTimer key={restTimerKey} defaultSeconds={90} autoStart={restTimerKey > 0} />
+          <RestTimer key={restTimerKey} defaultSeconds={restTimerDefault} autoStart={restTimerKey > 0} onDefaultChange={handleRestTimerDefaultChange} />
         )}
 
         <ScrollView showsVerticalScrollIndicator={false}>

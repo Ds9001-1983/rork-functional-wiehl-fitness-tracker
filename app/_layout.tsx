@@ -10,6 +10,7 @@ import { GamificationProvider } from "@/hooks/use-gamification";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import LoadingScreen from "@/components/LoadingScreen";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -75,6 +76,7 @@ export default function RootLayout() {
               <WorkoutProvider>
                 <GamificationProvider>
                   <ErrorBoundary>
+                    <OfflineBanner />
                     <RootLayoutNav />
                   </ErrorBoundary>
                 </GamificationProvider>

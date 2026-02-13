@@ -27,6 +27,7 @@ export default function StatsScreen() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [muscleTimePeriod, setMuscleTimePeriod] = useState<TimePeriod>('7d');
   const [showXPInfo, setShowXPInfo] = useState(false);
+  const [chartMode, setChartMode] = useState<'count' | 'volume'>('count');
 
   useEffect(() => {
     if (user?.id) {
@@ -281,27 +282,53 @@ export default function StatsScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitleStandalone}>Woechentlicher Fortschritt</Text>
+              <View style={styles.chartHeader}>
+                <Text style={styles.sectionTitleStandalone}>Woechentlicher Fortschritt</Text>
+                <View style={styles.chartToggle}>
+                  <TouchableOpacity
+                    style={[styles.chartToggleBtn, chartMode === 'count' && styles.chartToggleBtnActive]}
+                    onPress={() => setChartMode('count')}
+                  >
+                    <Text style={[styles.chartToggleText, chartMode === 'count' && styles.chartToggleTextActive]}>Anzahl</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.chartToggleBtn, chartMode === 'volume' && styles.chartToggleBtnActive]}
+                    onPress={() => setChartMode('volume')}
+                  >
+                    <Text style={[styles.chartToggleText, chartMode === 'volume' && styles.chartToggleTextActive]}>Volumen</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
               <View style={styles.weekChart}>
-                {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
-                  const dayWorkouts = filteredWorkouts.filter(w => {
-                    const workoutDay = new Date(w.date).getDay();
-                    return workoutDay === (index + 1) % 7;
+                {(() => {
+                  const dayData = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
+                    const dayWorkouts = filteredWorkouts.filter(w => {
+                      const workoutDay = new Date(w.date).getDay();
+                      return workoutDay === (index + 1) % 7;
+                    });
+                    const vol = dayWorkouts.reduce((sum, w) =>
+                      sum + w.exercises.reduce((eSum, ex) =>
+                        eSum + ex.sets.reduce((sSum, s) => sSum + s.weight * s.reps, 0), 0), 0);
+                    return { day, count: dayWorkouts.length, volume: vol };
                   });
-                  const height = Math.min(100, dayWorkouts.length * 30);
-
-                  return (
-                    <View key={`${day}-${index}`} style={styles.dayColumn}>
-                      <View style={styles.barContainer}>
-                        <View style={[styles.bar, { height: Math.max(height, 2) }]} />
+                  const maxVal = chartMode === 'count'
+                    ? Math.max(...dayData.map(d => d.count), 1)
+                    : Math.max(...dayData.map(d => d.volume), 1);
+                  return dayData.map((d, i) => {
+                    const val = chartMode === 'count' ? d.count : d.volume;
+                    const height = Math.min(100, (val / maxVal) * 100);
+                    const label = chartMode === 'count' ? (d.count > 0 ? `${d.count}` : '') : (d.volume > 0 ? `${(d.volume / 1000).toFixed(1)}t` : '');
+                    return (
+                      <View key={`${d.day}-${i}`} style={styles.dayColumn}>
+                        <View style={styles.barContainer}>
+                          <View style={[styles.bar, { height: Math.max(height, 2) }]} />
+                        </View>
+                        <Text style={styles.dayLabel}>{d.day}</Text>
+                        {label ? <Text style={styles.dayCount}>{label}</Text> : null}
                       </View>
-                      <Text style={styles.dayLabel}>{day}</Text>
-                      {dayWorkouts.length > 0 && (
-                        <Text style={styles.dayCount}>{dayWorkouts.length}</Text>
-                      )}
-                    </View>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </View>
             </View>
 
@@ -626,6 +653,12 @@ const styles = StyleSheet.create({
   emptyRecords: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   emptyText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
   emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  chartToggle: { flexDirection: 'row', borderRadius: BorderRadius.sm, overflow: 'hidden', borderWidth: 1, borderColor: Colors.border },
+  chartToggleBtn: { paddingHorizontal: Spacing.sm, paddingVertical: 4, backgroundColor: Colors.surface },
+  chartToggleBtnActive: { backgroundColor: Colors.accent },
+  chartToggleText: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' as const },
+  chartToggleTextActive: { color: Colors.background, fontWeight: '600' as const },
   trendRow: { paddingHorizontal: Spacing.lg, marginBottom: Spacing.md, gap: 4 },
   trendText: { fontSize: 12, fontWeight: '600' as const },
   trendUp: { color: Colors.success },

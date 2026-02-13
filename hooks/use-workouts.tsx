@@ -32,7 +32,9 @@ interface WorkoutState {
   updateWorkoutPlan: (planId: string, updatedPlan: WorkoutPlan) => Promise<void>;
   assignPlanToUser: (planId: string, userId: string) => Promise<void>;
   saveRoutine: (routine: Omit<Routine, 'id' | 'timesUsed'>) => Promise<void>;
+  updateRoutine: (routineId: string, updates: Partial<Omit<Routine, 'id'>>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
+  updateWorkout: (workoutId: string, updates: Partial<Omit<Workout, 'id'>>) => Promise<void>;
   deleteWorkout: (workoutId: string) => Promise<void>;
   repeatWorkout: (workout: Workout) => void;
   deletePlan: (planId: string) => Promise<void>;
@@ -484,11 +486,32 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
   }, [routines]);
 
+  const updateRoutine = useCallback(async (routineId: string, updates: Partial<Omit<Routine, 'id'>>) => {
+    const updatedRoutines = routines.map(r =>
+      r.id === routineId ? { ...r, ...updates } : r
+    );
+    setRoutines(updatedRoutines);
+    await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+  }, [routines]);
+
   const deleteRoutine = useCallback(async (routineId: string) => {
     const updatedRoutines = routines.filter(r => r.id !== routineId);
     setRoutines(updatedRoutines);
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
   }, [routines]);
+
+  const updateWorkout = useCallback(async (workoutId: string, updates: Partial<Omit<Workout, 'id'>>) => {
+    const updatedWorkouts = workouts.map(w =>
+      w.id === workoutId ? { ...w, ...updates } : w
+    );
+    setWorkouts(updatedWorkouts);
+    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+    try {
+      await trpcClient.workouts.update.mutate({ id: workoutId, ...updates } as any);
+    } catch {
+      // Local fallback
+    }
+  }, [workouts]);
 
   const deleteWorkout = useCallback(async (workoutId: string) => {
     try {
@@ -581,11 +604,13 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     updateWorkoutPlan,
     assignPlanToUser,
     saveRoutine,
+    updateRoutine,
     deleteRoutine,
+    updateWorkout,
     deleteWorkout,
     repeatWorkout,
     deletePlan,
     duplicatePlan,
     refreshFromServer,
-  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, deleteRoutine, deleteWorkout, repeatWorkout, deletePlan, duplicatePlan, refreshFromServer]);
+  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, updateRoutine, deleteRoutine, updateWorkout, deleteWorkout, repeatWorkout, deletePlan, duplicatePlan, refreshFromServer]);
 });

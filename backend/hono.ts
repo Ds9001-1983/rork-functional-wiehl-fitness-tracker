@@ -13,14 +13,6 @@ app.use('/*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
-// Debug middleware: log what URL reaches the tRPC handler
-app.use('/trpc/*', async (c, next) => {
-  console.log('[DEBUG-tRPC] raw URL:', c.req.raw.url);
-  console.log('[DEBUG-tRPC] path:', c.req.path);
-  console.log('[DEBUG-tRPC] method:', c.req.method);
-  await next();
-});
-
 // tRPC handler (mounted under /api in backend-server.ts, so this becomes /api/trpc/*)
 app.use('/trpc/*', trpcServer({
   router: appRouter,

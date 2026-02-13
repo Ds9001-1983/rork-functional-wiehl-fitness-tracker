@@ -46,6 +46,11 @@ export default function TrainerClientsScreen() {
   const screenWidth = Dimensions.get('window').width;
   const swipeThreshold = screenWidth * 0.3;
 
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidPhone = (phone: string) => /^[\d\s\-+()]{6,}$/.test(phone.trim());
+  const getEmailError = () => clientEmail.length > 0 && !isValidEmail(clientEmail) ? 'Ungueltige E-Mail' : '';
+  const getPhoneError = () => clientPhone.length > 0 && !isValidPhone(clientPhone) ? 'Ungueltige Nummer' : '';
+
   const generateStarterPassword = (): string => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const numbers = '0123456789';
@@ -64,12 +69,12 @@ export default function TrainerClientsScreen() {
       setStatusMessage({ type: 'error', text: 'Bitte Vor- und Nachname eingeben.' });
       return;
     }
-    if (!clientEmail.trim() || !clientEmail.includes('@')) {
-      setStatusMessage({ type: 'error', text: 'Bitte eine gueltige E-Mail eingeben.' });
+    if (!clientEmail.trim() || !isValidEmail(clientEmail)) {
+      setStatusMessage({ type: 'error', text: 'Bitte eine gueltige E-Mail eingeben (z.B. name@example.de).' });
       return;
     }
-    if (!clientPhone.trim()) {
-      setStatusMessage({ type: 'error', text: 'Bitte eine Telefonnummer eingeben.' });
+    if (!clientPhone.trim() || !isValidPhone(clientPhone)) {
+      setStatusMessage({ type: 'error', text: 'Bitte eine gueltige Telefonnummer eingeben (mind. 6 Ziffern).' });
       return;
     }
 
@@ -196,13 +201,19 @@ export default function TrainerClientsScreen() {
           <User size={18} color={Colors.textSecondary} />
           <TextInput value={clientLastName} onChangeText={setClientLastName} placeholder="Nachname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
         </View>
-        <View style={styles.row}>
-          <Phone size={18} color={Colors.textSecondary} />
-          <TextInput value={clientPhone} onChangeText={setClientPhone} placeholder="Handynummer *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="phone-pad" />
+        <View>
+          <View style={[styles.row, getPhoneError() ? styles.rowError : null]}>
+            <Phone size={18} color={getPhoneError() ? Colors.error : Colors.textSecondary} />
+            <TextInput value={clientPhone} onChangeText={setClientPhone} placeholder="Handynummer *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="phone-pad" />
+          </View>
+          {getPhoneError() ? <Text style={styles.fieldError}>{getPhoneError()}</Text> : null}
         </View>
-        <View style={styles.row}>
-          <Mail size={18} color={Colors.textSecondary} />
-          <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder="E-Mail-Adresse *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="email-address" autoCapitalize="none" />
+        <View>
+          <View style={[styles.row, getEmailError() ? styles.rowError : null]}>
+            <Mail size={18} color={getEmailError() ? Colors.error : Colors.textSecondary} />
+            <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder="E-Mail-Adresse *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="email-address" autoCapitalize="none" />
+          </View>
+          {getEmailError() ? <Text style={styles.fieldError}>{getEmailError()}</Text> : null}
         </View>
         <View style={styles.infoBox}>
           <Mail size={16} color={Colors.accent} />
@@ -371,4 +382,6 @@ const styles = StyleSheet.create({
   onboardingStepText: { flex: 1, fontSize: 14, color: Colors.text },
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   activityText: { fontSize: 11, fontWeight: '500' },
+  rowError: { borderColor: Colors.error },
+  fieldError: { fontSize: 11, color: Colors.error, marginLeft: 34, marginTop: -4, marginBottom: Spacing.xs },
 });

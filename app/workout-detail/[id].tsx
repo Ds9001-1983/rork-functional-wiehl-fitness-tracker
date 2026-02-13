@@ -1,24 +1,28 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { Clock, Dumbbell, TrendingUp, Trophy, ChevronLeft, Repeat, Trash2 } from 'lucide-react-native';
+import { Clock, Dumbbell, TrendingUp, Trophy, ChevronLeft, Repeat, Trash2, Edit3, Check } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb } from '@/data/exercises';
 import { calculate1RM } from '@/types/workout';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { workouts, deleteWorkout, repeatWorkout } = useWorkouts();
+  const { workouts, deleteWorkout, repeatWorkout, updateWorkout } = useWorkouts();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
 
   const workout = useMemo(() => {
     return workouts.find(w => w.id === id);
@@ -106,6 +110,39 @@ export default function WorkoutDetailScreen() {
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
         {/* Header info */}
         <View style={styles.header}>
+          <View style={styles.nameRow}>
+            {editingName ? (
+              <>
+                <TextInput
+                  style={styles.nameInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  autoFocus
+                  onSubmitEditing={() => {
+                    if (editName.trim()) {
+                      updateWorkout(workout.id, { name: editName.trim() });
+                    }
+                    setEditingName(false);
+                  }}
+                />
+                <TouchableOpacity onPress={() => {
+                  if (editName.trim()) {
+                    updateWorkout(workout.id, { name: editName.trim() });
+                  }
+                  setEditingName(false);
+                }}>
+                  <Check size={20} color={Colors.success} />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.workoutName}>{workout.name}</Text>
+                <TouchableOpacity onPress={() => { setEditName(workout.name); setEditingName(true); }}>
+                  <Edit3 size={16} color={Colors.textMuted} />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
           <Text style={styles.dateText}>{formatDate(workout.date)}</Text>
           <Text style={styles.timeText}>Gestartet um {formatTime(workout.date)}</Text>
           {!workout.completed && (
@@ -537,5 +574,28 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  workoutName: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  nameInput: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.accent,
   },
 });

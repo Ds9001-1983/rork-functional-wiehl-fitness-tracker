@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Plus, Trash2, Play, X, Dumbbell, Edit3 } from 'lucide-react-native';
+import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb, exerciseCategories } from '@/data/exercises';
@@ -19,7 +19,7 @@ import StatusBanner from '@/components/StatusBanner';
 
 export default function RoutinesScreen() {
   const router = useRouter();
-  const { routines, saveRoutine, deleteRoutine, startWorkoutFromRoutine } = useWorkouts();
+  const { routines, saveRoutine, updateRoutine, deleteRoutine, startWorkoutFromRoutine } = useWorkouts();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState('');
@@ -29,6 +29,35 @@ export default function RoutinesScreen() {
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{id: string; name: string} | null>(null);
+
+  // Sort state
+  const [sortMode, setSortMode] = useState<'name' | 'usage' | 'recent'>('recent');
+
+  const sortedRoutines = useMemo(() => {
+    const sorted = [...routines];
+    switch (sortMode) {
+      case 'name':
+        sorted.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+        break;
+      case 'usage':
+        sorted.sort((a, b) => (b.timesUsed || 0) - (a.timesUsed || 0));
+        break;
+      case 'recent':
+        sorted.sort((a, b) => {
+          const dateA = a.lastUsed ? new Date(a.lastUsed).getTime() : 0;
+          const dateB = b.lastUsed ? new Date(b.lastUsed).getTime() : 0;
+          return dateB - dateA;
+        });
+        break;
+    }
+    return sorted;
+  }, [routines, sortMode]);
+
+  const cycleSortMode = () => {
+    setSortMode(prev => prev === 'recent' ? 'name' : prev === 'name' ? 'usage' : 'recent');
+  };
+
+  const sortLabel = sortMode === 'name' ? 'A-Z' : sortMode === 'usage' ? 'Meistgenutzt' : 'Neueste';
 
   // Edit state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -107,12 +136,9 @@ export default function RoutinesScreen() {
       return;
     }
 
-    // Delete old and save new (saveRoutine creates new)
-    await deleteRoutine(editRoutineId);
-    await saveRoutine({
+    await updateRoutine(editRoutineId, {
       name: editRoutineName.trim(),
       exercises: editRoutineExercises,
-      createdBy: 'self',
     });
     setShowEditModal(false);
     setStatusMessage({ type: 'success', text: 'Routine wurde aktualisiert.' });
@@ -186,8 +212,18 @@ export default function RoutinesScreen() {
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Meine Routinen</Text>
-            <Text style={styles.subtitle}>Erstelle Vorlagen fuer deine Workouts</Text>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.title}>Meine Routinen</Text>
+                <Text style={styles.subtitle}>Erstelle Vorlagen fuer deine Workouts</Text>
+              </View>
+              {routines.length > 1 && (
+                <TouchableOpacity style={styles.sortButton} onPress={cycleSortMode}>
+                  <ArrowUpDown size={14} color={Colors.accent} />
+                  <Text style={styles.sortButtonText}>{sortLabel}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {statusMessage && (
@@ -209,7 +245,7 @@ export default function RoutinesScreen() {
               </Text>
             </View>
           ) : (
-            routines.map((routine) => (
+            sortedRoutines.map((routine) => (
               <View key={routine.id} style={styles.routineCard}>
                 <View style={styles.routineHeader}>
                   <Text style={styles.routineName}>{routine.name}</Text>
@@ -581,6 +617,28 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: Spacing.lg,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: 4,
+  },
+  sortButtonText: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '500' as const,
   },
   title: {
     fontSize: 28,

@@ -7,12 +7,14 @@ interface RestTimerProps {
   defaultSeconds?: number;
   onTimerEnd?: () => void;
   autoStart?: boolean;
+  onDefaultChange?: (newDefault: number) => void;
 }
 
 export const RestTimer: React.FC<RestTimerProps> = ({
   defaultSeconds = 90,
   onTimerEnd,
   autoStart = false,
+  onDefaultChange,
 }) => {
   const [seconds, setSeconds] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(autoStart);
@@ -52,6 +54,7 @@ export const RestTimer: React.FC<RestTimerProps> = ({
     if (!isRunning) {
       setSeconds(newTotal);
     }
+    onDefaultChange?.(newTotal);
   };
 
   const reset = () => {
