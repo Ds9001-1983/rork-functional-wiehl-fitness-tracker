@@ -9,6 +9,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Brust', 'Trizeps', 'Schultern'],
     instructions: 'Lege dich auf die Bank, greife die Stange schulterbreit und drücke sie kontrolliert nach oben.',
+    videoUrl: 'https://www.youtube.com/watch?v=vUcjOIZc80c',
   },
   {
     id: 'incline-bench-press',
@@ -17,6 +18,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Obere Brust', 'Schultern', 'Trizeps'],
     instructions: 'Bank auf 30-45 Grad einstellen. Stange zur oberen Brust senken und kontrolliert drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=qrCBiPS5MNQ',
   },
   {
     id: 'decline-bench-press',
@@ -25,6 +27,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Untere Brust', 'Trizeps'],
     instructions: 'Bank auf -15 Grad einstellen. Stange zur unteren Brust senken.',
+    videoUrl: 'https://www.youtube.com/watch?v=krvj3HgYlVc',
   },
   {
     id: 'incline-dumbbell-press',
@@ -33,6 +36,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Obere Brust', 'Schultern', 'Trizeps'],
     instructions: 'Bank auf 30-45 Grad. Kurzhanteln neben der Brust halten und nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=oOQOgAgJFmU',
   },
   {
     id: 'dumbbell-bench-press',
@@ -41,6 +45,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Brust', 'Trizeps', 'Schultern'],
     instructions: 'Flachbank. Kurzhanteln neben der Brust und kontrolliert nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=622ku8i0M14',
   },
   {
     id: 'dumbbell-fly',
@@ -49,6 +54,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Brust'],
     instructions: 'Arme leicht gebeugt zur Seite absenken, dann in einer Umarmungsbewegung zusammenführen.',
+    videoUrl: 'https://www.youtube.com/watch?v=KIxb2_1ycmo',
   },
   {
     id: 'cable-fly',
@@ -73,6 +79,7 @@ export const exercises: Exercise[] = [
     equipment: 'Dip-Station',
     muscleGroups: ['Untere Brust', 'Trizeps', 'Schultern'],
     instructions: 'Oberkörper leicht nach vorne lehnen. Langsam absenken bis 90° Ellbogen.',
+    videoUrl: 'https://www.youtube.com/watch?v=7yFBlZlrkcg',
   },
   {
     id: 'push-up',
@@ -81,6 +88,7 @@ export const exercises: Exercise[] = [
     equipment: 'Körpergewicht',
     muscleGroups: ['Brust', 'Trizeps', 'Schultern', 'Core'],
     instructions: 'Hände schulterbreit, Körper gerade halten, Brust zum Boden senken.',
+    videoUrl: 'https://www.youtube.com/watch?v=e_1BDnOVKso',
   },
   {
     id: 'machine-chest-press',
@@ -89,6 +97,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Brust', 'Trizeps'],
     instructions: 'Sitz einstellen, Griffe auf Brusthöhe, kontrolliert drücken und zurückführen.',
+    videoUrl: 'https://www.youtube.com/watch?v=whaV86_J6HY',
   },
   {
     id: 'pec-deck',
@@ -97,6 +106,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Brust'],
     instructions: 'Arme an die Polster legen und vor der Brust zusammenführen.',
+    videoUrl: 'https://www.youtube.com/watch?v=xUm0BiZCWlQ',
   },
 
   // ==================== RÜCKEN (Back) ====================
@@ -107,6 +117,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Unterer Rücken', 'Gesäß', 'Beinbeuger', 'Trapez'],
     instructions: 'Stange schulterbreit greifen, Rücken gerade, mit der Hüfte nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=xZkGazuoVGM',
   },
   {
     id: 'pull-up',
@@ -115,6 +126,7 @@ export const exercises: Exercise[] = [
     equipment: 'Klimmzugstange',
     muscleGroups: ['Latissimus', 'Bizeps', 'Mittlerer Rücken'],
     instructions: 'Stange etwas breiter als schulterbreit greifen, Kinn über die Stange ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=UMayUczkXww',
   },
   {
     id: 'chin-up',
@@ -123,6 +135,7 @@ export const exercises: Exercise[] = [
     equipment: 'Klimmzugstange',
     muscleGroups: ['Latissimus', 'Bizeps'],
     instructions: 'Stange schulterbreit im Untergriff greifen, Kinn über die Stange ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=KROQhJ1Wx7s',
   },
   {
     id: 'barbell-row',
@@ -131,6 +144,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Latissimus', 'Mittlerer Rücken', 'Bizeps'],
     instructions: 'Vorgebeugt, Rücken gerade, Stange zum Bauchnabel ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=XmOy0T9VYbw',
   },
   {
     id: 'dumbbell-row',
@@ -139,6 +153,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Latissimus', 'Mittlerer Rücken', 'Bizeps'],
     instructions: 'Ein Knie auf der Bank abstützen, Hantel seitlich zum Körper ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=pYcpY20QaE8',
   },
   {
     id: 'seated-cable-row',
@@ -147,6 +162,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Latissimus', 'Mittlerer Rücken', 'Bizeps'],
     instructions: 'Aufrecht sitzen, Griff zum Bauch ziehen, Schulterblätter zusammen.',
+    videoUrl: 'https://www.youtube.com/watch?v=uGGTg1dM0K8',
   },
   {
     id: 'lat-pulldown',
@@ -155,6 +171,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Latissimus', 'Bizeps'],
     instructions: 'Breiten Griff fassen, Stange zur Brust ziehen, Ellbogen nach unten.',
+    videoUrl: 'https://www.youtube.com/watch?v=CAwf7n6Luuc',
   },
   {
     id: 'lat-pulldown-close',
@@ -163,6 +180,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Latissimus', 'Bizeps', 'Mittlerer Rücken'],
     instructions: 'Engen V-Griff verwenden, zur Brust ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=43hWj8mfYGY',
   },
   {
     id: 't-bar-row',
@@ -171,6 +189,7 @@ export const exercises: Exercise[] = [
     equipment: 'T-Bar',
     muscleGroups: ['Mittlerer Rücken', 'Latissimus', 'Bizeps'],
     instructions: 'Vorgebeugt über der Stange, V-Griff zum Körper ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=pH9Q1YVSt1A',
   },
   {
     id: 'face-pull',
@@ -179,6 +198,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Hintere Schultern', 'Mittlerer Rücken', 'Trapez'],
     instructions: 'Seilgriff auf Gesichtshöhe zum Gesicht ziehen, Ellbogen hoch.',
+    videoUrl: 'https://www.youtube.com/watch?v=4yQDurDSMKw',
   },
   {
     id: 'back-extension',
@@ -187,6 +207,7 @@ export const exercises: Exercise[] = [
     equipment: 'Hyperextension-Bank',
     muscleGroups: ['Unterer Rücken', 'Gesäß'],
     instructions: 'Oberkörper kontrolliert absenken und wieder aufrichten.',
+    videoUrl: 'https://www.youtube.com/watch?v=VkNcc0BQrpA',
   },
   {
     id: 'machine-row',
@@ -195,6 +216,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Mittlerer Rücken', 'Latissimus', 'Bizeps'],
     instructions: 'Brust ans Polster, Griffe zum Körper ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=D3dlJwRX_S0',
   },
 
   // ==================== BEINE (Legs) ====================
@@ -205,6 +227,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Quadrizeps', 'Gesäß', 'Beinbeuger'],
     instructions: 'Stange auf dem oberen Rücken, Füße schulterbreit, tief in die Knie gehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=WDa34zWwMgA',
   },
   {
     id: 'front-squat',
@@ -213,6 +236,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Quadrizeps', 'Core', 'Gesäß'],
     instructions: 'Stange vorne auf den Schultern, aufrechter Oberkörper, tief beugen.',
+    videoUrl: 'https://www.youtube.com/watch?v=huVujjfzphI',
   },
   {
     id: 'goblet-squat',
@@ -221,6 +245,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Quadrizeps', 'Gesäß', 'Core'],
     instructions: 'Kurzhantel vor der Brust halten, tief in die Knie gehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=OwAh0sBFpec',
   },
   {
     id: 'leg-press',
@@ -229,6 +254,7 @@ export const exercises: Exercise[] = [
     equipment: 'Beinpresse',
     muscleGroups: ['Quadrizeps', 'Gesäß'],
     instructions: 'Füße schulterbreit auf die Platte, Beine beugen und strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=IZxyjW7MPJQ',
   },
   {
     id: 'hack-squat',
@@ -245,6 +271,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Beinbeuger', 'Gesäß', 'Unterer Rücken'],
     instructions: 'Beine fast gestreckt, Stange an den Oberschenkeln entlang nach unten führen.',
+    videoUrl: 'https://www.youtube.com/watch?v=k6cUaJasD5U',
   },
   {
     id: 'bulgarian-split-squat',
@@ -253,6 +280,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Quadrizeps', 'Gesäß', 'Beinbeuger'],
     instructions: 'Hinterer Fuß auf Bank, vorderes Bein beugen bis 90 Grad.',
+    videoUrl: 'https://www.youtube.com/watch?v=2C-uNgKwPLE',
   },
   {
     id: 'lunges',
@@ -261,6 +289,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Quadrizeps', 'Gesäß', 'Beinbeuger'],
     instructions: 'Großen Schritt nach vorne, hinteres Knie Richtung Boden senken.',
+    videoUrl: 'https://www.youtube.com/watch?v=oH558Z9swf0',
   },
   {
     id: 'walking-lunges',
@@ -269,6 +298,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Quadrizeps', 'Gesäß', 'Beinbeuger'],
     instructions: 'Ausfallschritte vorwärts gehend, abwechselnd links und rechts.',
+    videoUrl: 'https://www.youtube.com/watch?v=UiBfSWUPLBQ',
   },
   {
     id: 'leg-extension',
@@ -277,6 +307,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Quadrizeps'],
     instructions: 'Sitz einstellen, Polster über den Knöcheln, Beine strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=YyvSfVjQeL0',
   },
   {
     id: 'leg-curl',
@@ -285,6 +316,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Beinbeuger'],
     instructions: 'Bäuchlings auf die Maschine, Polster über den Fersen, Beine beugen.',
+    videoUrl: 'https://www.youtube.com/watch?v=ELOCsoDSmrg',
   },
   {
     id: 'seated-leg-curl',
@@ -293,6 +325,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Beinbeuger'],
     instructions: 'Sitzend, Polster über den Fersen, Beine beugen.',
+    videoUrl: 'https://www.youtube.com/watch?v=1Tq3QdYUuHs',
   },
   {
     id: 'calf-raise-standing',
@@ -301,6 +334,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Waden'],
     instructions: 'Auf Zehenspitzen heben, kurz halten, langsam absenken.',
+    videoUrl: 'https://www.youtube.com/watch?v=SVtg-1loH4c',
   },
   {
     id: 'calf-raise-seated',
@@ -309,6 +343,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Waden'],
     instructions: 'Sitzend, Polster auf den Knien, Fersen heben.',
+    videoUrl: 'https://www.youtube.com/watch?v=6O5hh1rBtx8',
   },
   {
     id: 'hip-thrust',
@@ -317,6 +352,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Gesäß', 'Beinbeuger'],
     instructions: 'Schultern auf Bank, Stange auf der Hüfte, Hüfte nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=5S8SApGU_Lk',
   },
   {
     id: 'glute-kickback',
@@ -325,6 +361,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Gesäß'],
     instructions: 'Am Kabelzug, Bein nach hinten strecken. Langsam und kontrolliert.',
+    videoUrl: 'https://www.youtube.com/watch?v=ohpV2JpWZiI',
   },
   {
     id: 'adductor-machine',
@@ -333,6 +370,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Adduktoren'],
     instructions: 'Beine zusammenführen gegen den Widerstand.',
+    videoUrl: 'https://www.youtube.com/watch?v=vSqhrbzZb7A',
   },
   {
     id: 'abductor-machine',
@@ -341,6 +379,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Abduktoren', 'Gesäß'],
     instructions: 'Beine auseinander drücken gegen den Widerstand.',
+    videoUrl: 'https://www.youtube.com/watch?v=2b97cvyH9sE',
   },
 
   // ==================== SCHULTERN (Shoulders) ====================
@@ -351,6 +390,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Schultern', 'Trizeps'],
     instructions: 'Stange auf Schulterhöhe, nach oben drücken bis Arme gestreckt.',
+    videoUrl: 'https://www.youtube.com/watch?v=BRjMEBJxF4w',
   },
   {
     id: 'dumbbell-shoulder-press',
@@ -359,6 +399,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Schultern', 'Trizeps'],
     instructions: 'Kurzhanteln seitlich auf Schulterhöhe, nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=sqKhLR1zRaU',
   },
   {
     id: 'arnold-press',
@@ -375,6 +416,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Seitliche Schultern'],
     instructions: 'Arme seitlich bis auf Schulterhöhe heben, Ellbogen leicht gebeugt.',
+    videoUrl: 'https://www.youtube.com/watch?v=v_ZkxWzYnMc',
   },
   {
     id: 'cable-lateral-raise',
@@ -383,6 +425,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Seitliche Schultern'],
     instructions: 'Kabel von unten, Arm seitlich bis Schulterhöhe heben.',
+    videoUrl: 'https://www.youtube.com/watch?v=3VcKaXpzqRo',
   },
   {
     id: 'front-raise',
@@ -399,6 +442,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Hintere Schultern'],
     instructions: 'Vorgebeugt, Arme seitlich nach außen heben.',
+    videoUrl: 'https://www.youtube.com/watch?v=ttvfGg9d76c',
   },
   {
     id: 'upright-row',
@@ -407,6 +451,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Schultern', 'Trapez'],
     instructions: 'Stange eng greifen, an Körper entlang bis Kinnhöhe ziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=Gv_SmIQo794',
   },
   {
     id: 'shrugs',
@@ -423,6 +468,7 @@ export const exercises: Exercise[] = [
     equipment: 'Maschine',
     muscleGroups: ['Schultern', 'Trizeps'],
     instructions: 'Sitz einstellen, Griffe auf Schulterhöhe, nach oben drücken.',
+    videoUrl: 'https://www.youtube.com/watch?v=vNhuuq3IBF4',
   },
 
   // ==================== ARME (Arms) ====================
@@ -433,6 +479,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Bizeps'],
     instructions: 'Stange schulterbreit im Untergriff greifen, kontrolliert beugen.',
+    videoUrl: 'https://www.youtube.com/watch?v=sAq_ocpRh_I',
   },
   {
     id: 'dumbbell-curl',
@@ -441,6 +488,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Bizeps'],
     instructions: 'Abwechselnd oder gleichzeitig Kurzhanteln beugen.',
+    videoUrl: 'https://www.youtube.com/watch?v=zC3nLlEvin4',
   },
   {
     id: 'hammer-curl',
@@ -449,6 +497,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Bizeps', 'Unterarme'],
     instructions: 'Neutraler Griff (Daumen nach oben), Curls ausführen.',
+    videoUrl: 'https://www.youtube.com/watch?v=5NsFLGUf0Fo',
   },
   {
     id: 'concentration-curl',
@@ -457,6 +506,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Bizeps'],
     instructions: 'Sitzend, Ellbogen an der Innenseite des Oberschenkels, langsam curlen.',
+    videoUrl: 'https://www.youtube.com/watch?v=QZEqB6wUPxQ',
   },
   {
     id: 'preacher-curl',
@@ -481,6 +531,7 @@ export const exercises: Exercise[] = [
     equipment: 'Dip-Station',
     muscleGroups: ['Trizeps', 'Untere Brust'],
     instructions: 'Aufrechter Oberkörper, Arme beugen und strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=sM6XUdt1rm4',
   },
   {
     id: 'tricep-pushdown',
@@ -489,6 +540,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Trizeps'],
     instructions: 'Stange oder Seilgriff nach unten drücken, Oberarme fixiert.',
+    videoUrl: 'https://www.youtube.com/watch?v=9WnPYf6rJBw',
   },
   {
     id: 'overhead-tricep-extension',
@@ -497,6 +549,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Trizeps'],
     instructions: 'Kurzhantel mit beiden Händen über dem Kopf, Arme beugen und strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=fYqswDVbJDg',
   },
   {
     id: 'skull-crusher',
@@ -505,6 +558,7 @@ export const exercises: Exercise[] = [
     equipment: 'Langhantel',
     muscleGroups: ['Trizeps'],
     instructions: 'Rückenlage, Stange zur Stirn senken, dann Arme strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=X-iV-cG8cYs',
   },
   {
     id: 'close-grip-bench',
@@ -521,6 +575,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kurzhanteln',
     muscleGroups: ['Trizeps'],
     instructions: 'Vorgebeugt, Oberarm fixiert, Unterarm nach hinten strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=6SS6K3lAwZ8',
   },
   {
     id: 'wrist-curl',
@@ -539,6 +594,7 @@ export const exercises: Exercise[] = [
     equipment: 'Körpergewicht',
     muscleGroups: ['Core', 'Bauch'],
     instructions: 'Unterarme und Zehenspitzen am Boden, Körper gerade halten.',
+    videoUrl: 'https://www.youtube.com/watch?v=pSHjTRCQxIw',
   },
   {
     id: 'side-plank',
@@ -555,6 +611,7 @@ export const exercises: Exercise[] = [
     equipment: 'Klimmzugstange',
     muscleGroups: ['Untere Bauchmuskeln', 'Hüftbeuger'],
     instructions: 'An der Stange hängen, Beine gestreckt nach oben heben.',
+    videoUrl: 'https://www.youtube.com/watch?v=hdng3Nm1x_E',
   },
   {
     id: 'hanging-knee-raise',
@@ -571,6 +628,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kabelzug',
     muscleGroups: ['Bauch'],
     instructions: 'Kniend am Kabelzug, Oberkörper nach unten einrollen.',
+    videoUrl: 'https://www.youtube.com/watch?v=o85rqdi2WyA',
   },
   {
     id: 'ab-wheel',
@@ -579,6 +637,7 @@ export const exercises: Exercise[] = [
     equipment: 'Ab Wheel',
     muscleGroups: ['Bauch', 'Core'],
     instructions: 'Kniend, Rad nach vorne rollen und kontrolliert zurückziehen.',
+    videoUrl: 'https://www.youtube.com/watch?v=wkJDuP4ntyw',
   },
   {
     id: 'russian-twist',
@@ -587,6 +646,7 @@ export const exercises: Exercise[] = [
     equipment: 'Körpergewicht',
     muscleGroups: ['Seitliche Bauchmuskeln', 'Core'],
     instructions: 'Sitzend, Füße angehoben, Oberkörper abwechselnd rotieren.',
+    videoUrl: 'https://www.youtube.com/watch?v=knckrVu1j-U',
   },
   {
     id: 'crunch',
@@ -595,6 +655,7 @@ export const exercises: Exercise[] = [
     equipment: 'Körpergewicht',
     muscleGroups: ['Bauch'],
     instructions: 'Rückenlage, Knie angewinkelt, Oberkörper einrollen.',
+    videoUrl: 'https://www.youtube.com/watch?v=NGRKFMKhF8s',
   },
   {
     id: 'mountain-climber',
@@ -703,6 +764,7 @@ export const exercises: Exercise[] = [
     equipment: 'Kettlebell',
     muscleGroups: ['Gesäß', 'Beinbeuger', 'Core', 'Schultern'],
     instructions: 'Kettlebell zwischen den Beinen schwingen, Hüfte explosiv strecken.',
+    videoUrl: 'https://www.youtube.com/watch?v=aSYap2yhW8s',
   },
   {
     id: 'burpee',
