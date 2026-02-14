@@ -38,7 +38,13 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Erro
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.homeButton}
-              onPress={() => this.setState({ hasError: false, error: null })}
+              onPress={() => {
+                if (typeof window !== 'undefined') {
+                  window.location.href = '/';
+                } else {
+                  this.setState({ hasError: false, error: null });
+                }
+              }}
             >
               <Text style={styles.homeButtonText}>Zur Startseite</Text>
             </TouchableOpacity>

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { publicProcedure } from '../../create-context';
+import { trainerProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default publicProcedure
+export default trainerProcedure
   .input(z.object({
     id: z.string(),
     name: z.string().optional(),

@@ -7,7 +7,10 @@ export default protectedProcedure
     userId: z.string(),
     xp: z.number(),
     level: z.number(),
-    badges: z.array(z.any()),
+    badges: z.array(z.object({
+      id: z.string(),
+      unlockedAt: z.string().optional(),
+    })),
     currentStreak: z.number(),
     longestStreak: z.number(),
     streakFreezes: z.number(),

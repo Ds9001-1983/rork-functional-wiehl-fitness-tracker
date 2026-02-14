@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { publicProcedure } from '../../create-context';
+import { protectedProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({
     userId: z.string(),
     name: z.string().optional(),

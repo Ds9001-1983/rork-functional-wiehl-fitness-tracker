@@ -51,10 +51,11 @@ export default trainerProcedure
     });
 
     console.log('[Server] Created client:', newClient.id, 'studio:', ctx.user.studioId);
-    return newClient;
 
     // Add new user as studio member
     try {
       await storage.studioMembers.add(ctx.user.studioId, newClient.id || newClient.userId || '', 'client');
     } catch { /* non-critical */ }
+
+    return newClient;
   });

@@ -8,7 +8,7 @@ const app = new Hono();
 
 // CORS middleware
 app.use('/*', cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN || 'https://app.functional-wiehl.de',
   allowHeaders: ['Content-Type', 'Authorization', 'X-Studio-Id'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));

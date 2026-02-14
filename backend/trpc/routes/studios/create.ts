@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+import { TRPCError } from '@trpc/server';
 import { superadminProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 import { z } from 'zod';
@@ -15,7 +17,7 @@ export default superadminProcedure
     // Check slug uniqueness
     const existing = await storage.studios.getBySlug(input.slug);
     if (existing) {
-      throw new Error('SLUG_EXISTS');
+      throw new TRPCError({ code: 'CONFLICT', message: 'SLUG_EXISTS' });
     }
 
     const studio = await storage.studios.create(input);
@@ -27,7 +29,7 @@ export default superadminProcedure
         if (!existingUser) {
           const user = await storage.users.create({
             email: input.ownerEmail,
-            password: 'CHANGE_ME_123',
+            password: crypto.randomBytes(16).toString('hex'),
             role: 'admin',
             studioId: studio.id,
           });

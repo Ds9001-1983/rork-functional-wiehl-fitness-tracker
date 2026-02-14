@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Switch,
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -27,7 +26,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [rememberPassword, setRememberPassword] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showNotInvitedConfirm, setShowNotInvitedConfirm] = useState(false);
@@ -50,13 +48,7 @@ export default function LoginScreen() {
   const loadSavedCredentials = async () => {
     try {
       const savedEmail = await AsyncStorage.getItem('savedEmail');
-      const savedPassword = await AsyncStorage.getItem('savedPassword');
-      const rememberSetting = await AsyncStorage.getItem('rememberPassword');
       if (savedEmail) setEmail(savedEmail);
-      if (savedPassword && rememberSetting === 'true') {
-        setPassword(savedPassword);
-        setRememberPassword(true);
-      }
     } catch (error) {
       console.error('Fehler beim Laden der gespeicherten Anmeldedaten:', error);
     }
@@ -70,15 +62,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const user = await login(email, password);
-      if (rememberPassword) {
-        await AsyncStorage.setItem('savedEmail', email);
-        await AsyncStorage.setItem('savedPassword', password);
-        await AsyncStorage.setItem('rememberPassword', 'true');
-      } else {
-        await AsyncStorage.removeItem('savedPassword');
-        await AsyncStorage.setItem('rememberPassword', 'false');
-        await AsyncStorage.setItem('savedEmail', email);
-      }
+      await AsyncStorage.setItem('savedEmail', email);
       if (!user) {
         return;
       }
@@ -210,17 +194,6 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.rememberContainer}>
-            <Switch
-              testID="remember-password"
-              value={rememberPassword}
-              onValueChange={setRememberPassword}
-              trackColor={{ false: Colors.border, true: Colors.accent }}
-              thumbColor={rememberPassword ? Colors.background : Colors.textMuted}
-            />
-            <Text style={styles.rememberText}>Passwort speichern</Text>
-          </View>
-
           <TouchableOpacity
             testID="login-button"
             style={[styles.loginButton, isLoading && styles.disabledButton]}
@@ -343,18 +316,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  rememberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  rememberText: {
-    marginLeft: Spacing.sm,
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  forgotPasswordButton: {
     alignItems: 'center',
     marginTop: Spacing.md,
   },

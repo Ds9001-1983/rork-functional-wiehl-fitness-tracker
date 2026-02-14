@@ -363,6 +363,26 @@ async function initializeTables() {
     await addColumnIfNotExists('clients', 'starter_password', 'VARCHAR(255)');
     await addColumnIfNotExists('clients', 'avatar', 'TEXT');
 
+    // Performance indexes
+    const createIndexIfNotExists = async (name: string, sql: string) => {
+      try {
+        await pool!.query(`CREATE INDEX IF NOT EXISTS ${name} ON ${sql}`);
+      } catch (_) { /* index might already exist */ }
+    };
+
+    await createIndexIfNotExists('idx_users_email', 'users (email)');
+    await createIndexIfNotExists('idx_users_studio_id', 'users (studio_id)');
+    await createIndexIfNotExists('idx_workouts_user_id', 'workouts (user_id)');
+    await createIndexIfNotExists('idx_workouts_date', 'workouts (date)');
+    await createIndexIfNotExists('idx_workouts_studio_id', 'workouts (studio_id)');
+    await createIndexIfNotExists('idx_notifications_user_id', 'notifications (user_id)');
+    await createIndexIfNotExists('idx_notifications_read', 'notifications (user_id, read)');
+    await createIndexIfNotExists('idx_body_measurements_user_id', 'body_measurements (user_id)');
+    await createIndexIfNotExists('idx_routines_user_id', 'routines (user_id)');
+    await createIndexIfNotExists('idx_challenges_studio_id', 'challenges (studio_id)');
+    await createIndexIfNotExists('idx_studio_members_studio_id', 'studio_members (studio_id)');
+    await createIndexIfNotExists('idx_clients_user_id', 'clients (user_id)');
+
     // Multi-tenant: Add studio_id to all data tables
     const tenantTables = ['users', 'clients', 'workouts', 'workout_plans', 'body_measurements',
       'gamification', 'routines', 'challenges', 'notifications', 'invitations', 'password_reset_tokens'];
@@ -584,6 +604,9 @@ export const storage = {
         }
       }
 
+      if (studioId) {
+        return clients.filter(c => !c.userId || users.find(u => u.id === c.userId)?.studioId === studioId);
+      }
       return clients;
     },
 
