@@ -14,6 +14,7 @@ import { Search, X, Youtube, Plus, Dumbbell, Clock, TrendingUp, Trash2 } from 'l
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { exercises as defaultExercises, exerciseCategories } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import { YouTubePlayer } from '@/components/YouTubePlayer';
 import { Exercise, ExerciseCategory } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
 import StatusBanner from '@/components/StatusBanner';
@@ -71,7 +72,7 @@ export default function ExercisesScreen() {
     }
   };
 
-  const handleOpenVideo = () => {
+  const handleOpenVideoExternal = () => {
     if (selectedExercise?.videoUrl) {
       Linking.openURL(selectedExercise.videoUrl);
     }
@@ -276,10 +277,14 @@ export default function ExercisesScreen() {
               )}
 
               {selectedExercise?.videoUrl && (
-                <TouchableOpacity style={styles.videoButton} onPress={handleOpenVideo}>
-                  <Youtube size={20} color={Colors.text} />
-                  <Text style={styles.videoButtonText}>Video ansehen</Text>
-                </TouchableOpacity>
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Video-Anleitung</Text>
+                  <YouTubePlayer videoUrl={selectedExercise.videoUrl} />
+                  <TouchableOpacity style={styles.videoExternalLink} onPress={handleOpenVideoExternal}>
+                    <Youtube size={16} color={Colors.accent} />
+                    <Text style={styles.videoExternalLinkText}>Auf YouTube oeffnen</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {activeWorkout && (
@@ -543,20 +548,17 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
-  videoButton: {
+  videoExternalLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.error,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  videoButtonText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500' as const,
-    marginLeft: Spacing.sm,
+  videoExternalLinkText: {
+    color: Colors.accent,
+    fontSize: 13,
+    marginLeft: Spacing.xs,
+    textDecorationLine: 'underline',
   },
   addButton: {
     flexDirection: 'row',

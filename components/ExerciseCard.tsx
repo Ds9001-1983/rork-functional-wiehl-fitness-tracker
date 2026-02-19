@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight, Dumbbell } from 'lucide-react-native';
+import { ChevronRight, Dumbbell, Youtube } from 'lucide-react-native';
 import { Exercise } from '@/types/workout';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 
@@ -14,6 +14,11 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({ exercise, onPress })
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
         <Dumbbell size={24} color={Colors.accent} />
+        {exercise.videoUrl && (
+          <View style={styles.videoBadge}>
+            <Youtube size={10} color="#FF0000" />
+          </View>
+        )}
       </View>
       
       <View style={styles.content}>
@@ -48,6 +53,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    position: 'relative',
+  },
+  videoBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   content: {
     flex: 1,
