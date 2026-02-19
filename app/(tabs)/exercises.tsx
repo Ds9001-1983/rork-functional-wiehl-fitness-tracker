@@ -10,13 +10,14 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, X, Youtube, Plus, Dumbbell, Clock, TrendingUp } from 'lucide-react-native';
+import { Search, X, Youtube, Plus, Dumbbell, Clock, TrendingUp, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { exercises as defaultExercises, exerciseCategories } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { Exercise, ExerciseCategory } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
 import StatusBanner from '@/components/StatusBanner';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ExercisesScreen() {
@@ -36,11 +37,15 @@ export default function ExercisesScreen() {
     instructions: '',
   });
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Load custom exercises
   React.useEffect(() => {
     AsyncStorage.getItem('customExercises').then(data => {
       if (data) setCustomExercises(JSON.parse(data));
+    }).catch(err => {
+      console.warn('[Exercises] Fehler beim Laden eigener Uebungen:', err);
+      setStatusMessage({ type: 'error', text: 'Eigene Uebungen konnten nicht geladen werden.' });
     });
   }, []);
 
@@ -97,6 +102,16 @@ export default function ExercisesScreen() {
 
     setNewExercise({ name: '', category: 'chest', equipment: '', muscleGroups: '', instructions: '' });
     setShowCreateModal(false);
+  };
+
+  const handleDeleteCustomExercise = async () => {
+    if (!selectedExercise?.isCustom) return;
+    const updated = customExercises.filter(e => e.id !== selectedExercise.id);
+    setCustomExercises(updated);
+    await AsyncStorage.setItem('customExercises', JSON.stringify(updated));
+    setModalVisible(false);
+    setShowDeleteConfirm(false);
+    setStatusMessage({ type: 'success', text: 'Uebung geloescht.' });
   };
 
   // Get exercise history for detail modal
@@ -273,10 +288,31 @@ export default function ExercisesScreen() {
                   <Text style={styles.addButtonText}>Zum Workout hinzufuegen</Text>
                 </TouchableOpacity>
               )}
+
+              {selectedExercise?.isCustom && (
+                <TouchableOpacity
+                  style={styles.deleteCustomButton}
+                  onPress={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 size={18} color={Colors.error} />
+                  <Text style={styles.deleteCustomButtonText}>Eigene Uebung loeschen</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         </View>
       </Modal>
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Uebung loeschen"
+        message={`"${selectedExercise?.name}" wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.`}
+        confirmText="Loeschen"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={handleDeleteCustomExercise}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Create Exercise Modal */}
       <Modal
@@ -605,6 +641,22 @@ const styles = StyleSheet.create({
   categoryPickerTextActive: {
     color: Colors.text,
     fontWeight: '600' as const,
+  },
+  deleteCustomButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.error,
+    marginTop: Spacing.md,
+  },
+  deleteCustomButtonText: {
+    color: Colors.error,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    marginLeft: Spacing.sm,
   },
   emptySearch: {
     alignItems: 'center',

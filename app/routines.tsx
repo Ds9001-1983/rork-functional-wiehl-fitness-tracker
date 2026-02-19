@@ -78,15 +78,20 @@ export default function RoutinesScreen() {
       return;
     }
 
-    await saveRoutine({
-      name: newRoutineName.trim(),
-      exercises: newRoutineExercises,
-      createdBy: 'self',
-    });
+    try {
+      await saveRoutine({
+        name: newRoutineName.trim(),
+        exercises: newRoutineExercises,
+        createdBy: 'self',
+      });
 
-    setNewRoutineName('');
-    setNewRoutineExercises([]);
-    setShowCreateModal(false);
+      setNewRoutineName('');
+      setNewRoutineExercises([]);
+      setShowCreateModal(false);
+      setStatusMessage({ type: 'success', text: 'Routine erstellt!' });
+    } catch (e) {
+      setStatusMessage({ type: 'error', text: 'Routine konnte nicht gespeichert werden. Bitte versuche es erneut.' });
+    }
   };
 
   const handleDeleteRoutine = (routineId: string, name: string) => {
@@ -136,12 +141,16 @@ export default function RoutinesScreen() {
       return;
     }
 
-    await updateRoutine(editRoutineId, {
-      name: editRoutineName.trim(),
-      exercises: editRoutineExercises,
-    });
-    setShowEditModal(false);
-    setStatusMessage({ type: 'success', text: 'Routine wurde aktualisiert.' });
+    try {
+      await updateRoutine(editRoutineId, {
+        name: editRoutineName.trim(),
+        exercises: editRoutineExercises,
+      });
+      setShowEditModal(false);
+      setStatusMessage({ type: 'success', text: 'Routine wurde aktualisiert.' });
+    } catch (e) {
+      setStatusMessage({ type: 'error', text: 'Routine konnte nicht aktualisiert werden. Bitte versuche es erneut.' });
+    }
   };
 
   const addExerciseToEdit = (exerciseId: string) => {

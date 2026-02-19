@@ -17,6 +17,7 @@ import { exercises } from '@/data/exercises';
 import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBanner from '@/components/StatusBanner';
 import { getRandomMessage, workoutCompleteMessages } from '@/data/coaching-messages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -43,6 +44,7 @@ export default function ActiveWorkoutScreen() {
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [completionResult, setCompletionResult] = useState<{ notifications: string[]; message: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -128,6 +130,12 @@ export default function ActiveWorkoutScreen() {
             </View>
           </View>
         </View>
+
+        {statusMessage && (
+          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm }}>
+            <StatusBanner type={statusMessage.type} text={statusMessage.text} onDismiss={() => setStatusMessage(null)} />
+          </View>
+        )}
 
         {showRestTimer && (
           <RestTimer key={restTimerKey} defaultSeconds={restTimerDefault} autoStart={restTimerKey > 0} onDefaultChange={handleRestTimerDefaultChange} />
@@ -259,6 +267,7 @@ export default function ActiveWorkoutScreen() {
               }
             } catch (e) {
               // Gamification errors shouldn't block workout save
+              setStatusMessage({ type: 'error', text: 'Gamification-Daten konnten nicht verarbeitet werden.' });
             }
 
             endWorkout();

@@ -16,6 +16,7 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { trpcClient } from '@/lib/trpc';
 import StatusBanner from '@/components/StatusBanner';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 const STORAGE_KEY = 'body_measurements';
 
@@ -68,6 +69,9 @@ export default function BodyMeasurementsScreen() {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUsingCache, setIsUsingCache] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [formExpanded, setFormExpanded] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -83,10 +87,12 @@ export default function BodyMeasurementsScreen() {
       const result = await trpcClient.measurements.list.query({ userId: user.id });
       if (Array.isArray(result)) {
         setMeasurements(result);
+        setIsUsingCache(false);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(result));
       }
     } catch (error) {
       console.log('[BodyMeasurements] Server nicht erreichbar, lade lokal');
+      setIsUsingCache(true);
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -203,14 +209,22 @@ export default function BodyMeasurementsScreen() {
     setIsSaving(false);
   };
 
-  const handleDelete = async (id: string) => {
-    const updated = measurements.filter(m => m.id !== id);
+  const confirmDelete = (id: string) => {
+    setDeleteTargetId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTargetId) return;
+    const updated = measurements.filter(m => m.id !== deleteTargetId);
     setMeasurements(updated);
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch (e) {
       console.error('[BodyMeasurements] Loeschen Fehler:', e);
     }
+    setDeleteTargetId(null);
+    setShowDeleteConfirm(false);
     setStatusMessage({ type: 'success', text: 'Messung geloescht.' });
   };
 
@@ -401,7 +415,7 @@ export default function BodyMeasurementsScreen() {
           </View>
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => handleDelete(measurement.id)}
+            onPress={() => confirmDelete(measurement.id)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Trash2 size={16} color={Colors.textMuted} />
@@ -470,6 +484,14 @@ export default function BodyMeasurementsScreen() {
           />
         )}
 
+        {isUsingCache && !isLoading && (
+          <StatusBanner
+            type="info"
+            text="Offline-Modus — lokale Daten werden angezeigt"
+            autoDismiss={0}
+          />
+        )}
+
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.accent} />
@@ -483,6 +505,17 @@ export default function BodyMeasurementsScreen() {
           </>
         )}
       </ScrollView>
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Messung loeschen"
+        message="Diese Messung wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden."
+        confirmText="Loeschen"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => { setShowDeleteConfirm(false); setDeleteTargetId(null); }}
+      />
     </View>
   );
 }

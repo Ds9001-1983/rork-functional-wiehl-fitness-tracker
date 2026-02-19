@@ -29,6 +29,7 @@ export default function LoginScreen() {
   const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [showNotInvitedConfirm, setShowNotInvitedConfirm] = useState(false);
+  const [lastErrorType, setLastErrorType] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -60,6 +61,7 @@ export default function LoginScreen() {
       return;
     }
     setIsLoading(true);
+    setLastErrorType(null);
     try {
       const user = await login(email, password);
       await AsyncStorage.setItem('savedEmail', email);
@@ -81,7 +83,8 @@ export default function LoginScreen() {
       }
     } catch (e) {
       if (e instanceof Error && e.message === 'CONNECTION_FAILED') {
-        setStatusMessage({ type: 'error', text: 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung und versuche es erneut.' });
+        setLastErrorType('CONNECTION_FAILED');
+        setStatusMessage({ type: 'error', text: 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung.' });
       } else if (e instanceof Error && e.message === 'USER_NOT_INVITED') {
         setShowNotInvitedConfirm(true);
       } else if (e instanceof Error && e.message === 'INVALID_PASSWORD') {
@@ -150,8 +153,20 @@ export default function LoginScreen() {
             <StatusBanner
               type={statusMessage.type}
               text={statusMessage.text}
-              onDismiss={() => setStatusMessage(null)}
+              onDismiss={() => { setStatusMessage(null); setLastErrorType(null); }}
             />
+          )}
+
+          {lastErrorType === 'CONNECTION_FAILED' && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.retryButtonText}>
+                {isLoading ? 'Verbinde...' : 'Erneut versuchen'}
+              </Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.inputContainer}>
@@ -315,6 +330,20 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  retryButton: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  retryButtonText: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
     alignItems: 'center',
     marginTop: Spacing.md,

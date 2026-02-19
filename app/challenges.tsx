@@ -18,8 +18,9 @@ export default function ChallengesScreen() {
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const [challenges, setChallenges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // Create form
   const [name, setName] = useState('');
@@ -32,7 +33,10 @@ export default function ChallengesScreen() {
     try {
       const data = await trpcClient.challenges.list.query();
       setChallenges(data);
-    } catch {}
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
     setLoading(false);
   }, []);
 
@@ -94,8 +98,17 @@ export default function ChallengesScreen() {
             </View>
           )}
 
+          {loadError && !loading && (
+            <View style={{ marginHorizontal: Spacing.lg }}>
+              <StatusBanner type="info" text="Verbindungsfehler — Challenges konnten nicht geladen werden." autoDismiss={0} />
+            </View>
+          )}
+
           {loading ? (
-            <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.accent} />
+              <Text style={styles.loadingText}>Challenges werden geladen...</Text>
+            </View>
           ) : challenges.length === 0 ? (
             <View style={styles.emptyState}>
               <Users size={48} color={Colors.textMuted} />
@@ -181,6 +194,8 @@ export default function ChallengesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.md },
+  loadingText: { color: Colors.textSecondary, fontSize: 14 },
   header: { alignItems: 'center', padding: Spacing.lg, paddingTop: Spacing.xl },
   title: { fontSize: 24, fontWeight: '700' as const, color: Colors.text, marginTop: Spacing.sm },
   subtitle: { fontSize: 14, color: Colors.textSecondary },
