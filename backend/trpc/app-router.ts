@@ -19,6 +19,7 @@ import listPlans from "./routes/plans/list";
 import updatePlan from "./routes/plans/update";
 import deletePlan from "./routes/plans/delete";
 import assignPlan from "./routes/plans/assign";
+import instantiatePlan from "./routes/plans/instantiate";
 import updateProfile from "./routes/profile/update";
 import adminStats from "./routes/admin/stats";
 import adminUsers from "./routes/admin/users";
@@ -79,6 +80,7 @@ export const appRouter = createTRPCRouter({
     update: updatePlan,
     delete: deletePlan,
     assign: assignPlan,
+    instantiate: instantiatePlan,
   }),
   profile: createTRPCRouter({
     update: updateProfile,

@@ -41,6 +41,8 @@ export interface Workout {
   userId: string;
   createdBy?: string;
   templateId?: string; // Reference to routine used
+  planInstanceId?: string; // Reference to assigned plan instance
+  mood?: 'great' | 'good' | 'okay' | 'tired' | 'bad';
 }
 
 export interface Routine {
@@ -74,6 +76,10 @@ export interface WorkoutPlan {
     dayOfWeek: number;
     time?: string;
   }[];
+  // Template-Instance system
+  templateId?: string;         // Reference to the original template (null = is a template)
+  isInstance?: boolean;         // true = individual copy for a client
+  customizedFields?: string[]; // which fields were customized from template
 }
 
 export interface BodyMeasurement {

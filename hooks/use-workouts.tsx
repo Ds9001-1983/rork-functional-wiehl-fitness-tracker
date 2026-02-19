@@ -30,7 +30,8 @@ interface WorkoutState {
   createWorkout: (workout: Omit<Workout, 'id'>) => Promise<void>;
   createWorkoutPlan: (plan: Omit<WorkoutPlan, 'id'>) => Promise<void>;
   updateWorkoutPlan: (planId: string, updatedPlan: WorkoutPlan) => Promise<void>;
-  assignPlanToUser: (planId: string, userId: string) => Promise<void>;
+  assignPlanToUser: (planId: string, userId: string, createInstance?: boolean) => Promise<void>;
+  instantiatePlan: (templateId: string, userIds: string[]) => Promise<void>;
   saveRoutine: (routine: Omit<Routine, 'id' | 'timesUsed'>) => Promise<void>;
   updateRoutine: (routineId: string, updates: Partial<Omit<Routine, 'id'>>) => Promise<void>;
   deleteRoutine: (routineId: string) => Promise<void>;
@@ -473,9 +474,15 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);
 
-  const assignPlanToUser = useCallback(async (planId: string, userId: string) => {
+  const assignPlanToUser = useCallback(async (planId: string, userId: string, createInstance?: boolean) => {
     try {
-      await trpcClient.plans.assign.mutate({ planId, userId });
+      const result = await trpcClient.plans.assign.mutate({ planId, userId, createInstance });
+
+      if (createInstance && result.instanceId) {
+        // Instance was created server-side, refresh plans
+        await refreshFromServer();
+        return;
+      }
     } catch (error) {
       // Local fallback
     }
@@ -483,17 +490,65 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     const plan = workoutPlans.find(p => p.id === planId);
     if (!plan) return;
 
-    const updatedPlan = {
-      ...plan,
-      assignedTo: [...(plan.assignedTo || []), userId],
-    };
+    if (createInstance) {
+      // Local fallback: create instance copy
+      const instance: WorkoutPlan = {
+        id: Math.random().toString(36).substring(2, 9),
+        name: plan.name,
+        description: plan.description,
+        exercises: JSON.parse(JSON.stringify(plan.exercises)),
+        createdBy: plan.createdBy,
+        assignedTo: [userId],
+        schedule: plan.schedule ? JSON.parse(JSON.stringify(plan.schedule)) : undefined,
+        templateId: planId,
+        isInstance: true,
+        customizedFields: [],
+      };
 
-    const updatedPlans = workoutPlans.map(p =>
-      p.id === planId ? updatedPlan : p
-    );
+      const updatedPlans = [...workoutPlans, instance];
+      setWorkoutPlans(updatedPlans);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    } else {
+      const updatedPlan = {
+        ...plan,
+        assignedTo: [...(plan.assignedTo || []), userId],
+      };
 
-    setWorkoutPlans(updatedPlans);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+      const updatedPlans = workoutPlans.map(p =>
+        p.id === planId ? updatedPlan : p
+      );
+
+      setWorkoutPlans(updatedPlans);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    }
+  }, [workoutPlans]);
+
+  const instantiatePlan = useCallback(async (templateId: string, userIds: string[]) => {
+    try {
+      await trpcClient.plans.instantiate.mutate({ templateId, userIds });
+      await refreshFromServer();
+    } catch (error) {
+      // Local fallback: create instances for each user
+      const template = workoutPlans.find(p => p.id === templateId);
+      if (!template) return;
+
+      const newInstances: WorkoutPlan[] = userIds.map(userId => ({
+        id: Math.random().toString(36).substring(2, 9),
+        name: template.name,
+        description: template.description,
+        exercises: JSON.parse(JSON.stringify(template.exercises)),
+        createdBy: template.createdBy,
+        assignedTo: [userId],
+        schedule: template.schedule ? JSON.parse(JSON.stringify(template.schedule)) : undefined,
+        templateId: templateId,
+        isInstance: true,
+        customizedFields: [],
+      }));
+
+      const updatedPlans = [...workoutPlans, ...newInstances];
+      setWorkoutPlans(updatedPlans);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    }
   }, [workoutPlans]);
 
   const saveRoutine = useCallback(async (routine: Omit<Routine, 'id' | 'timesUsed'>) => {
@@ -656,6 +711,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     createWorkoutPlan,
     updateWorkoutPlan,
     assignPlanToUser,
+    instantiatePlan,
     saveRoutine,
     updateRoutine,
     deleteRoutine,
@@ -665,5 +721,5 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     deletePlan,
     duplicatePlan,
     refreshFromServer,
-  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, saveRoutine, updateRoutine, deleteRoutine, updateWorkout, deleteWorkout, repeatWorkout, deletePlan, duplicatePlan, refreshFromServer]);
+  }), [workouts, workoutPlans, routines, activeWorkout, isLoading, currentUserId, startWorkout, startWorkoutFromRoutine, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, updateExerciseNotes, saveWorkout, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getExerciseHistory, getMuscleGroupVolume, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, instantiatePlan, saveRoutine, updateRoutine, deleteRoutine, updateWorkout, deleteWorkout, repeatWorkout, deletePlan, duplicatePlan, refreshFromServer]);
 });

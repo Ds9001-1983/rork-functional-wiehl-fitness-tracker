@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
   },
+  forgotPasswordButton: {
     alignItems: 'center',
     marginTop: Spacing.md,
   },

@@ -62,6 +62,11 @@ export interface StoredWorkoutPlan {
   assignedTo: string[];
   schedule?: any[];
   studioId?: string;
+  // Template-Instance system
+  templateId?: string;
+  isInstance?: boolean;
+  customizedFields?: string[];
+  assignedUserId?: string; // for instances: the single user this instance belongs to
 }
 
 export interface StoredStudio {
@@ -393,6 +398,12 @@ async function initializeTables() {
     // DSGVO: Add consent fields to users
     await addColumnIfNotExists('users', 'consented_at', 'TIMESTAMP');
     await addColumnIfNotExists('users', 'privacy_version', "VARCHAR(10) DEFAULT '1.0'");
+
+    // Template-Instance system for workout plans
+    await addColumnIfNotExists('workout_plans', 'template_id', 'INTEGER');
+    await addColumnIfNotExists('workout_plans', 'is_instance', 'BOOLEAN DEFAULT FALSE');
+    await addColumnIfNotExists('workout_plans', 'customized_fields', "JSONB DEFAULT '[]'");
+    await addColumnIfNotExists('workout_plans', 'assigned_user_id', 'VARCHAR(50)');
 
     // Seed default studio and users
     await seedDefaultStudio();
@@ -912,9 +923,13 @@ export const storage = {
         try {
           const result = await pool.query(
             studioId
-              ? `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule
+              ? `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+                 template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+                 customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
                  FROM workout_plans WHERE studio_id = $1 ORDER BY created_at DESC`
-              : `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule
+              : `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+                 template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+                 customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
                  FROM workout_plans ORDER BY created_at DESC`,
             studioId ? [studioId] : []
           );
@@ -930,7 +945,9 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
              FROM workout_plans WHERE created_by = $1 ORDER BY created_at DESC`,
             [creatorId]
           );
@@ -946,11 +963,16 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO workout_plans (name, description, exercises, created_by, assigned_to, schedule, studio_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule`,
+            `INSERT INTO workout_plans (name, description, exercises, created_by, assigned_to, schedule, studio_id,
+             template_id, is_instance, customized_fields, assigned_user_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             RETURNING id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"`,
             [plan.name, plan.description, JSON.stringify(plan.exercises),
-             plan.createdBy, JSON.stringify(plan.assignedTo || []), JSON.stringify(plan.schedule || []), plan.studioId || 1]
+             plan.createdBy, JSON.stringify(plan.assignedTo || []), JSON.stringify(plan.schedule || []), plan.studioId || 1,
+             plan.templateId || null, plan.isInstance || false, JSON.stringify(plan.customizedFields || []),
+             plan.assignedUserId || null]
           );
           return result.rows[0];
         } catch (err) {
@@ -975,13 +997,16 @@ export const storage = {
           if (updates.exercises !== undefined) { setClauses.push(`exercises = $${idx++}`); values.push(JSON.stringify(updates.exercises)); }
           if (updates.assignedTo !== undefined) { setClauses.push(`assigned_to = $${idx++}`); values.push(JSON.stringify(updates.assignedTo)); }
           if (updates.schedule !== undefined) { setClauses.push(`schedule = $${idx++}`); values.push(JSON.stringify(updates.schedule)); }
+          if (updates.customizedFields !== undefined) { setClauses.push(`customized_fields = $${idx++}`); values.push(JSON.stringify(updates.customizedFields)); }
 
           setClauses.push(`updated_at = NOW()`);
 
           values.push(id);
           const result = await pool.query(
             `UPDATE workout_plans SET ${setClauses.join(', ')} WHERE id = $${idx}
-             RETURNING id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule`,
+             RETURNING id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"`,
             values
           );
           return result.rows[0] || null;
@@ -1031,6 +1056,85 @@ export const storage = {
         plan.assignedTo.push(userId);
       }
       return true;
+    },
+
+    instantiate: async (templateId: string, userId: string, studioId?: string): Promise<StoredWorkoutPlan | null> => {
+      // Get the template
+      let template: StoredWorkoutPlan | null = null;
+
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo",
+             schedule, studio_id as "studioId"
+             FROM workout_plans WHERE id = $1`,
+            [templateId]
+          );
+          if (result.rows.length > 0) template = result.rows[0];
+        } catch (err) {
+          console.log('[Storage] DB query failed for template lookup:', err);
+        }
+      }
+
+      if (!template) {
+        template = workoutPlans.find(p => p.id === templateId) || null;
+      }
+
+      if (!template) return null;
+
+      // Create independent copy as instance
+      const instance: Omit<StoredWorkoutPlan, 'id'> = {
+        name: template.name,
+        description: template.description,
+        exercises: JSON.parse(JSON.stringify(template.exercises)), // deep copy
+        createdBy: template.createdBy,
+        assignedTo: [userId],
+        schedule: template.schedule ? JSON.parse(JSON.stringify(template.schedule)) : [],
+        studioId: studioId || template.studioId || '1',
+        templateId: templateId,
+        isInstance: true,
+        customizedFields: [],
+        assignedUserId: userId,
+      };
+
+      return storage.workoutPlans.create(instance);
+    },
+
+    getInstancesForTemplate: async (templateId: string): Promise<StoredWorkoutPlan[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
+             FROM workout_plans WHERE template_id = $1 ORDER BY created_at DESC`,
+            [templateId]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for template instances:', err);
+        }
+      }
+      return workoutPlans.filter(p => p.templateId === templateId);
+    },
+
+    getByUserId: async (userId: string): Promise<StoredWorkoutPlan[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
+             FROM workout_plans WHERE assigned_user_id = $1 OR (assigned_to @> $2::jsonb)
+             ORDER BY created_at DESC`,
+            [userId, JSON.stringify([userId])]
+          );
+          return result.rows;
+        } catch (err) {
+          console.log('[Storage] DB query failed for user plans:', err);
+        }
+      }
+      return workoutPlans.filter(p => p.assignedUserId === userId || p.assignedTo.includes(userId));
     },
   },
 

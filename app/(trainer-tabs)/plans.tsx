@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
-import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check, Search, Dumbbell } from 'lucide-react-native';
+import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check, Search, Dumbbell, FileText, GitBranch } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -14,7 +14,18 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 export default function TrainerPlansScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
-  const { createWorkoutPlan, assignPlanToUser, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans } = useWorkouts();
+  const { createWorkoutPlan, assignPlanToUser, instantiatePlan, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans } = useWorkouts();
+
+  // Separate templates from instances
+  const templates = workoutPlans.filter(p => !p.isInstance);
+  const instances = workoutPlans.filter(p => p.isInstance);
+
+  // Filter toggle
+  const [showFilter, setShowFilter] = useState<'all' | 'templates' | 'instances'>('all');
+
+  const filteredPlans = showFilter === 'templates' ? templates
+    : showFilter === 'instances' ? instances
+    : workoutPlans;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -164,14 +175,24 @@ export default function TrainerPlansScreen() {
     const successNames: string[] = [];
     const failedNames: string[] = [];
 
-    for (const clientId of selectedClientIds) {
-      try {
-        await assignPlanToUser(selectedPlanId, clientId);
+    // Create independent instances for each client
+    try {
+      await instantiatePlan(selectedPlanId, selectedClientIds);
+      for (const clientId of selectedClientIds) {
         const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
         successNames.push(name);
-      } catch {
-        const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
-        failedNames.push(name);
+      }
+    } catch {
+      // Fallback: try one by one
+      for (const clientId of selectedClientIds) {
+        try {
+          await assignPlanToUser(selectedPlanId, clientId, true);
+          const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
+          successNames.push(name);
+        } catch {
+          const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
+          failedNames.push(name);
+        }
       }
     }
 
@@ -205,14 +226,33 @@ export default function TrainerPlansScreen() {
     try {
       const plan = workoutPlans.find(p => p.id === editPlanId);
       if (!plan) return;
+
+      // Track customized fields for instances
+      const customizedFields: string[] = [...(plan.customizedFields || [])];
+      if (plan.isInstance && plan.templateId) {
+        const template = templates.find(t => t.id === plan.templateId);
+        if (template) {
+          if (editPlanName.trim() !== template.name && !customizedFields.includes('name')) {
+            customizedFields.push('name');
+          }
+          if (editPlanDesc.trim() !== (template.description || '') && !customizedFields.includes('description')) {
+            customizedFields.push('description');
+          }
+          if (JSON.stringify(editExercises) !== JSON.stringify(template.exercises) && !customizedFields.includes('exercises')) {
+            customizedFields.push('exercises');
+          }
+        }
+      }
+
       await updateWorkoutPlan(editPlanId, {
         ...plan,
         name: editPlanName.trim(),
         description: editPlanDesc.trim(),
         exercises: editExercises,
+        customizedFields: plan.isInstance ? customizedFields : undefined,
       });
       setShowEditModal(false);
-      setStatusMessage({ type: 'success', text: 'Plan wurde aktualisiert.' });
+      setStatusMessage({ type: 'success', text: plan.isInstance ? 'Instanz wurde angepasst.' : 'Vorlage wurde aktualisiert.' });
     } catch {
       setStatusMessage({ type: 'error', text: 'Plan konnte nicht aktualisiert werden.' });
     }
@@ -244,7 +284,21 @@ export default function TrainerPlansScreen() {
 
   const getDeleteMessage = () => {
     const plan = workoutPlans.find(p => p.id === deletePlanId);
-    const count = plan?.assignedTo?.length || 0;
+    if (!plan) return 'Moechten Sie diesen Trainingsplan wirklich loeschen?';
+
+    if (plan.isInstance) {
+      const userName = plan.assignedTo?.[0]
+        ? clients.find(c => c.id === plan.assignedTo?.[0])?.name || 'einem Kunden'
+        : 'einem Kunden';
+      return `Diese Plan-Instanz fuer ${userName} wird geloescht. Die Vorlage bleibt erhalten.`;
+    }
+
+    const instCount = instances.filter(i => i.templateId === plan.id).length;
+    if (instCount > 0) {
+      return `Diese Vorlage hat ${instCount} aktive Instanz${instCount !== 1 ? 'en' : ''}. Nur die Vorlage wird geloescht, Instanzen bleiben erhalten.`;
+    }
+
+    const count = plan.assignedTo?.length || 0;
     if (count > 0) {
       return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Moechten Sie ihn trotzdem loeschen?`;
     }
@@ -276,23 +330,102 @@ export default function TrainerPlansScreen() {
           </TouchableOpacity>
         </View>
 
-        {workoutPlans.length === 0 ? (
+        {/* Filter Tabs */}
+        {workoutPlans.length > 0 && (
+          <View style={styles.filterRow}>
+            <TouchableOpacity
+              style={[styles.filterTab, showFilter === 'all' && styles.filterTabActive]}
+              onPress={() => setShowFilter('all')}
+            >
+              <Text style={[styles.filterTabText, showFilter === 'all' && styles.filterTabTextActive]}>
+                Alle ({workoutPlans.length})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, showFilter === 'templates' && styles.filterTabActive]}
+              onPress={() => setShowFilter('templates')}
+            >
+              <FileText size={12} color={showFilter === 'templates' ? Colors.accent : Colors.textMuted} />
+              <Text style={[styles.filterTabText, showFilter === 'templates' && styles.filterTabTextActive]}>
+                Vorlagen ({templates.length})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterTab, showFilter === 'instances' && styles.filterTabActive]}
+              onPress={() => setShowFilter('instances')}
+            >
+              <GitBranch size={12} color={showFilter === 'instances' ? Colors.accent : Colors.textMuted} />
+              <Text style={[styles.filterTabText, showFilter === 'instances' && styles.filterTabTextActive]}>
+                Instanzen ({instances.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {filteredPlans.length === 0 ? (
           <View style={styles.emptyState}>
             <ClipboardList size={32} color={Colors.textMuted} />
-            <Text style={styles.emptyText}>Noch keine Trainingsplaene erstellt</Text>
-            <Text style={styles.emptySubtext}>Erstellen Sie Ihren ersten Plan</Text>
+            <Text style={styles.emptyText}>
+              {workoutPlans.length === 0
+                ? 'Noch keine Trainingsplaene erstellt'
+                : showFilter === 'templates' ? 'Keine Vorlagen vorhanden' : 'Keine Instanzen vorhanden'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {workoutPlans.length === 0 ? 'Erstellen Sie Ihren ersten Plan' : ''}
+            </Text>
           </View>
         ) : (
           <View style={styles.plansList}>
-            {workoutPlans.map((plan) => {
+            {filteredPlans.map((plan) => {
               const assignedCount = getAssignedCount(plan);
+              const isInstance = plan.isInstance;
+              const templateName = isInstance && plan.templateId
+                ? templates.find(t => t.id === plan.templateId)?.name
+                : null;
+              const assignedUserName = isInstance && plan.assignedTo?.[0]
+                ? clients.find(c => c.id === plan.assignedTo?.[0])?.name
+                : null;
+              const instanceCount = !isInstance
+                ? instances.filter(i => i.templateId === plan.id).length
+                : 0;
+
               return (
-                <View key={plan.id} style={styles.planCard}>
+                <View key={plan.id} style={[styles.planCard, isInstance && styles.planCardInstance]}>
                   <View style={styles.planInfo}>
-                    <Text style={styles.planName}>{plan.name}</Text>
+                    <View style={styles.planNameRow}>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      {isInstance ? (
+                        <View style={styles.instanceBadge}>
+                          <GitBranch size={10} color={Colors.accent} />
+                          <Text style={styles.instanceBadgeText}>Instanz</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.templateBadge}>
+                          <FileText size={10} color={Colors.textSecondary} />
+                          <Text style={styles.templateBadgeText}>Vorlage</Text>
+                        </View>
+                      )}
+                    </View>
                     {plan.description ? <Text style={styles.planDesc}>{plan.description}</Text> : null}
                     <Text style={styles.planMeta}>{plan.exercises.length} Uebungen</Text>
-                    {assignedCount > 0 && (
+                    {isInstance && assignedUserName && (
+                      <View style={styles.assignedBadge}>
+                        <Users size={12} color={Colors.accent} />
+                        <Text style={styles.assignedText}>Fuer: {assignedUserName}</Text>
+                      </View>
+                    )}
+                    {isInstance && templateName && (
+                      <Text style={styles.templateRef}>Vorlage: {templateName}</Text>
+                    )}
+                    {!isInstance && instanceCount > 0 && (
+                      <View style={styles.assignedBadge}>
+                        <GitBranch size={12} color={Colors.accent} />
+                        <Text style={styles.assignedText}>
+                          {instanceCount} Instanz{instanceCount !== 1 ? 'en' : ''} erstellt
+                        </Text>
+                      </View>
+                    )}
+                    {!isInstance && assignedCount > 0 && instanceCount === 0 && (
                       <View style={styles.assignedBadge}>
                         <Users size={12} color={Colors.accent} />
                         <Text style={styles.assignedText}>
@@ -300,24 +433,31 @@ export default function TrainerPlansScreen() {
                         </Text>
                       </View>
                     )}
+                    {isInstance && (plan.customizedFields?.length ?? 0) > 0 && (
+                      <Text style={styles.customizedHint}>Individuell angepasst</Text>
+                    )}
                   </View>
                   <View style={styles.planActions}>
                     <TouchableOpacity style={styles.actionIcon} onPress={() => openEditModal(plan)}>
                       <Edit3 size={16} color={Colors.textSecondary} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionIcon} onPress={() => handleDuplicatePlan(plan.id)}>
-                      <Copy size={16} color={Colors.textSecondary} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionIcon}
-                      onPress={() => {
-                        setSelectedPlanId(plan.id);
-                        setSelectedClientIds([]);
-                        setShowAssignModal(true);
-                      }}
-                    >
-                      <Send size={16} color={Colors.accent} />
-                    </TouchableOpacity>
+                    {!isInstance && (
+                      <TouchableOpacity style={styles.actionIcon} onPress={() => handleDuplicatePlan(plan.id)}>
+                        <Copy size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                    )}
+                    {!isInstance && (
+                      <TouchableOpacity
+                        style={styles.actionIcon}
+                        onPress={() => {
+                          setSelectedPlanId(plan.id);
+                          setSelectedClientIds([]);
+                          setShowAssignModal(true);
+                        }}
+                      >
+                        <Send size={16} color={Colors.accent} />
+                      </TouchableOpacity>
+                    )}
                     <TouchableOpacity
                       style={styles.actionIcon}
                       onPress={() => {
@@ -548,25 +688,25 @@ export default function TrainerPlansScreen() {
               </View>
             ) : (
               <>
+                <Text style={styles.assignHint}>Fuer jeden Kunden wird eine individuelle Plan-Kopie erstellt.</Text>
                 {selectedClientIds.length > 0 && (
                   <Text style={styles.selectionCount}>{selectedClientIds.length} ausgewaehlt</Text>
                 )}
                 {clients.map((c) => {
                   const isSelected = selectedClientIds.includes(c.id);
-                  const currentPlan = workoutPlans.find(p => p.id === selectedPlanId);
-                  const alreadyAssigned = currentPlan?.assignedTo?.includes(c.id) || false;
+                  const hasInstance = instances.some(i => i.templateId === selectedPlanId && i.assignedTo?.includes(c.id));
                   return (
                     <TouchableOpacity
                       key={c.id}
-                      style={[styles.clientOption, isSelected && styles.clientOptionSelected, alreadyAssigned && styles.clientOptionDisabled]}
-                      onPress={() => !alreadyAssigned && toggleClientSelection(c.id)}
-                      disabled={alreadyAssigned}
+                      style={[styles.clientOption, isSelected && styles.clientOptionSelected, hasInstance && styles.clientOptionDisabled]}
+                      onPress={() => !hasInstance && toggleClientSelection(c.id)}
+                      disabled={hasInstance}
                     >
                       <View style={styles.clientOptionRow}>
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.clientOptionText, isSelected && styles.clientOptionTextSelected]}>{c.name}</Text>
                           <Text style={styles.clientOptionEmail}>
-                            {c.email}{alreadyAssigned ? ' (bereits zugewiesen)' : ''}
+                            {c.email}{hasInstance ? ' (Instanz vorhanden)' : ''}
                           </Text>
                         </View>
                         {isSelected && (
@@ -658,6 +798,7 @@ const styles = StyleSheet.create({
   clientOptionTextSelected: { color: Colors.accent },
   clientOptionEmail: { fontSize: 13, color: Colors.textSecondary, marginTop: 2 },
   selectionCount: { fontSize: 14, color: Colors.accent, fontWeight: '600', marginBottom: Spacing.sm },
+  assignHint: { fontSize: 13, color: Colors.textSecondary, marginBottom: Spacing.md, fontStyle: 'italic' },
   exerciseSectionTitle: { fontSize: 15, fontWeight: '600', color: Colors.text, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   emptyExerciseState: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border, borderStyle: 'dashed' },
   emptyExerciseText: { fontSize: 13, color: Colors.textMuted, flex: 1 },
@@ -669,4 +810,17 @@ const styles = StyleSheet.create({
   exerciseOption: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
   exerciseOptionName: { fontSize: 14, fontWeight: '500', color: Colors.text },
   exerciseOptionMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
+  filterTab: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  filterTabActive: { borderColor: Colors.accent, backgroundColor: Colors.accent + '20' },
+  filterTabText: { fontSize: 12, color: Colors.textMuted },
+  filterTabTextActive: { color: Colors.accent, fontWeight: '600' },
+  planCardInstance: { borderLeftWidth: 3, borderLeftColor: Colors.accent },
+  planNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  templateBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.surfaceLight, paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
+  templateBadgeText: { fontSize: 10, color: Colors.textSecondary, fontWeight: '500' },
+  instanceBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: Colors.accent + '20', paddingHorizontal: 6, paddingVertical: 2, borderRadius: BorderRadius.sm },
+  instanceBadgeText: { fontSize: 10, color: Colors.accent, fontWeight: '600' },
+  templateRef: { fontSize: 11, color: Colors.textMuted, marginTop: 2, fontStyle: 'italic' },
+  customizedHint: { fontSize: 11, color: Colors.accent, marginTop: 2, fontWeight: '500' },
 });
