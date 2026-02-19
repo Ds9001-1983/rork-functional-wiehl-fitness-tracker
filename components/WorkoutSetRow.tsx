@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { Check, X } from 'lucide-react-native';
+import { Check, X, TrendingUp } from 'lucide-react-native';
 import { WorkoutSet, SetType } from '@/types/workout';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 
@@ -11,6 +11,7 @@ interface WorkoutSetRowProps {
   onRemove: () => void;
   previousWeight?: number;
   previousReps?: number;
+  previousCompleted?: boolean; // was previous set at this index completed?
 }
 
 const SET_TYPE_LABELS: Record<SetType, { label: string; short: string; color: string }> = {
@@ -27,6 +28,7 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   onRemove,
   previousWeight,
   previousReps,
+  previousCompleted,
 }) => {
   const [weightText, setWeightText] = useState(set.weight > 0 ? set.weight.toString() : '');
   const [repsText, setRepsText] = useState(set.reps > 0 ? set.reps.toString() : '');
@@ -82,8 +84,11 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
 
       {/* Previous performance hint - tap to fill */}
       {hasPrevious && (
-        <TouchableOpacity onPress={fillFromPrevious}>
+        <TouchableOpacity onPress={fillFromPrevious} style={styles.previousHintContainer}>
           <Text style={styles.previousHint}>{previousWeight}x{previousReps}</Text>
+          {previousCompleted && (
+            <TrendingUp size={10} color={Colors.success} style={{ marginLeft: 1 }} />
+          )}
         </TouchableOpacity>
       )}
 
@@ -157,10 +162,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700' as const,
   },
+  previousHintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 52,
+    justifyContent: 'center',
+  },
   previousHint: {
     fontSize: 11,
     color: Colors.accent,
-    width: 44,
     textAlign: 'center',
     textDecorationLine: 'underline',
   },

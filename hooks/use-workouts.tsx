@@ -132,33 +132,94 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
 
   const startWorkout = useCallback((planId?: string) => {
     const plan = planId ? workoutPlans.find(p => p.id === planId) : null;
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+
+    // Auto-fill plan exercises with last workout data
+    let exercises = plan?.exercises || [];
+    if (plan?.exercises && plan.exercises.length > 0) {
+      exercises = plan.exercises.map(ex => {
+        // Find last performance for this exercise
+        let previousSets: { reps: number; weight: number; type: string }[] | null = null;
+        for (let i = userWorkouts.length - 1; i >= 0; i--) {
+          const prevExercise = userWorkouts[i].exercises.find(e => e.exerciseId === ex.exerciseId);
+          if (prevExercise && prevExercise.sets.length > 0) {
+            previousSets = prevExercise.sets.map(s => ({
+              reps: s.reps,
+              weight: s.weight,
+              type: s.type || 'normal',
+            }));
+            break;
+          }
+        }
+
+        if (previousSets) {
+          // Fill with history data, match set count from plan
+          return {
+            ...ex,
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            sets: ex.sets.map((s, i) => ({
+              ...s,
+              id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+              weight: previousSets![i]?.weight ?? s.weight,
+              reps: previousSets![i]?.reps ?? s.reps,
+              completed: false,
+            })),
+          };
+        }
+
+        return {
+          ...ex,
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          sets: ex.sets.map((s, i) => ({
+            ...s,
+            id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            completed: false,
+          })),
+        };
+      });
+    }
 
     const newWorkout: Workout = {
       id: Date.now().toString(),
       name: plan?.name || `Workout ${new Date().toLocaleDateString('de-DE')}`,
       date: new Date().toISOString(),
-      exercises: plan?.exercises || [],
+      exercises,
       completed: false,
       userId: currentUserId || '1',
       templateId: planId,
+      planInstanceId: plan?.isInstance ? planId : undefined,
     };
 
     setActiveWorkout(newWorkout);
-  }, [workoutPlans, currentUserId]);
+  }, [workoutPlans, workouts, currentUserId]);
 
   const startWorkoutFromRoutine = useCallback((routine: Routine) => {
-    const newExercises: WorkoutExercise[] = routine.exercises.map(re => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      exerciseId: re.exerciseId,
-      sets: Array.from({ length: re.sets }, (_, i) => ({
-        id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
-        reps: re.reps || 0,
-        weight: re.weight || 0,
-        completed: false,
-        type: 'normal' as const,
-      })),
-      notes: re.notes,
-    }));
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+
+    const newExercises: WorkoutExercise[] = routine.exercises.map(re => {
+      // Look up last performance for this exercise
+      let previousSets: { reps: number; weight: number }[] | null = null;
+      for (let i = userWorkouts.length - 1; i >= 0; i--) {
+        const prevExercise = userWorkouts[i].exercises.find(e => e.exerciseId === re.exerciseId);
+        if (prevExercise && prevExercise.sets.length > 0) {
+          previousSets = prevExercise.sets.map(s => ({ reps: s.reps, weight: s.weight }));
+          break;
+        }
+      }
+
+      return {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        exerciseId: re.exerciseId,
+        sets: Array.from({ length: re.sets }, (_, i) => ({
+          id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+          reps: previousSets?.[i]?.reps ?? re.reps ?? 0,
+          weight: previousSets?.[i]?.weight ?? re.weight ?? 0,
+          completed: false,
+          type: 'normal' as const,
+        })),
+        notes: re.notes,
+      };
+    });
 
     const newWorkout: Workout = {
       id: Date.now().toString(),
@@ -186,7 +247,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     }).catch(() => {});
 
     setActiveWorkout(newWorkout);
-  }, [routines, currentUserId]);
+  }, [routines, workouts, currentUserId]);
 
   const saveWorkout = useCallback(async () => {
     if (!activeWorkout) return;
@@ -224,23 +285,47 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const addExerciseToWorkout = useCallback((exerciseId: string) => {
     if (!activeWorkout) return;
 
+    // Auto-fill from last workout history
+    const userWorkouts = workouts.filter(w => w.userId === currentUserId && w.completed);
+    let previousSets: { reps: number; weight: number; type: string }[] | null = null;
+
+    for (let i = userWorkouts.length - 1; i >= 0; i--) {
+      const prevExercise = userWorkouts[i].exercises.find(e => e.exerciseId === exerciseId);
+      if (prevExercise && prevExercise.sets.length > 0) {
+        previousSets = prevExercise.sets.map(s => ({
+          reps: s.reps,
+          weight: s.weight,
+          type: s.type || 'normal',
+        }));
+        break;
+      }
+    }
+
     const newExercise: WorkoutExercise = {
       id: Date.now().toString(),
       exerciseId,
-      sets: [{
-        id: Date.now().toString(),
-        reps: 0,
-        weight: 0,
-        completed: false,
-        type: 'normal',
-      }],
+      sets: previousSets
+        ? previousSets.map((prev, i) => ({
+            id: `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
+            reps: prev.reps,
+            weight: prev.weight,
+            completed: false,
+            type: (prev.type || 'normal') as 'normal' | 'warmup' | 'dropset' | 'failure',
+          }))
+        : [{
+            id: Date.now().toString(),
+            reps: 0,
+            weight: 0,
+            completed: false,
+            type: 'normal',
+          }],
     };
 
     setActiveWorkout({
       ...activeWorkout,
       exercises: [...activeWorkout.exercises, newExercise],
     });
-  }, [activeWorkout]);
+  }, [activeWorkout, workouts, currentUserId]);
 
   const updateSet = useCallback((exerciseIndex: number, setIndex: number, setUpdate: Partial<WorkoutSet>) => {
     if (!activeWorkout) return;

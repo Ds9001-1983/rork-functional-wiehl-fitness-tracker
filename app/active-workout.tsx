@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Save, Timer, MessageSquare, Zap } from 'lucide-react-native';
+import { Plus, Save, Timer, MessageSquare, Zap, Smile } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useGamification } from '@/hooks/use-gamification';
@@ -43,8 +43,18 @@ export default function ActiveWorkoutScreen() {
   const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [completionResult, setCompletionResult] = useState<{ notifications: string[]; message: string } | null>(null);
+  const [completionResult, setCompletionResult] = useState<{ notifications: string[]; message: string; stats: { totalSets: number; totalVolume: number; exerciseCount: number; duration: number } } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [mood, setMood] = useState<'great' | 'good' | 'okay' | 'tired' | 'bad' | null>(null);
+  const [showMoodPicker, setShowMoodPicker] = useState(false);
+
+  const MOOD_OPTIONS: { key: 'great' | 'good' | 'okay' | 'tired' | 'bad'; emoji: string; label: string }[] = [
+    { key: 'great', emoji: '💪', label: 'Super' },
+    { key: 'good', emoji: '😊', label: 'Gut' },
+    { key: 'okay', emoji: '😐', label: 'Okay' },
+    { key: 'tired', emoji: '😴', label: 'Muede' },
+    { key: 'bad', emoji: '😩', label: 'Schlecht' },
+  ];
 
   React.useEffect(() => {
     const interval = setInterval(() => {
@@ -71,7 +81,7 @@ export default function ActiveWorkoutScreen() {
       if (!workout.completed) continue;
       const prevExercise = workout.exercises.find(e => e.exerciseId === exerciseId);
       if (prevExercise && prevExercise.sets.length > 0) {
-        return prevExercise.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+        return prevExercise.sets.map(s => ({ weight: s.weight, reps: s.reps, completed: s.completed }));
       }
     }
     return null;
@@ -122,6 +132,16 @@ export default function ActiveWorkoutScreen() {
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity
+                style={[styles.moodToggle, mood && styles.moodToggleActive]}
+                onPress={() => setShowMoodPicker(!showMoodPicker)}
+              >
+                {mood ? (
+                  <Text style={styles.moodEmoji}>{MOOD_OPTIONS.find(m => m.key === mood)?.emoji}</Text>
+                ) : (
+                  <Smile size={20} color={Colors.textMuted} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.timerToggle, showRestTimer && styles.timerToggleActive]}
                 onPress={() => setShowRestTimer(!showRestTimer)}
               >
@@ -130,6 +150,26 @@ export default function ActiveWorkoutScreen() {
             </View>
           </View>
         </View>
+
+        {showMoodPicker && (
+          <View style={styles.moodPickerRow}>
+            <Text style={styles.moodPickerLabel}>Wie fuehlst du dich?</Text>
+            <View style={styles.moodOptions}>
+              {MOOD_OPTIONS.map(option => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.moodOption, mood === option.key && styles.moodOptionActive]}
+                  onPress={() => { setMood(option.key); setShowMoodPicker(false); }}
+                >
+                  <Text style={styles.moodOptionEmoji}>{option.emoji}</Text>
+                  <Text style={[styles.moodOptionLabel, mood === option.key && styles.moodOptionLabelActive]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         {statusMessage && (
           <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm }}>
@@ -175,7 +215,7 @@ export default function ActiveWorkoutScreen() {
 
                 <View style={styles.setsHeader}>
                   <Text style={[styles.setsHeaderText, { flex: 0, width: 30 }]}>#</Text>
-                  {previousSets && <Text style={[styles.setsHeaderText, { width: 44 }]}>Vorher</Text>}
+                  {previousSets && <Text style={[styles.setsHeaderText, { width: 52 }]}>Vorher</Text>}
                   <Text style={styles.setsHeaderText}>kg</Text>
                   <Text style={[styles.setsHeaderText, { flex: 0, width: 24 }]}></Text>
                   <Text style={styles.setsHeaderText}>Wdh</Text>
@@ -197,6 +237,7 @@ export default function ActiveWorkoutScreen() {
                     onRemove={() => removeSet(exerciseIndex, setIndex)}
                     previousWeight={previousSets?.[setIndex]?.weight}
                     previousReps={previousSets?.[setIndex]?.reps}
+                    previousCompleted={previousSets?.[setIndex]?.completed}
                   />
                 ))}
 
@@ -233,13 +274,33 @@ export default function ActiveWorkoutScreen() {
             setShowFinishConfirm(false);
             if (!activeWorkout) return;
 
+            const workoutDuration = Date.now() - new Date(activeWorkout.date).getTime();
             const completedWorkout = {
               ...activeWorkout,
               completed: true as const,
-              duration: Date.now() - new Date(activeWorkout.date).getTime(),
+              duration: workoutDuration,
+              mood: mood || undefined,
             };
 
             await saveWorkout();
+
+            // Compute workout stats
+            let totalSets = 0;
+            let totalVolume = 0;
+            for (const ex of activeWorkout.exercises) {
+              for (const s of ex.sets) {
+                if (s.completed) {
+                  totalSets++;
+                  totalVolume += s.weight * s.reps;
+                }
+              }
+            }
+            const stats = {
+              totalSets,
+              totalVolume: Math.round(totalVolume),
+              exerciseCount: activeWorkout.exercises.length,
+              duration: Math.round(workoutDuration / 1000),
+            };
 
             // Process gamification
             try {
@@ -262,7 +323,7 @@ export default function ActiveWorkoutScreen() {
               const message = getRandomMessage(workoutCompleteMessages[tone] || workoutCompleteMessages.motivator);
 
               if (notifications.length > 0 || message) {
-                setCompletionResult({ notifications, message });
+                setCompletionResult({ notifications, message, stats });
                 return; // Show completion overlay before navigating back
               }
             } catch (e) {
@@ -297,6 +358,37 @@ export default function ActiveWorkoutScreen() {
             <View style={styles.completionCard}>
               <Zap size={36} color={Colors.warning} style={{ marginBottom: Spacing.sm }} />
               <Text style={styles.completionTitle}>Workout abgeschlossen!</Text>
+
+              {/* Workout Stats */}
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{formatDuration(completionResult.stats.duration)}</Text>
+                  <Text style={styles.statLabel}>Dauer</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{completionResult.stats.exerciseCount}</Text>
+                  <Text style={styles.statLabel}>Uebungen</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{completionResult.stats.totalSets}</Text>
+                  <Text style={styles.statLabel}>Saetze</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {completionResult.stats.totalVolume >= 1000
+                      ? `${(completionResult.stats.totalVolume / 1000).toFixed(1)}t`
+                      : `${completionResult.stats.totalVolume}kg`}
+                  </Text>
+                  <Text style={styles.statLabel}>Volumen</Text>
+                </View>
+              </View>
+
+              {mood && (
+                <Text style={styles.moodSummary}>
+                  Stimmung: {MOOD_OPTIONS.find(m => m.key === mood)?.emoji} {MOOD_OPTIONS.find(m => m.key === mood)?.label}
+                </Text>
+              )}
+
               <Text style={styles.completionMessage}>{completionResult.message}</Text>
               {completionResult.notifications.map((n, i) => (
                 <Text key={i} style={styles.completionNotification}>{n}</Text>
@@ -516,5 +608,91 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  moodToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  moodToggleActive: {
+    backgroundColor: Colors.accent + '30',
+    borderColor: Colors.accent,
+  },
+  moodEmoji: {
+    fontSize: 20,
+  },
+  moodPickerRow: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  moodPickerLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  moodOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  moodOption: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  moodOptionActive: {
+    backgroundColor: Colors.accent + '20',
+    borderColor: Colors.accent,
+  },
+  moodOptionEmoji: {
+    fontSize: 24,
+    marginBottom: 2,
+  },
+  moodOptionLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+  },
+  moodOptionLabelActive: {
+    color: Colors.accent,
+    fontWeight: '600' as const,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginVertical: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.border,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  moodSummary: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
   },
 });
