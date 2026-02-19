@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2 } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -17,6 +17,7 @@ import { useWorkouts } from '@/hooks/use-workouts';
 import { useGamification } from '@/hooks/use-gamification';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
+import { trpcClient } from '@/lib/trpc';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -30,7 +31,11 @@ export default function ProfileScreen() {
   const [editPhone, setEditPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -86,11 +91,51 @@ export default function ProfileScreen() {
 
   const handleSwitchRole = () => {
     if (user?.role === 'trainer') {
-      // Trainer can switch to client view
       switchRole();
     } else if (user?.role === 'client') {
-      // Only allow switch back if originally a trainer
       switchRole();
+    }
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const data = await trpcClient.privacy.exportData.query();
+      // Create a downloadable JSON string
+      const jsonString = JSON.stringify(data, null, 2);
+      // On web, trigger download
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `fitness-daten-export-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      setStatusMessage({ type: 'success', text: 'Deine Daten wurden exportiert.' });
+    } catch (e) {
+      setStatusMessage({ type: 'error', text: 'Datenexport fehlgeschlagen. Bitte versuche es erneut.' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirmEmail || deleteConfirmEmail !== user?.email) {
+      setStatusMessage({ type: 'error', text: 'Bitte gib deine E-Mail-Adresse korrekt ein.' });
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await trpcClient.privacy.deleteAccount.mutate({ confirmEmail: deleteConfirmEmail });
+      setShowDeleteAccountConfirm(false);
+      await logout();
+      router.replace('/login');
+    } catch (e: any) {
+      setStatusMessage({ type: 'error', text: e?.message || 'Konto konnte nicht geloescht werden.' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -106,6 +151,51 @@ export default function ProfileScreen() {
         onConfirm={confirmLogout}
         onCancel={() => setShowLogoutConfirm(false)}
       />
+
+      {/* Delete Account Modal */}
+      <Modal
+        visible={showDeleteAccountConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteAccountConfirm(false)}
+      >
+        <View style={styles.deleteOverlay}>
+          <View style={styles.deleteDialog}>
+            <Text style={styles.deleteTitle}>Konto endgueltig loeschen</Text>
+            <Text style={styles.deleteMessage}>
+              Alle deine Daten (Workouts, Koerpermasse, Fortschritt, Badges) werden unwiderruflich geloescht.
+              {'\n\n'}Gib zur Bestaetigung deine E-Mail-Adresse ein:
+            </Text>
+            <TextInput
+              style={styles.deleteInput}
+              placeholder={user?.email || 'deine@email.de'}
+              placeholderTextColor={Colors.textMuted}
+              value={deleteConfirmEmail}
+              onChangeText={setDeleteConfirmEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <View style={styles.deleteButtons}>
+              <TouchableOpacity
+                style={styles.deleteCancelBtn}
+                onPress={() => setShowDeleteAccountConfirm(false)}
+              >
+                <Text style={styles.deleteCancelText}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirmBtn, deleteConfirmEmail !== user?.email && styles.deleteConfirmBtnDisabled]}
+                onPress={handleDeleteAccount}
+                disabled={isDeleting || deleteConfirmEmail !== user?.email}
+              >
+                <Text style={styles.deleteConfirmText}>
+                  {isDeleting ? 'Loesche...' : 'Endgueltig loeschen'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {statusMessage && (
           <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
@@ -227,6 +317,39 @@ export default function ProfileScreen() {
               <ChevronRight size={20} color={Colors.textMuted} />
             </TouchableOpacity>
           )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Datenschutz & Daten</Text>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-policy')}>
+            <View style={styles.menuItemLeft}>
+              <Shield size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Datenschutzerklaerung</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleExportData} disabled={isExporting}>
+            <View style={styles.menuItemLeft}>
+              <Download size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>
+                {isExporting ? 'Exportiere...' : 'Meine Daten exportieren'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => { setDeleteConfirmEmail(''); setShowDeleteAccountConfirm(true); }}
+          >
+            <View style={styles.menuItemLeft}>
+              <Trash2 size={20} color={Colors.error} />
+              <Text style={[styles.menuItemText, { color: Colors.error }]}>Konto und Daten loeschen</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.error} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -603,5 +726,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textMuted,
     marginTop: 4,
+  },
+  // Delete Account Modal styles
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  deleteDialog: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: Colors.error,
+  },
+  deleteTitle: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: Colors.error,
+    marginBottom: Spacing.sm,
+  },
+  deleteMessage: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: Spacing.md,
+  },
+  deleteInput: {
+    backgroundColor: Colors.background,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    color: Colors.text,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: Spacing.lg,
+  },
+  deleteButtons: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  deleteCancelBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  deleteCancelText: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+    fontWeight: '500' as const,
+  },
+  deleteConfirmBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+  },
+  deleteConfirmBtnDisabled: {
+    opacity: 0.4,
+  },
+  deleteConfirmText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });

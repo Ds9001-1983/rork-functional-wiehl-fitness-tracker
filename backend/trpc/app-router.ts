@@ -43,6 +43,9 @@ import getStudio from "./routes/studios/get";
 import updateStudio from "./routes/studios/update";
 import listStudios from "./routes/studios/list";
 import createStudio from "./routes/studios/create";
+import privacyConsent from "./routes/privacy/consent";
+import privacyExportData from "./routes/privacy/export-data";
+import privacyDeleteAccount from "./routes/privacy/delete-account";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -116,6 +119,11 @@ export const appRouter = createTRPCRouter({
     update: updateStudio,
     list: listStudios,
     create: createStudio,
+  }),
+  privacy: createTRPCRouter({
+    consent: privacyConsent,
+    exportData: privacyExportData,
+    deleteAccount: privacyDeleteAccount,
   }),
 });
 

@@ -390,6 +390,10 @@ async function initializeTables() {
       await addColumnIfNotExists(table, 'studio_id', 'INTEGER DEFAULT 1');
     }
 
+    // DSGVO: Add consent fields to users
+    await addColumnIfNotExists('users', 'consented_at', 'TIMESTAMP');
+    await addColumnIfNotExists('users', 'privacy_version', "VARCHAR(10) DEFAULT '1.0'");
+
     // Seed default studio and users
     await seedDefaultStudio();
     await seedDefaultUsers();
@@ -1612,6 +1616,128 @@ export const storage = {
       const len = studioMembersData.length;
       studioMembersData = studioMembersData.filter(m => !(m.studioId === studioId && m.userId === userId));
       return studioMembersData.length < len;
+    },
+  },
+
+  // DSGVO: Privacy & consent management
+  privacy: {
+    recordConsent: async (userId: string, version: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `UPDATE users SET consented_at = NOW(), privacy_version = $1 WHERE id = $2`,
+            [version, userId]
+          );
+          return (result.rowCount ?? 0) > 0;
+        } catch (err) {
+          console.log('[Storage] DB update failed for consent:', err);
+        }
+      }
+      // In-memory: track consent on user object
+      const user = users.find(u => u.id === userId);
+      if (user) {
+        (user as any).consentedAt = new Date().toISOString();
+        (user as any).privacyVersion = version;
+        return true;
+      }
+      return false;
+    },
+
+    hasConsented: async (userId: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT consented_at FROM users WHERE id = $1`,
+            [userId]
+          );
+          return result.rows.length > 0 && result.rows[0].consented_at !== null;
+        } catch (err) {
+          console.log('[Storage] DB query failed for consent check:', err);
+        }
+      }
+      const user = users.find(u => u.id === userId);
+      return !!(user as any)?.consentedAt;
+    },
+
+    exportUserData: async (userId: string): Promise<any> => {
+      const user = await storage.users.findByEmail(''); // we'll fetch by id below
+      // Collect all user data from each table
+      const userWorkouts = await storage.workouts.getByUserId(userId);
+      const userMeasurements = await storage.measurements.getByUserId(userId);
+      const userGamification = await storage.gamification.get(userId);
+      const userRoutines = await storage.routines.getByUserId(userId);
+
+      // Get user profile
+      let profile = null;
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT u.id, u.email, u.role, u.created_at as "createdAt", u.consented_at as "consentedAt",
+             c.name, c.phone, c.avatar
+             FROM users u LEFT JOIN clients c ON u.id = c.user_id
+             WHERE u.id = $1`,
+            [userId]
+          );
+          if (result.rows.length > 0) {
+            const row = result.rows[0];
+            profile = { id: row.id, email: row.email, name: row.name, phone: row.phone, role: row.role, createdAt: row.createdAt };
+          }
+        } catch (err) {
+          console.log('[Storage] DB query failed for data export:', err);
+        }
+      }
+      if (!profile) {
+        const u = users.find(u => u.id === userId);
+        const allClients = await storage.clients.getAll();
+        const c = allClients.find(c => c.userId === userId || c.id === userId);
+        if (u) profile = { id: u.id, email: u.email, name: c?.name, phone: c?.phone, role: u.role, createdAt: u.createdAt };
+      }
+
+      return {
+        exportedAt: new Date().toISOString(),
+        privacyVersion: '1.0',
+        profile,
+        workouts: userWorkouts,
+        bodyMeasurements: userMeasurements,
+        gamification: userGamification,
+        routines: userRoutines,
+      };
+    },
+
+    deleteUserData: async (userId: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          // Delete from all tables in correct order (foreign keys)
+          await pool.query(`DELETE FROM challenge_progress WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM routines WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM gamification WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
+          await pool.query(`DELETE FROM studio_members WHERE user_id = $1::integer`, [userId]);
+          await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
+          await pool.query(`DELETE FROM clients WHERE user_id = $1::integer`, [userId]);
+          await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+          console.log(`[Storage] DSGVO: All data deleted for user ${userId}`);
+          return true;
+        } catch (err) {
+          console.log('[Storage] DB delete failed for user data:', err);
+          return false;
+        }
+      }
+
+      // In-memory fallback
+      users = users.filter(u => u.id !== userId);
+      clients = clients.filter(c => c.userId !== userId && c.id !== userId);
+      workouts = workouts.filter(w => w.userId !== userId);
+      bodyMeasurements = bodyMeasurements.filter(m => m.userId !== userId);
+      gamificationData = gamificationData.filter(g => g.userId !== userId);
+      routinesData = routinesData.filter(r => r.userId !== userId);
+      challengeProgressData = challengeProgressData.filter(p => p.userId !== userId);
+      notificationsData = notificationsData.filter(n => n.userId !== userId);
+      studioMembersData = studioMembersData.filter(m => m.userId !== userId);
+      console.log(`[Storage] DSGVO: All in-memory data deleted for user ${userId}`);
+      return true;
     },
   },
 };
