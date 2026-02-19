@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Workout } from '@/types/workout';
 import { trpcClient } from '@/lib/trpc';
+import { syncQueue } from '@/lib/sync-queue';
 import {
   UserGamification,
   UserBadge,
@@ -262,7 +263,7 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
     try {
       const userId = await AsyncStorage.getItem('user').then(u => u ? JSON.parse(u).id : null);
       if (userId) {
-        trpcClient.gamification.sync.mutate({
+        const syncInput = {
           userId,
           xp: data.xp,
           level: data.level,
@@ -273,7 +274,10 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
           streakFreezesUsed: data.streakFreezesUsed,
           lastActiveDate: data.lastActiveDate,
           coachingTone: coachingTone,
-        }).catch(() => {});
+        };
+        trpcClient.gamification.sync.mutate(syncInput).catch(() => {
+          syncQueue.enqueue('gamification.sync', syncInput);
+        });
       }
     } catch {}
   }, [coachingTone]);

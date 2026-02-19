@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Workout, WorkoutPlan, WorkoutExercise, WorkoutSet, Routine, calculate1RM } from '@/types/workout';
 import { exercises as exerciseDb } from '@/data/exercises';
 import { trpcClient } from '@/lib/trpc';
+import { syncQueue } from '@/lib/sync-queue';
 
 interface WorkoutState {
   workouts: Workout[];
@@ -240,11 +241,14 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
 
     // Sync timesUsed to server in background
-    trpcClient.routines.update.mutate({
+    const routineUpdateInput = {
       id: routine.id,
       timesUsed: routine.timesUsed + 1,
       lastUsed: new Date().toISOString(),
-    }).catch(() => {});
+    };
+    trpcClient.routines.update.mutate(routineUpdateInput).catch(() => {
+      syncQueue.enqueue('routines.update', routineUpdateInput);
+    });
 
     setActiveWorkout(newWorkout);
   }, [routines, workouts, currentUserId]);
@@ -258,19 +262,21 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       duration: Date.now() - new Date(activeWorkout.date).getTime(),
     };
 
+    const mutationInput = {
+      userId: completedWorkout.userId,
+      name: completedWorkout.name,
+      date: completedWorkout.date,
+      duration: completedWorkout.duration,
+      exercises: completedWorkout.exercises,
+      completed: true,
+      createdBy: completedWorkout.createdBy,
+    };
+
     try {
-      const serverWorkout = await trpcClient.workouts.create.mutate({
-        userId: completedWorkout.userId,
-        name: completedWorkout.name,
-        date: completedWorkout.date,
-        duration: completedWorkout.duration,
-        exercises: completedWorkout.exercises,
-        completed: true,
-        createdBy: completedWorkout.createdBy,
-      });
+      const serverWorkout = await trpcClient.workouts.create.mutate(mutationInput);
       completedWorkout.id = (serverWorkout as any).id || completedWorkout.id;
     } catch (error) {
-      // Local fallback
+      syncQueue.enqueue('workouts.create', mutationInput);
     }
 
     const updatedWorkouts = [...workouts, completedWorkout];
@@ -495,17 +501,20 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const createWorkoutPlan = useCallback(async (plan: Omit<WorkoutPlan, 'id'>) => {
     let newPlan: WorkoutPlan;
 
+    const mutationInput = {
+      name: plan.name,
+      description: plan.description,
+      exercises: plan.exercises,
+      createdBy: plan.createdBy,
+      assignedTo: plan.assignedTo,
+      schedule: plan.schedule,
+    };
+
     try {
-      const serverPlan = await trpcClient.plans.create.mutate({
-        name: plan.name,
-        description: plan.description,
-        exercises: plan.exercises,
-        createdBy: plan.createdBy,
-        assignedTo: plan.assignedTo,
-        schedule: plan.schedule,
-      });
+      const serverPlan = await trpcClient.plans.create.mutate(mutationInput);
       newPlan = serverPlan as WorkoutPlan;
     } catch (error) {
+      syncQueue.enqueue('plans.create', mutationInput);
       newPlan = { ...plan, id: Date.now().toString() };
     }
 
@@ -517,18 +526,21 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const createWorkout = useCallback(async (workout: Omit<Workout, 'id'>) => {
     let newWorkout: Workout;
 
+    const mutationInput = {
+      userId: workout.userId,
+      name: workout.name,
+      date: workout.date,
+      duration: workout.duration,
+      exercises: workout.exercises,
+      completed: workout.completed,
+      createdBy: workout.createdBy,
+    };
+
     try {
-      const serverWorkout = await trpcClient.workouts.create.mutate({
-        userId: workout.userId,
-        name: workout.name,
-        date: workout.date,
-        duration: workout.duration,
-        exercises: workout.exercises,
-        completed: workout.completed,
-        createdBy: workout.createdBy,
-      });
+      const serverWorkout = await trpcClient.workouts.create.mutate(mutationInput);
       newWorkout = serverWorkout as Workout;
     } catch (error) {
+      syncQueue.enqueue('workouts.create', mutationInput);
       newWorkout = { ...workout, id: Date.now().toString() };
     }
 
@@ -538,17 +550,19 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [workouts]);
 
   const updateWorkoutPlan = useCallback(async (planId: string, updatedPlan: WorkoutPlan) => {
+    const mutationInput = {
+      id: planId,
+      name: updatedPlan.name,
+      description: updatedPlan.description,
+      exercises: updatedPlan.exercises,
+      assignedTo: updatedPlan.assignedTo,
+      schedule: updatedPlan.schedule,
+    };
+
     try {
-      await trpcClient.plans.update.mutate({
-        id: planId,
-        name: updatedPlan.name,
-        description: updatedPlan.description,
-        exercises: updatedPlan.exercises,
-        assignedTo: updatedPlan.assignedTo,
-        schedule: updatedPlan.schedule,
-      });
+      await trpcClient.plans.update.mutate(mutationInput);
     } catch (error) {
-      // Local fallback
+      syncQueue.enqueue('plans.update', mutationInput);
     }
 
     const updatedPlans = workoutPlans.map(p =>
@@ -669,16 +683,19 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     );
     setRoutines(updatedRoutines);
     await AsyncStorage.setItem('routines', JSON.stringify(updatedRoutines));
+
+    const mutationInput = {
+      id: routineId,
+      name: updates.name,
+      exercises: updates.exercises,
+      timesUsed: updates.timesUsed,
+      lastUsed: updates.lastUsed,
+    };
+
     try {
-      await trpcClient.routines.update.mutate({
-        id: routineId,
-        name: updates.name,
-        exercises: updates.exercises,
-        timesUsed: updates.timesUsed,
-        lastUsed: updates.lastUsed,
-      });
+      await trpcClient.routines.update.mutate(mutationInput);
     } catch {
-      // Local fallback
+      syncQueue.enqueue('routines.update', mutationInput);
     }
   }, [routines]);
 
@@ -686,7 +703,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     try {
       await trpcClient.routines.delete.mutate({ id: routineId });
     } catch {
-      // Local fallback
+      syncQueue.enqueue('routines.delete', { id: routineId });
     }
     const updatedRoutines = routines.filter(r => r.id !== routineId);
     setRoutines(updatedRoutines);
@@ -702,7 +719,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     try {
       await trpcClient.workouts.update.mutate({ id: workoutId, ...updates } as any);
     } catch {
-      // Local fallback
+      syncQueue.enqueue('workouts.update', { id: workoutId, ...updates });
     }
   }, [workouts]);
 
@@ -710,7 +727,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     try {
       await trpcClient.workouts.delete.mutate({ id: workoutId });
     } catch (error) {
-      // Local fallback
+      syncQueue.enqueue('workouts.delete', { id: workoutId });
     }
 
     const updatedWorkouts = workouts.filter(w => w.id !== workoutId);
@@ -748,7 +765,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     try {
       await trpcClient.plans.delete.mutate({ id: planId });
     } catch (error) {
-      // Local fallback
+      syncQueue.enqueue('plans.delete', { id: planId });
     }
 
     const updatedPlans = workoutPlans.filter(p => p.id !== planId);

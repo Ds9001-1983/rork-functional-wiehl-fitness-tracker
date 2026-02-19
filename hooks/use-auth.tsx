@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { User } from '@/types/workout';
 import { trpcClient } from '@/lib/trpc';
+import { syncQueue } from '@/lib/sync-queue';
 
 interface AuthState {
   user: User | null;
@@ -148,13 +149,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatar?: string }) => {
     if (!user) throw new Error('NOT_AUTHENTICATED');
 
+    const mutationInput = { userId: user.id, ...updates };
     try {
-      await trpcClient.profile.update.mutate({
-        userId: user.id,
-        ...updates,
-      });
+      await trpcClient.profile.update.mutate(mutationInput);
     } catch (error) {
-      // Server profile update failed, saved locally
+      syncQueue.enqueue('profile.update', mutationInput);
     }
 
     // Update local state regardless

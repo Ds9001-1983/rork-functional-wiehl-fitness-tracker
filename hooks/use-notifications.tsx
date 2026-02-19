@@ -2,6 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { trpcClient } from '@/lib/trpc';
+import { syncQueue } from '@/lib/sync-queue';
 
 interface AppNotification {
   id: string;
@@ -74,7 +75,7 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
     try {
       await trpcClient.notifications.markRead.mutate({ id });
     } catch {
-      // Local only
+      syncQueue.enqueue('notifications.markRead', { id });
     }
   }, []);
 
@@ -85,10 +86,16 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         const userId = JSON.parse(userStr).id;
-        if (userId) await trpcClient.notifications.markAllRead.mutate({ userId });
+        if (userId) {
+          try {
+            await trpcClient.notifications.markAllRead.mutate({ userId });
+          } catch {
+            syncQueue.enqueue('notifications.markAllRead', { userId });
+          }
+        }
       }
     } catch {
-      // Local only
+      // Silent fail
     }
   }, []);
 
