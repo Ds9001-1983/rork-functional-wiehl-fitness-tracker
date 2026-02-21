@@ -55,6 +55,19 @@ const FIELDS: MeasurementField[] = [
   { key: 'oberschenkelRechts', label: 'Oberschenkel Rechts', unit: 'cm', placeholder: 'z.B. 56.5' },
 ];
 
+// Trend-faehige Metriken (nur solche mit genug Datenpunkten zeigen)
+const TREND_METRICS: { key: keyof Omit<Measurement, 'id' | 'userId' | 'date'>; label: string; unit: string; color: string }[] = [
+  { key: 'gewicht', label: 'Gewicht', unit: 'kg', color: '#FF6B35' },
+  { key: 'koerperfett', label: 'Koerperfett', unit: '%', color: '#4CAF50' },
+  { key: 'brust', label: 'Brust', unit: 'cm', color: '#2196F3' },
+  { key: 'taille', label: 'Taille', unit: 'cm', color: '#FF9800' },
+  { key: 'huefte', label: 'Huefte', unit: 'cm', color: '#9C27B0' },
+  { key: 'bizepsLinks', label: 'Bizeps L', unit: 'cm', color: '#00BCD4' },
+  { key: 'bizepsRechts', label: 'Bizeps R', unit: 'cm', color: '#009688' },
+  { key: 'oberschenkelLinks', label: 'Oberschenkel L', unit: 'cm', color: '#E91E63' },
+  { key: 'oberschenkelRechts', label: 'Oberschenkel R', unit: 'cm', color: '#F44336' },
+];
+
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -77,6 +90,7 @@ export default function BodyMeasurementsScreen() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [formExpanded, setFormExpanded] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<string>('gewicht');
 
   // Form state
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -119,33 +133,43 @@ export default function BodyMeasurementsScreen() {
     return [...measurements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [measurements]);
 
-  // Last 6 entries for trend chart (chronological order)
-  const trendEntries = useMemo(() => {
-    const withWeight = sortedMeasurements.filter(m => m.gewicht != null);
-    return withWeight.slice(0, 6).reverse();
+  // Available metrics (those that have at least 2 data points)
+  const availableMetrics = useMemo(() => {
+    return TREND_METRICS.filter(metric => {
+      const count = sortedMeasurements.filter(m => (m as any)[metric.key] != null).length;
+      return count >= 2;
+    });
   }, [sortedMeasurements]);
 
-  const maxWeight = useMemo(() => {
-    if (trendEntries.length === 0) return 0;
-    return Math.max(...trendEntries.map(m => m.gewicht ?? 0));
-  }, [trendEntries]);
+  // Trend entries for selected metric (last 8, chronological)
+  const trendEntries = useMemo(() => {
+    const withValue = sortedMeasurements.filter(m => (m as any)[selectedMetric] != null);
+    return withValue.slice(0, 8).reverse();
+  }, [sortedMeasurements, selectedMetric]);
 
-  const minWeight = useMemo(() => {
-    if (trendEntries.length === 0) return 0;
-    return Math.min(...trendEntries.map(m => m.gewicht ?? 0));
-  }, [trendEntries]);
+  const selectedMetricInfo = TREND_METRICS.find(m => m.key === selectedMetric);
 
-  const weightChange = useMemo(() => {
-    if (trendEntries.length < 2) return null;
-    const first = trendEntries[0].gewicht ?? 0;
-    const last = trendEntries[trendEntries.length - 1].gewicht ?? 0;
-    return last - first;
-  }, [trendEntries]);
+  const trendValues = useMemo(() => {
+    return trendEntries.map(m => (m as any)[selectedMetric] as number);
+  }, [trendEntries, selectedMetric]);
+
+  const maxValue = useMemo(() => {
+    if (trendValues.length === 0) return 0;
+    return Math.max(...trendValues);
+  }, [trendValues]);
+
+  const minValue = useMemo(() => {
+    if (trendValues.length === 0) return 0;
+    return Math.min(...trendValues);
+  }, [trendValues]);
+
+  const valueChange = useMemo(() => {
+    if (trendValues.length < 2) return null;
+    return trendValues[trendValues.length - 1] - trendValues[0];
+  }, [trendValues]);
 
   const updateFormValue = (key: string, value: string) => {
-    // Allow only valid numeric input (digits, single dot, single comma)
     const sanitized = value.replace(',', '.').replace(/[^0-9.]/g, '');
-    // Prevent multiple dots
     const parts = sanitized.split('.');
     const cleaned = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : sanitized;
     setFormValues(prev => ({ ...prev, [key]: cleaned }));
@@ -172,7 +196,6 @@ export default function BodyMeasurementsScreen() {
       date: new Date().toISOString(),
     };
 
-    // Parse form values into measurement
     for (const field of FIELDS) {
       const raw = formValues[field.key];
       if (raw && raw.trim() !== '') {
@@ -183,7 +206,6 @@ export default function BodyMeasurementsScreen() {
       }
     }
 
-    // Check if at least one valid value was parsed
     const hasValidValue = FIELDS.some(f => (newMeasurement as any)[f.key] != null);
     if (!hasValidValue) {
       setStatusMessage({ type: 'error', text: 'Bitte gib mindestens einen gueltigen Wert ein.' });
@@ -197,7 +219,6 @@ export default function BodyMeasurementsScreen() {
       console.log('[BodyMeasurements] Server-Speicherung fehlgeschlagen, speichere lokal');
     }
 
-    // Always update local state and AsyncStorage
     const updated = [newMeasurement, ...measurements];
     setMeasurements(updated);
     try {
@@ -231,16 +252,18 @@ export default function BodyMeasurementsScreen() {
     setStatusMessage({ type: 'success', text: 'Messung geloescht.' });
   };
 
-  // Calculate bar width as percentage of range
-  const getBarWidth = (weight: number): number => {
-    if (maxWeight === minWeight) return 80;
-    const range = maxWeight - minWeight;
+  const getBarWidth = (value: number): number => {
+    if (maxValue === minValue) return 80;
+    const range = maxValue - minValue;
     const padding = range * 0.1 || 1;
-    const adjustedMin = minWeight - padding;
-    const adjustedMax = maxWeight + padding;
-    const percentage = ((weight - adjustedMin) / (adjustedMax - adjustedMin)) * 100;
+    const adjustedMin = minValue - padding;
+    const adjustedMax = maxValue + padding;
+    const percentage = ((value - adjustedMin) / (adjustedMax - adjustedMin)) * 100;
     return Math.max(20, Math.min(95, percentage));
   };
+
+  // Determine if weight metric should show inverse coloring (down = good)
+  const isInverseMetric = selectedMetric === 'gewicht' || selectedMetric === 'koerperfett' || selectedMetric === 'taille' || selectedMetric === 'huefte';
 
   const renderForm = () => (
     <View style={styles.card}>
@@ -310,86 +333,126 @@ export default function BodyMeasurementsScreen() {
   );
 
   const renderTrend = () => {
-    if (trendEntries.length < 2) {
-      return (
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <View style={styles.iconContainer}>
-                <TrendingUp size={20} color={Colors.accent} />
-              </View>
-              <Text style={styles.cardTitle}>Gewichtsverlauf</Text>
-            </View>
-          </View>
-          <View style={styles.emptyTrend}>
-            <Text style={styles.emptyText}>
-              Mindestens 2 Gewichtsmessungen noetig fuer den Verlauf.
-            </Text>
-          </View>
-        </View>
-      );
-    }
+    // Show metric selector even if no data (to switch between metrics)
+    const metricColor = selectedMetricInfo?.color || Colors.accent;
 
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
-            <View style={styles.iconContainer}>
-              <TrendingUp size={20} color={Colors.accent} />
+            <View style={[styles.iconContainer, { backgroundColor: metricColor + '25' }]}>
+              <TrendingUp size={20} color={metricColor} />
             </View>
-            <Text style={styles.cardTitle}>Gewichtsverlauf</Text>
+            <Text style={styles.cardTitle}>Verlauf</Text>
           </View>
-          {weightChange !== null && (
+          {valueChange !== null && (
             <View style={[
               styles.changeBadge,
-              weightChange > 0 ? styles.changeBadgeUp : weightChange < 0 ? styles.changeBadgeDown : styles.changeBadgeNeutral,
+              valueChange > 0
+                ? (isInverseMetric ? styles.changeBadgeUp : styles.changeBadgeDown)
+                : valueChange < 0
+                  ? (isInverseMetric ? styles.changeBadgeDown : styles.changeBadgeUp)
+                  : styles.changeBadgeNeutral,
             ]}>
               <Text style={[
                 styles.changeBadgeText,
-                weightChange > 0 ? styles.changeBadgeTextUp : weightChange < 0 ? styles.changeBadgeTextDown : styles.changeBadgeTextNeutral,
+                valueChange > 0
+                  ? (isInverseMetric ? styles.changeBadgeTextUp : styles.changeBadgeTextDown)
+                  : valueChange < 0
+                    ? (isInverseMetric ? styles.changeBadgeTextDown : styles.changeBadgeTextUp)
+                    : styles.changeBadgeTextNeutral,
               ]}>
-                {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
+                {valueChange > 0 ? '+' : ''}{valueChange.toFixed(1)} {selectedMetricInfo?.unit}
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.chartContainer}>
-          {trendEntries.map((entry, index) => (
-            <View key={entry.id} style={styles.chartRow}>
-              <Text style={styles.chartDate}>{formatDateShort(entry.date)}</Text>
-              <View style={styles.chartBarContainer}>
-                <View
-                  style={[
-                    styles.chartBar,
-                    {
-                      width: `${getBarWidth(entry.gewicht ?? 0)}%`,
-                      backgroundColor: index === trendEntries.length - 1 ? Colors.accent : 'rgba(255, 107, 53, 0.5)',
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.chartValue}>{(entry.gewicht ?? 0).toFixed(1)}</Text>
-            </View>
-          ))}
-        </View>
+        {/* Metric Selector */}
+        {availableMetrics.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.metricSelectorScroll}
+            contentContainerStyle={styles.metricSelectorContent}
+          >
+            {availableMetrics.map(metric => (
+              <TouchableOpacity
+                key={metric.key}
+                style={[
+                  styles.metricTab,
+                  selectedMetric === metric.key && { backgroundColor: metric.color + '25', borderColor: metric.color },
+                ]}
+                onPress={() => setSelectedMetric(metric.key)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.metricDot, { backgroundColor: metric.color }]} />
+                <Text style={[
+                  styles.metricTabText,
+                  selectedMetric === metric.key && { color: metric.color },
+                ]}>
+                  {metric.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
-        <View style={styles.chartSummary}>
-          <View style={styles.chartSummaryItem}>
-            <Text style={styles.chartSummaryLabel}>Min</Text>
-            <Text style={styles.chartSummaryValue}>{minWeight.toFixed(1)} kg</Text>
-          </View>
-          <View style={styles.chartSummaryItem}>
-            <Text style={styles.chartSummaryLabel}>Max</Text>
-            <Text style={styles.chartSummaryValue}>{maxWeight.toFixed(1)} kg</Text>
-          </View>
-          <View style={styles.chartSummaryItem}>
-            <Text style={styles.chartSummaryLabel}>Aktuell</Text>
-            <Text style={[styles.chartSummaryValue, { color: Colors.accent }]}>
-              {(trendEntries[trendEntries.length - 1]?.gewicht ?? 0).toFixed(1)} kg
+        {trendEntries.length < 2 ? (
+          <View style={styles.emptyTrend}>
+            <Text style={styles.emptyText}>
+              Mindestens 2 Messungen fuer {selectedMetricInfo?.label || 'diese Metrik'} noetig.
             </Text>
           </View>
-        </View>
+        ) : (
+          <>
+            <View style={styles.chartContainer}>
+              {trendEntries.map((entry, index) => {
+                const value = (entry as any)[selectedMetric] ?? 0;
+                return (
+                  <View key={entry.id} style={styles.chartRow}>
+                    <Text style={styles.chartDate}>{formatDateShort(entry.date)}</Text>
+                    <View style={styles.chartBarContainer}>
+                      <View
+                        style={[
+                          styles.chartBar,
+                          {
+                            width: `${getBarWidth(value)}%`,
+                            backgroundColor: index === trendEntries.length - 1
+                              ? metricColor
+                              : metricColor + '70',
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.chartValue}>{value.toFixed(1)}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.chartSummary}>
+              <View style={styles.chartSummaryItem}>
+                <Text style={styles.chartSummaryLabel}>Min</Text>
+                <Text style={styles.chartSummaryValue}>
+                  {minValue.toFixed(1)} {selectedMetricInfo?.unit}
+                </Text>
+              </View>
+              <View style={styles.chartSummaryItem}>
+                <Text style={styles.chartSummaryLabel}>Max</Text>
+                <Text style={styles.chartSummaryValue}>
+                  {maxValue.toFixed(1)} {selectedMetricInfo?.unit}
+                </Text>
+              </View>
+              <View style={styles.chartSummaryItem}>
+                <Text style={styles.chartSummaryLabel}>Aktuell</Text>
+                <Text style={[styles.chartSummaryValue, { color: metricColor }]}>
+                  {(trendValues[trendValues.length - 1] ?? 0).toFixed(1)} {selectedMetricInfo?.unit}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
       </View>
     );
   };
@@ -443,7 +506,7 @@ export default function BodyMeasurementsScreen() {
           <View style={styles.iconContainer}>
             <Ruler size={20} color={Colors.accent} />
           </View>
-          <Text style={styles.cardTitle}>Verlauf</Text>
+          <Text style={styles.cardTitle}>Messungen</Text>
         </View>
         <Text style={styles.countBadge}>{sortedMeasurements.length}</Text>
       </View>
@@ -578,6 +641,37 @@ const createStyles = (Colors: any) => StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: Colors.text,
+  },
+
+  // Metric selector
+  metricSelectorScroll: {
+    maxHeight: 44,
+    marginBottom: Spacing.sm,
+  },
+  metricSelectorContent: {
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
+  },
+  metricTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
+  },
+  metricDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  metricTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textMuted,
   },
 
   // Form
