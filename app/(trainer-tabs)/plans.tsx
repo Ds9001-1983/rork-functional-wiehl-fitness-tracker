@@ -289,7 +289,7 @@ export default function TrainerPlansScreen() {
 
   const getDeleteMessage = () => {
     const plan = workoutPlans.find(p => p.id === deletePlanId);
-    if (!plan) return 'Möchten Sie diesen Trainingsplan wirklich löschen?';
+    if (!plan) return 'Möchtest du diesen Trainingsplan wirklich löschen?';
 
     if (plan.isInstance) {
       const userName = plan.assignedTo?.[0]
@@ -305,9 +305,9 @@ export default function TrainerPlansScreen() {
 
     const count = plan.assignedTo?.length || 0;
     if (count > 0) {
-      return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Möchten Sie ihn trotzdem löschen?`;
+      return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Möchtest du ihn trotzdem löschen?`;
     }
-    return 'Möchten Sie diesen Trainingsplan wirklich löschen?';
+    return 'Möchtest du diesen Trainingsplan wirklich löschen?';
   };
 
   return (
@@ -395,7 +395,7 @@ export default function TrainerPlansScreen() {
                 : showFilter === 'templates' ? 'Keine Vorlagen vorhanden' : 'Keine Instanzen vorhanden'}
             </Text>
             <Text style={styles.emptySubtext}>
-              {workoutPlans.length === 0 ? 'Erstellen Sie Ihren ersten Plan' : ''}
+              {workoutPlans.length === 0 ? 'Erstelle deinen ersten Plan' : ''}
             </Text>
           </View>
         ) : (
@@ -718,7 +718,7 @@ export default function TrainerPlansScreen() {
               <View style={styles.emptyState}>
                 <Users size={32} color={Colors.textMuted} />
                 <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-                <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
+                <Text style={styles.emptySubtext}>Lege zuerst einen Kunden an</Text>
               </View>
             ) : (
               <>

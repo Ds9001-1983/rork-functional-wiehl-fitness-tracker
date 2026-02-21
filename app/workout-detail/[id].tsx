@@ -38,7 +38,7 @@ export default function WorkoutDetailScreen() {
         <View style={styles.centered}>
           <Text style={styles.centeredText}>Workout nicht gefunden</Text>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backBtnText}>Zurueck</Text>
+            <Text style={styles.backBtnText}>Zurück</Text>
           </TouchableOpacity>
         </View>
       </>

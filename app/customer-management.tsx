@@ -192,7 +192,7 @@ export default function CustomerManagementScreen() {
                 {searchQuery ? 'Keine Kunden gefunden' : 'Noch keine Kunden'}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {searchQuery ? 'Versuchen Sie einen anderen Suchbegriff' : 'Legen Sie Ihren ersten Kunden an'}
+                {searchQuery ? 'Versuche einen anderen Suchbegriff' : 'Lege deinen ersten Kunden an'}
               </Text>
             </View>
           ) : (
@@ -422,7 +422,7 @@ export default function CustomerManagementScreen() {
           <ConfirmDialog
             visible={showDeleteConfirm}
             title="Kunde entfernen"
-            message={`Möchten Sie ${selectedClient.name} wirklich entfernen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+            message={`Möchtest du ${selectedClient.name} wirklich entfernen? Diese Aktion kann nicht rückgängig gemacht werden.`}
             confirmText="Entfernen"
             cancelText="Abbrechen"
             destructive

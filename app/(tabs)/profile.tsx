@@ -234,7 +234,7 @@ export default function ProfileScreen() {
             <View style={styles.xpBarBg}>
               <View style={[styles.xpBarFill, { width: `${xpProgress.progress * 100}%` }]} />
             </View>
-            <Text style={styles.xpLabel}>{gamification.xp} XP - {xpProgress.current}/{xpProgress.needed} zum naechsten Level</Text>
+            <Text style={styles.xpLabel}>{gamification.xp} XP - {xpProgress.current}/{xpProgress.needed} zum nächsten Level</Text>
           </View>
         </View>
 
@@ -356,7 +356,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ueber</Text>
+          <Text style={styles.sectionTitle}>Über</Text>
 
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>App Version</Text>

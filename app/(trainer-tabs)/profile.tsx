@@ -125,7 +125,7 @@ export default function TrainerProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ueber</Text>
+          <Text style={styles.sectionTitle}>Über</Text>
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>App Version</Text>
             <Text style={styles.aboutValue}>1.0.0</Text>

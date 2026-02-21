@@ -10,15 +10,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const { width } = Dimensions.get('window');
 
 const GOALS = [
-  { id: 'muscle', label: 'Muskelaufbau', icon: '\u{1F4AA}', desc: 'Muskelmasse aufbauen und staerker werden' },
+  { id: 'muscle', label: 'Muskelaufbau', icon: '\u{1F4AA}', desc: 'Muskelmasse aufbauen und stärker werden' },
   { id: 'lose_weight', label: 'Abnehmen', icon: '\u{1F525}', desc: 'Körperfett reduzieren und definierter werden' },
   { id: 'fitness', label: 'Allgemeine Fitness', icon: '\u{1F3C3}', desc: 'Ausdauer und Beweglichkeit verbessern' },
   { id: 'strength', label: 'Kraft', icon: '\u{1F3CB}\u{FE0F}', desc: 'Maximalkraft steigern' },
 ];
 
 const LEVELS = [
-  { id: 'beginner', label: 'Anfaenger', desc: 'Weniger als 3 Monate Trainingserfahrung' },
-  { id: 'intermediate', label: 'Fortgeschritten', desc: '3-12 Monate regelmaessiges Training' },
+  { id: 'beginner', label: 'Anfänger', desc: 'Weniger als 3 Monate Trainingserfahrung' },
+  { id: 'intermediate', label: 'Fortgeschritten', desc: '3-12 Monate regelmäßiges Training' },
   { id: 'advanced', label: 'Erfahren', desc: 'Mehr als 1 Jahr kontinuierliches Training' },
 ];
 
@@ -58,7 +58,7 @@ export default function OnboardingScreen() {
           <View style={styles.stepContent}>
             <Target size={40} color={Colors.accent} />
             <Text style={styles.stepTitle}>Was ist dein Ziel?</Text>
-            <Text style={styles.stepSubtitle}>Waehle dein Hauptziel aus</Text>
+            <Text style={styles.stepSubtitle}>Wähle dein Hauptziel aus</Text>
             {GOALS.map(g => (
               <TouchableOpacity key={g.id} style={[styles.option, goal === g.id && styles.optionSelected]} onPress={() => setGoal(g.id)}>
                 <Text style={styles.optionIcon}>{g.icon}</Text>
@@ -128,11 +128,11 @@ export default function OnboardingScreen() {
         <View style={styles.navRow}>
           {step > 0 ? (
             <TouchableOpacity style={styles.navBack} onPress={() => setStep(step - 1)}>
-              <Text style={styles.navBackText}>Zurueck</Text>
+              <Text style={styles.navBackText}>Zurück</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.navBack} onPress={() => { AsyncStorage.setItem('onboardingComplete', 'true'); router.replace('/(tabs)'); }}>
-              <Text style={styles.navBackText}>Ueberspringen</Text>
+              <Text style={styles.navBackText}>Überspringen</Text>
             </TouchableOpacity>
           )}
 

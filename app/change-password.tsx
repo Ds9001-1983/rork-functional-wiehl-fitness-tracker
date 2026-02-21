@@ -61,11 +61,11 @@ export default function ChangePasswordScreen() {
     setIsLoading(true);
     try {
       await updatePassword(currentPassword, newPassword);
-      setStatusMessage({ type: 'success', text: 'Ihr Passwort wurde erfolgreich geändert. Sie werden weitergeleitet...' });
+      setStatusMessage({ type: 'success', text: 'Dein Passwort wurde erfolgreich geändert. Du wirst weitergeleitet...' });
       setTimeout(() => router.replace('/(tabs)'), 2000);
     } catch (error) {
       console.error('Fehler beim Ändern des Passworts:', error);
-      setStatusMessage({ type: 'error', text: 'Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.' });
+      setStatusMessage({ type: 'error', text: 'Passwort konnte nicht geändert werden. Bitte versuche es erneut.' });
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +92,7 @@ export default function ChangePasswordScreen() {
           </View>
           <Text style={styles.title}>Passwort ändern</Text>
           <Text style={styles.subtitle}>
-            Willkommen {user?.name}! Bitte ändern Sie Ihr Starter-Passwort für mehr Sicherheit.
+            Willkommen {user?.name}! Bitte ändere dein Starter-Passwort für mehr Sicherheit.
           </Text>
         </View>
 
@@ -213,7 +213,7 @@ export default function ChangePasswordScreen() {
       <ConfirmDialog
         visible={showSkipConfirm}
         title="Passwort später ändern?"
-        message="Sie können Ihr Passwort jederzeit in den Einstellungen ändern. Möchten Sie trotzdem fortfahren?"
+        message="Du kannst dein Passwort jederzeit in den Einstellungen ändern. Möchtest du trotzdem fortfahren?"
         confirmText="Fortfahren"
         cancelText="Abbrechen"
         onConfirm={() => {

@@ -47,14 +47,14 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.sectionTitle}>4. Rechtsgrundlage</Text>
           <Text style={styles.paragraph}>
             Die Verarbeitung erfolgt auf Grundlage deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO)
-            sowie zur Vertragsdurchfuehrung (Art. 6 Abs. 1 lit. b DSGVO).
+            sowie zur Vertragsdurchführung (Art. 6 Abs. 1 lit. b DSGVO).
           </Text>
 
           <Text style={styles.sectionTitle}>5. Datenspeicherung</Text>
           <Text style={styles.paragraph}>
-            Deine Daten werden auf einem Server in Deutschland (Hetzner, Nuernberg) gespeichert.
-            Die Uebertragung erfolgt verschluesselt via HTTPS/TLS.
-            Passwoerter werden mit bcrypt gehasht gespeichert — wir kennen dein Passwort nicht.
+            Deine Daten werden auf einem Server in Deutschland (Hetzner, Nürnberg) gespeichert.
+            Die Übertragung erfolgt verschlüsselt via HTTPS/TLS.
+            Passwörter werden mit bcrypt gehasht gespeichert — wir kennen dein Passwort nicht.
           </Text>
 
           <Text style={styles.sectionTitle}>6. Weitergabe an Dritte</Text>
@@ -67,9 +67,9 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.sectionTitle}>7. Deine Rechte (DSGVO)</Text>
           <Text style={styles.paragraph}>
             Du hast jederzeit das Recht auf:{'\n\n'}
-            - <Text style={styles.bold}>Auskunft</Text> ueber deine gespeicherten Daten{'\n'}
+            - <Text style={styles.bold}>Auskunft</Text> über deine gespeicherten Daten{'\n'}
             - <Text style={styles.bold}>Datenexport</Text> — alle deine Daten als JSON-Datei{'\n'}
-            - <Text style={styles.bold}>Loeschung</Text> — vollstaendige Kontolöschung{'\n'}
+            - <Text style={styles.bold}>Löschung</Text> — vollständige Kontolöschung{'\n'}
             - <Text style={styles.bold}>Widerruf</Text> deiner Einwilligung{'\n\n'}
             Diese Funktionen findest du unter Profil → Datenschutz & Daten.
           </Text>

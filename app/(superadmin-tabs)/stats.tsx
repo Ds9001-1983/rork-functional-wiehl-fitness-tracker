@@ -116,7 +116,7 @@ export default function SuperadminStatsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <TrendingUp size={20} color={Colors.accent} />
-            <Text style={styles.cardTitle}>Wochenaktivitaet</Text>
+            <Text style={styles.cardTitle}>Wochenaktivität</Text>
             <Text style={styles.cardBadge}>{stats.totalRecentWorkouts} Workouts</Text>
           </View>
           <Text style={styles.cardSubtitle}>Abgeschlossene Workouts in den letzten 7 Tagen</Text>

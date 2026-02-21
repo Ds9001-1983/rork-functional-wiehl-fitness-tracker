@@ -65,7 +65,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     return (
       <View style={styles.errorContainer}>
         <WifiOff size={24} color={Colors.textMuted} />
-        <Text style={styles.errorText}>Video nicht verfuegbar</Text>
+        <Text style={styles.errorText}>Video nicht verfügbar</Text>
         <TouchableOpacity
           style={styles.errorRetry}
           onPress={() => { setLoadError(false); setShowPlayer(false); }}

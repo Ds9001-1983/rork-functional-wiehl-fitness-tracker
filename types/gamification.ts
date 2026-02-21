@@ -62,7 +62,7 @@ export const LEVEL_THRESHOLDS = [
 ] as const;
 
 export const LEVEL_NAMES: Record<number, string> = {
-  1: 'Anfaenger',
+  1: 'Anfänger',
   2: 'Einsteiger',
   3: 'Aktiv',
   4: 'Engagiert',

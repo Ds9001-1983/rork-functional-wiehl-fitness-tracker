@@ -21,12 +21,12 @@ export const workoutCompleteMessages: Record<CoachingTone, string[]> = {
     'Abgehakt! Morgen wird noch besser.',
     'Gutes Workout. Aber da geht noch was, oder?',
     'Erledigt! Schaffst du morgen mehr?',
-    'Nicht schlecht. Jetzt dranbleiben und uebertrumpfen!',
+    'Nicht schlecht. Jetzt dranbleiben und übertrumpfen!',
   ],
   scientist: [
-    'Workout protokolliert. Deine Konsistenz ist der Schluessel zum Erfolg.',
+    'Workout protokolliert. Deine Konsistenz ist der Schlüssel zum Erfolg.',
     'Training abgeschlossen. Denk an ausreichend Protein für die Regeneration.',
-    'Daten gespeichert. Regelmaessiges Training verbessert nachweislich Kraft und Ausdauer.',
+    'Daten gespeichert. Regelmäßiges Training verbessert nachweislich Kraft und Ausdauer.',
     'Workout erfasst. Achte auf mindestens 48h Pause für die trainierten Muskelgruppen.',
   ],
   buddy: [
@@ -50,14 +50,14 @@ export const streakMessages: Record<CoachingTone, Record<string, string[]>> = {
     new_streak: ['Serie gestartet. Mal sehen, wie weit du kommst!'],
     streak_3: ['3 Tage. Gut, aber das ist erst der Anfang.'],
     streak_7: ['7 Tage – respektabel. Jetzt nicht nachlassen!'],
-    streak_30: ['30 Tage am Stueck! Du bist eine Maschine!'],
-    streak_lost: ['Serie gerissen. Steh auf und starte eine neue – noch laenger!'],
+    streak_30: ['30 Tage am Stück! Du bist eine Maschine!'],
+    streak_lost: ['Serie gerissen. Steh auf und starte eine neue – noch länger!'],
   },
   scientist: {
     new_streak: ['Neue Trainingsroutine erkannt. Konsistenz ist der beste Prädiktor für Erfolg.'],
-    streak_3: ['3 Tage Aktivitaet. Studien zeigen: nach 21 Tagen wird es zur Gewohnheit.'],
+    streak_3: ['3 Tage Aktivität. Studien zeigen: nach 21 Tagen wird es zur Gewohnheit.'],
     streak_7: ['7 Tage konsistent. Dein Körper beginnt sich anzupassen.'],
-    streak_30: ['30-Tage-Marke erreicht. Hormonell optimierte Regeneration nach regelmaessigem Training.'],
+    streak_30: ['30-Tage-Marke erreicht. Hormonell optimierte Regeneration nach regelmäßigem Training.'],
     streak_lost: ['Trainingsunterbrechung registriert. 1-2 Tage Pause beeinflussen die Fitness minimal.'],
   },
   buddy: {
@@ -73,7 +73,7 @@ export const streakMessages: Record<CoachingTone, Record<string, string[]>> = {
 export const badgeUnlockMessages: Record<CoachingTone, string[]> = {
   motivator: [
     'Neues Abzeichen freigeschaltet! Du machst tolle Fortschritte!',
-    'Glueckwunsch zum neuen Badge! Jedes Abzeichen zeigt deinen Einsatz.',
+    'Glückwunsch zum neuen Badge! Jedes Abzeichen zeigt deinen Einsatz.',
   ],
   competitor: [
     'Badge freigeschaltet! Wie viele schaffst du noch?',
@@ -93,19 +93,19 @@ export const badgeUnlockMessages: Record<CoachingTone, string[]> = {
 export const levelUpMessages: Record<CoachingTone, string[]> = {
   motivator: [
     'Level Up! Dein Einsatz zahlt sich aus!',
-    'Neues Level erreicht! Du wirst immer staerker!',
+    'Neues Level erreicht! Du wirst immer stärker!',
   ],
   competitor: [
-    'Level Up! Das naechste Level wartet schon!',
-    'Aufgestiegen! Wie schnell schaffst du das naechste?',
+    'Level Up! Das nächste Level wartet schon!',
+    'Aufgestiegen! Wie schnell schaffst du das nächste?',
   ],
   scientist: [
     'Level-Aufstieg. Deine kumulierten Trainingseinheiten zeigen stetigen Fortschritt.',
-    'Neues Erfahrungslevel. Progression ist der Schluessel zu langfristigen Ergebnissen.',
+    'Neues Erfahrungslevel. Progression ist der Schlüssel zu langfristigen Ergebnissen.',
   ],
   buddy: [
     'LEVEL UP! Du bist der Hammer!',
-    'Boom, neues Level! Das muessen wir feiern!',
+    'Boom, neues Level! Das müssen wir feiern!',
   ],
 };
 
@@ -113,15 +113,15 @@ export const levelUpMessages: Record<CoachingTone, string[]> = {
 export const reEngagementMessages: Record<CoachingTone, string[]> = {
   motivator: [
     'Wir vermissen dich! Ein kurzes Workout reicht schon.',
-    'Dein naechstes Training wartet auf dich. Du schaffst das!',
+    'Dein nächstes Training wartet auf dich. Du schaffst das!',
   ],
   competitor: [
     'Pause vorbei? Zeit, wieder Gas zu geben!',
     'Deine Konkurrenz trainiert. Du auch?',
   ],
   scientist: [
-    'Laengere Inaktivitaet kann zu Muskelabbau fuehren. Schon 20 Minuten helfen.',
-    'Deine Fitness baut sich schneller ab als auf. Heute waere ein guter Tag.',
+    'Längere Inaktivität kann zu Muskelabbau führen. Schon 20 Minuten helfen.',
+    'Deine Fitness baut sich schneller ab als auf. Heute wäre ein guter Tag.',
   ],
   buddy: [
     'Hey, alles klar bei dir? Komm, ein kleines Workout tut gut!',

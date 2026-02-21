@@ -64,21 +64,21 @@ export default function TrainerCenterScreen() {
   const sendWelcomeEmail = async (email: string, name: string, password: string): Promise<boolean> => {
     try {
       // E-Mail-Betreff und -Inhalt
-      const subject = 'Willkommen bei Functional Wiehl - Ihre Anmeldedaten';
+      const subject = 'Willkommen bei Functional Wiehl - Deine Anmeldedaten';
       const body = `Hallo ${name},
 
 willkommen bei Functional Wiehl!
 
-Ihr Trainer hat Ihnen einen Account erstellt.
+Dein Trainer hat dir einen Account erstellt.
 
-Ihre Anmeldedaten:
+Deine Anmeldedaten:
 E-Mail: ${email}
 Starter-Passwort: ${password}
 
-Bitte loggen Sie sich in der App ein und ändern Sie Ihr Passwort beim ersten Login.
+Bitte logge dich in der App ein und ändere dein Passwort beim ersten Login.
 
 Viel Erfolg beim Training!
-Ihr Functional Wiehl Team`;
+Dein Functional Wiehl Team`;
       
       // mailto: URL erstellen
       const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -173,7 +173,7 @@ Ihr Functional Wiehl Team`;
       } else if (error.message === 'CLIENT_ALREADY_EXISTS') {
         setStatusMessage({ type: 'error', text: 'Ein Kunde mit diesen Daten existiert bereits.' });
       } else {
-        setStatusMessage({ type: 'error', text: 'Kunde konnte nicht erstellt werden. Bitte versuchen Sie es erneut.' });
+        setStatusMessage({ type: 'error', text: 'Kunde konnte nicht erstellt werden. Bitte versuche es erneut.' });
       }
     }
   };
@@ -424,7 +424,7 @@ Ihr Functional Wiehl Team`;
             </TouchableOpacity>
           </View>
           <Text style={styles.cardDescription}>
-            Wählen Sie einen Kunden aus und erstellen Sie ein geplantes Training mit automatischer Kalender-Integration.
+            Wähle einen Kunden aus und erstelle ein geplantes Training mit automatischer Kalender-Integration.
           </Text>
         </View>
 
@@ -443,7 +443,7 @@ Ihr Functional Wiehl Team`;
             <View style={styles.emptyState}>
               <ClipboardList size={32} color={Colors.textMuted} />
               <Text style={styles.emptyText}>Noch keine Trainingspläne erstellt</Text>
-              <Text style={styles.emptySubtext}>Erstellen Sie Ihren ersten Plan</Text>
+              <Text style={styles.emptySubtext}>Erstelle deinen ersten Plan</Text>
             </View>
           ) : (
             <View style={styles.plansList}>
@@ -633,7 +633,7 @@ Ihr Functional Wiehl Team`;
                 <View style={styles.emptyState}>
                   <Users size={32} color={Colors.textMuted} />
                   <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-                  <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
+                  <Text style={styles.emptySubtext}>Lege zuerst einen Kunden an</Text>
                 </View>
               ) : (
                 <>

@@ -107,7 +107,7 @@ export default function AdminDashboardScreen() {
 
       {/* Recent Activity */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Letzte Aktivitaeten</Text>
+        <Text style={styles.cardTitle}>Letzte Aktivitäten</Text>
         {(!stats?.recentWorkouts || stats.recentWorkouts.length === 0) ? (
           <Text style={styles.muted}>Noch keine Workouts vorhanden</Text>
         ) : (

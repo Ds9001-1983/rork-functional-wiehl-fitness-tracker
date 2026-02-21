@@ -250,7 +250,7 @@ export default function TrainerClientsScreen() {
             <Text style={styles.scheduleButtonText}>Planen</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.cardDescription}>Wählen Sie einen Kunden und erstellen Sie geplante Trainings mit Kalender-Integration.</Text>
+        <Text style={styles.cardDescription}>Wähle einen Kunden und erstelle geplante Trainings mit Kalender-Integration.</Text>
       </View>
 
       {/* Kundenliste */}

@@ -11,7 +11,7 @@ import StatusBanner from '@/components/StatusBanner';
 const CHALLENGE_TYPES = [
   { id: 'workout_count', label: 'Workout-Anzahl', icon: Target, unit: 'Workouts' },
   { id: 'total_volume', label: 'Gesamtvolumen (kg)', icon: TrendingUp, unit: 'kg' },
-  { id: 'streak', label: 'Streak-Laenge', icon: Flame, unit: 'Tage' },
+  { id: 'streak', label: 'Streak-Länge', icon: Flame, unit: 'Tage' },
 ];
 
 interface ChallengeProgress {

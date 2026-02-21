@@ -120,10 +120,10 @@ export default function LeaderboardScreen() {
             <ActivityIndicator color={Colors.accent} style={{ marginTop: 40 }} />
           ) : entries.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Noch keine Eintraege</Text>
+              <Text style={styles.emptyText}>Noch keine Einträge</Text>
               <Text style={styles.emptySubtext}>
                 {period === 'all'
-                  ? 'Schliesse Workouts ab, um auf der Rangliste zu erscheinen.'
+                  ? 'Schließe Workouts ab, um auf der Rangliste zu erscheinen.'
                   : `Keine Workouts ${period === 'week' ? 'diese Woche' : 'diesen Monat'}.`}
               </Text>
             </View>

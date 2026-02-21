@@ -265,18 +265,39 @@ export default function ScheduleTrainingScreen() {
         {(() => {
           const currentStep = !selectedClientId ? 1 : !planName.trim() ? 2 : selectedExercises.length === 0 ? 3 : 4;
           const stepLabels = ['Kunde', 'Name', 'Übungen', 'Datum', 'Fertig'];
+
+          const handleStepPress = (stepNum: number) => {
+            if (stepNum >= currentStep) return; // Can only go back
+            if (stepNum <= 1) {
+              setSelectedClientId('');
+              setPlanName('');
+              setSelectedExercises([]);
+            } else if (stepNum <= 2) {
+              setPlanName('');
+              setSelectedExercises([]);
+            } else if (stepNum <= 3) {
+              setSelectedExercises([]);
+            }
+          };
+
           return (
             <View style={styles.stepIndicator}>
               {stepLabels.map((label, index) => {
                 const stepNum = index + 1;
                 const isComplete = stepNum < currentStep;
                 const isActive = stepNum === currentStep;
+                const isClickable = isComplete;
                 return (
                   <React.Fragment key={stepNum}>
                     {index > 0 && (
                       <View style={[styles.stepLine, isComplete && styles.stepLineComplete]} />
                     )}
-                    <View style={styles.stepItem}>
+                    <TouchableOpacity
+                      style={styles.stepItem}
+                      onPress={() => handleStepPress(stepNum)}
+                      disabled={!isClickable}
+                      activeOpacity={isClickable ? 0.6 : 1}
+                    >
                       <View style={[
                         styles.stepDot,
                         isComplete && styles.stepDotComplete,
@@ -291,7 +312,7 @@ export default function ScheduleTrainingScreen() {
                         styles.stepLabel,
                         (isComplete || isActive) && styles.stepLabelActive,
                       ]}>{label}</Text>
-                    </View>
+                    </TouchableOpacity>
                   </React.Fragment>
                 );
               })}
@@ -310,7 +331,7 @@ export default function ScheduleTrainingScreen() {
             <View style={styles.emptyState}>
               <Users size={32} color={Colors.textMuted} />
               <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-              <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
+              <Text style={styles.emptySubtext}>Lege zuerst einen Kunden an</Text>
             </View>
           ) : (
             <View style={styles.clientSelector}>

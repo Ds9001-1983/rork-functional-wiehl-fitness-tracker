@@ -137,7 +137,7 @@ export default function AdminUsersScreen() {
       <ConfirmDialog
         visible={showDeleteConfirm}
         title="Benutzer löschen"
-        message={`Möchten Sie "${users.find(u => u.id === deleteUserId)?.email || ''}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+        message={`Möchtest du "${users.find(u => u.id === deleteUserId)?.email || ''}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
         confirmText="Löschen"
         cancelText="Abbrechen"
         destructive

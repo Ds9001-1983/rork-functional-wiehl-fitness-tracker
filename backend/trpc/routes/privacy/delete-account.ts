@@ -12,7 +12,7 @@ export default protectedProcedure
     if (input.confirmEmail !== ctx.user.email) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
-        message: 'E-Mail stimmt nicht ueberein. Bitte gib deine registrierte E-Mail zur Bestaetigung ein.',
+        message: 'E-Mail stimmt nicht überein. Bitte gib deine registrierte E-Mail zur Bestätigung ein.',
       });
     }
 

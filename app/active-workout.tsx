@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Save, Timer, MessageSquare, Zap, Smile } from 'lucide-react-native';
+import { Plus, Save, Timer, MessageSquare, Zap, Smile, Dumbbell } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -55,7 +55,7 @@ export default function ActiveWorkoutScreen() {
     { key: 'great', emoji: '💪', label: 'Super' },
     { key: 'good', emoji: '😊', label: 'Gut' },
     { key: 'okay', emoji: '😐', label: 'Okay' },
-    { key: 'tired', emoji: '😴', label: 'Muede' },
+    { key: 'tired', emoji: '😴', label: 'Müde' },
     { key: 'bad', emoji: '😩', label: 'Schlecht' },
   ];
 
@@ -109,7 +109,17 @@ export default function ActiveWorkoutScreen() {
   if (!activeWorkout) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.emptyText}>Kein aktives Workout</Text>
+        <View style={styles.emptyContainer}>
+          <Dumbbell size={48} color={Colors.textMuted} />
+          <Text style={styles.emptyText}>Kein aktives Workout</Text>
+          <Text style={styles.emptySubtext}>Starte ein neues Workout auf der Startseite.</Text>
+          <TouchableOpacity
+            style={styles.emptyButton}
+            onPress={() => router.replace('/(tabs)')}
+          >
+            <Text style={styles.emptyButtonText}>Zur Startseite</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -156,7 +166,7 @@ export default function ActiveWorkoutScreen() {
 
         {showMoodPicker && (
           <View style={styles.moodPickerRow}>
-            <Text style={styles.moodPickerLabel}>Wie fuehlst du dich?</Text>
+            <Text style={styles.moodPickerLabel}>Wie fühlst du dich?</Text>
             <View style={styles.moodOptions}>
               {MOOD_OPTIONS.map(option => (
                 <TouchableOpacity
@@ -350,7 +360,7 @@ export default function ActiveWorkoutScreen() {
           onConfirm={() => {
             setShowDiscardConfirm(false);
             endWorkout();
-            router.back();
+            router.replace('/(tabs)');
           }}
           onCancel={() => setShowDiscardConfirm(false)}
         />
@@ -557,11 +567,35 @@ const createStyles = (Colors: any) => StyleSheet.create({
     color: Colors.error,
     fontSize: 14,
   },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginTop: Spacing.lg,
+  },
+  emptySubtext: {
+    fontSize: 14,
     color: Colors.textMuted,
+    marginTop: Spacing.sm,
     textAlign: 'center',
-    marginTop: Spacing.xxl,
+  },
+  emptyButton: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.lg,
+  },
+  emptyButtonText: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
   completionOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -24,7 +24,7 @@ export default function ResetPasswordScreen() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('Passwoerter stimmen nicht ueberein.');
+      setError('Passwörter stimmen nicht überein.');
       return;
     }
     if (!token) {
@@ -38,7 +38,7 @@ export default function ResetPasswordScreen() {
       await trpcClient.auth.resetPassword.mutate({ token, newPassword });
       setSuccess(true);
     } catch (err: any) {
-      setError('Link ist ungueltig oder abgelaufen. Bitte fordere einen neuen an.');
+      setError('Link ist ungültig oder abgelaufen. Bitte fordere einen neuen an.');
     } finally {
       setLoading(false);
     }
@@ -68,7 +68,7 @@ export default function ResetPasswordScreen() {
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={20} color={Colors.text} />
-          <Text style={styles.backText}>Zurueck</Text>
+          <Text style={styles.backText}>Zurück</Text>
         </TouchableOpacity>
 
         <View style={styles.card}>

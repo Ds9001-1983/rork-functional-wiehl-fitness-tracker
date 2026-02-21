@@ -196,7 +196,7 @@ export default function ExercisesScreen() {
             <Search size={32} color={Colors.textMuted} />
             <Text style={styles.emptySearchText}>Keine Übungen gefunden</Text>
             <Text style={styles.emptySearchHint}>
-              {searchQuery.length > 0 ? `Keine Ergebnisse fuer "${searchQuery}"` : 'Keine Übungen in dieser Kategorie'}
+              {searchQuery.length > 0 ? `Keine Ergebnisse für "${searchQuery}"` : 'Keine Übungen in dieser Kategorie'}
             </Text>
           </View>
         ) : (
@@ -253,9 +253,17 @@ export default function ExercisesScreen() {
                 </View>
               )}
 
+              {/* Add to Workout button - prominently placed BEFORE video */}
+              {activeWorkout && (
+                <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
+                  <Plus size={20} color={Colors.text} />
+                  <Text style={styles.addButtonText}>Zum Workout hinzufügen</Text>
+                </TouchableOpacity>
+              )}
+
               {/* Exercise History */}
               {exerciseHistory.length > 0 && (
-                <View style={styles.modalSection}>
+                <View style={[styles.modalSection, { marginTop: Spacing.lg }]}>
                   <Text style={styles.modalSectionTitle}>
                     Verlauf ({exerciseHistory.length} Workouts)
                   </Text>
@@ -288,13 +296,6 @@ export default function ExercisesScreen() {
                     <Text style={styles.videoExternalLinkText}>Auf YouTube öffnen</Text>
                   </TouchableOpacity>
                 </View>
-              )}
-
-              {activeWorkout && (
-                <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
-                  <Plus size={20} color={Colors.text} />
-                  <Text style={styles.addButtonText}>Zum Workout hinzufügen</Text>
-                </TouchableOpacity>
               )}
 
               {selectedExercise?.isCustom && (
@@ -391,7 +392,7 @@ export default function ExercisesScreen() {
             <Text style={styles.inputLabel}>Anleitung (optional)</Text>
             <TextInput
               style={[styles.textInput, styles.textArea]}
-              placeholder="Ausfuehrung beschreiben..."
+              placeholder="Ausführung beschreiben..."
               placeholderTextColor={Colors.textMuted}
               value={newExercise.instructions}
               onChangeText={(instructions) => setNewExercise(prev => ({ ...prev, instructions }))}
