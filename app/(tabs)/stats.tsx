@@ -8,7 +8,8 @@ import {
   Modal,
 } from 'react-native';
 import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield, HelpCircle, X } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useGamification } from '@/hooks/use-gamification';
@@ -23,6 +24,8 @@ export default function StatsScreen() {
   const { user } = useAuth();
   const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume, workouts } = useWorkouts();
   const { gamification, unlockedBadges, level, levelName, xpProgress, allBadges, recalculateFromWorkouts } = useGamification();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [activeTab, setActiveTab] = useState<StatsTab>('overview');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [muscleTimePeriod, setMuscleTimePeriod] = useState<TimePeriod>('7d');
@@ -579,7 +582,7 @@ export default function StatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { padding: Spacing.lg, paddingTop: Spacing.md, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },

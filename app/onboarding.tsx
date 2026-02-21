@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Target, Dumbbell, Calendar, ChevronRight, Check } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,6 +32,8 @@ const DAYS = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const { user, updateProfile } = useAuth();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
   const [level, setLevel] = useState('');
@@ -147,7 +150,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg, paddingTop: 60 },
   progressRow: { flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   progressDot: { width: width / 4, height: 4, borderRadius: 2, backgroundColor: Colors.border },

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check, Search, Dumbbell, FileText, GitBranch } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -15,6 +16,8 @@ export default function TrainerPlansScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { createWorkoutPlan, assignPlanToUser, instantiatePlan, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   // Separate templates from instances
   const templates = workoutPlans.filter(p => !p.isInstance);
@@ -760,7 +763,7 @@ export default function TrainerPlansScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   card: { backgroundColor: Colors.surface, marginHorizontal: Spacing.lg, marginTop: Spacing.lg, borderRadius: BorderRadius.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.border },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },

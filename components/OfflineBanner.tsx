@@ -1,11 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { WifiOff, RefreshCw, Check, Cloud } from 'lucide-react-native';
-import { Colors, Spacing } from '@/constants/colors';
+import { Spacing } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
 import { syncQueue, SyncStatus } from '@/lib/sync-queue';
 
 export const OfflineBanner: React.FC = () => {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     pendingCount: 0,
@@ -129,7 +132,7 @@ export const OfflineBanner: React.FC = () => {
   return null;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

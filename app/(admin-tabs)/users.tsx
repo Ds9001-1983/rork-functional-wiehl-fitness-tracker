@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Users, Search, User, Shield, Trash2 } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
 import { useClients } from '@/hooks/use-clients';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -16,6 +17,8 @@ interface UserEntry {
 
 export default function AdminUsersScreen() {
   const { removeClient } = useClients();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [users, setUsers] = useState<UserEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,7 +148,7 @@ export default function AdminUsersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
   pageTitle: { fontSize: 24, fontWeight: '700', color: Colors.text, padding: Spacing.lg, paddingBottom: Spacing.sm },

@@ -12,7 +12,8 @@ import {
 import { Stack } from 'expo-router';
 import { Ruler, Plus, TrendingUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { trpcClient } from '@/lib/trpc';
 import StatusBanner from '@/components/StatusBanner';
@@ -66,6 +67,8 @@ function formatDateShort(dateStr: string): string {
 
 export default function BodyMeasurementsScreen() {
   const { user } = useAuth();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -520,7 +523,7 @@ export default function BodyMeasurementsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

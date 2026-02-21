@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises as exerciseDb, exerciseCategories } from '@/data/exercises';
 import { RoutineExercise } from '@/types/workout';
@@ -20,6 +21,8 @@ import StatusBanner from '@/components/StatusBanner';
 export default function RoutinesScreen() {
   const router = useRouter();
   const { routines, saveRoutine, updateRoutine, deleteRoutine, startWorkoutFromRoutine } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExercisePicker, setShowExercisePicker] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState('');
@@ -619,7 +622,7 @@ export default function RoutinesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

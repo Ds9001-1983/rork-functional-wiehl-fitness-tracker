@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Vibration } from 'react-native';
 import { Play, Pause, RotateCcw, Plus, Minus } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 interface RestTimerProps {
   defaultSeconds?: number;
@@ -16,6 +17,8 @@ export const RestTimer: React.FC<RestTimerProps> = ({
   autoStart = false,
   onDefaultChange,
 }) => {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [seconds, setSeconds] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(autoStart);
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
@@ -96,7 +99,7 @@ export const RestTimer: React.FC<RestTimerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,

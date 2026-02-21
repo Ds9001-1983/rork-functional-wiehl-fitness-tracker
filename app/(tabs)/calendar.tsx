@@ -16,7 +16,8 @@ import {
   Calendar as CalendarIcon,
   Plus,
 } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useAuth } from '@/hooks/use-auth';
 import { exercises as exerciseDb } from '@/data/exercises';
@@ -27,6 +28,8 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { workouts, workoutPlans, startWorkout } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(
@@ -288,7 +291,7 @@ export default function CalendarScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { BarChart3 } from 'lucide-react-native';
-import { Colors, Spacing } from '@/constants/colors';
+import { Spacing } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 export default function SuperadminStatsScreen() {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.centered}>
@@ -15,7 +19,7 @@ export default function SuperadminStatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
   title: { color: Colors.text, fontSize: 18, fontWeight: '600', marginTop: Spacing.md },

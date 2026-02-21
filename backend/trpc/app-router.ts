@@ -36,6 +36,7 @@ import createChallenge from "./routes/challenges/create";
 import listChallenges from "./routes/challenges/list";
 import joinChallenge from "./routes/challenges/join";
 import challengeProgress from "./routes/challenges/progress";
+import refreshChallengeProgress from "./routes/challenges/refresh-progress";
 import listNotifications from "./routes/notifications/list";
 import markReadNotification from "./routes/notifications/mark-read";
 import markAllReadNotifications from "./routes/notifications/mark-all-read";
@@ -109,6 +110,7 @@ export const appRouter = createTRPCRouter({
     list: listChallenges,
     join: joinChallenge,
     progress: challengeProgress,
+    refreshProgress: refreshChallengeProgress,
   }),
   notifications: createTRPCRouter({
     list: listNotifications,

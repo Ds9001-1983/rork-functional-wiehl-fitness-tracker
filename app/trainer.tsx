@@ -2,7 +2,8 @@ import React, { useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Linking, PanResponder, Animated, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { UserPlus, Send, ClipboardList, Mail, User, Trash2, Phone, Users, Plus, X, Edit3, Calendar } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -13,6 +14,8 @@ export default function TrainerCenterScreen() {
   const { user } = useAuth();
   const { clients, addClient, removeClient } = useClients();
   const { createWorkoutPlan, assignPlanToUser, workoutPlans } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const [clientFirstName, setClientFirstName] = useState<string>('');
   const [clientLastName, setClientLastName] = useState<string>('');
@@ -692,7 +695,7 @@ Ihr Functional Wiehl Team`;
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   centeredText: { color: Colors.text, fontSize: 16 },

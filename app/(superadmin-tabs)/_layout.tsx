@@ -1,12 +1,13 @@
 import { Tabs, Redirect } from "expo-router";
 import { Building2, BarChart3, User } from "lucide-react-native";
 import React from "react";
-import { Colors } from "@/constants/colors";
+import { useColors } from "@/hooks/use-colors";
 import { useAuth } from "@/hooks/use-auth";
 import LoadingScreen from "@/components/LoadingScreen";
 
 export default function SuperadminTabLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const Colors = useColors();
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/login" />;

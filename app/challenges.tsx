@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
-import { Trophy, Plus, X, Users, Target, Flame, TrendingUp } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Trophy, Plus, X, Users, Target, Flame, TrendingUp, ChevronDown, ChevronUp, Check, Crown, Medal } from 'lucide-react-native';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
 import { useAuth } from '@/hooks/use-auth';
 import StatusBanner from '@/components/StatusBanner';
@@ -13,10 +14,20 @@ const CHALLENGE_TYPES = [
   { id: 'streak', label: 'Streak-Laenge', icon: Flame, unit: 'Tage' },
 ];
 
+interface ChallengeProgress {
+  userId: string;
+  currentValue: number;
+  name?: string;
+}
+
 export default function ChallengesScreen() {
   const { user } = useAuth();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const [challenges, setChallenges] = useState<any[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<string, ChallengeProgress[]>>({});
+  const [expandedChallenges, setExpandedChallenges] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -33,6 +44,23 @@ export default function ChallengesScreen() {
     try {
       const data = await trpcClient.challenges.list.query();
       setChallenges(data);
+
+      // Auto-refresh user's progress
+      try {
+        await trpcClient.challenges.refreshProgress.mutate();
+      } catch { /* ignore */ }
+
+      // Fetch progress for each challenge
+      const progressEntries: Record<string, ChallengeProgress[]> = {};
+      await Promise.all(
+        data.map(async (c: any) => {
+          try {
+            const progress = await trpcClient.challenges.progress.query({ challengeId: c.id });
+            progressEntries[c.id] = progress;
+          } catch { /* ignore */ }
+        })
+      );
+      setProgressMap(progressEntries);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -67,11 +95,15 @@ export default function ChallengesScreen() {
   const handleJoin = async (challengeId: string) => {
     try {
       await trpcClient.challenges.join.mutate({ challengeId });
-      setStatusMessage({ type: 'success', text: 'Du bist dabei!' });
+      setStatusMessage({ type: 'success', text: 'Du bist dabei! Dein Fortschritt wird automatisch getrackt.' });
       loadChallenges();
     } catch {
       setStatusMessage({ type: 'error', text: 'Fehler beim Beitreten.' });
     }
+  };
+
+  const toggleExpanded = (challengeId: string) => {
+    setExpandedChallenges(prev => ({ ...prev, [challengeId]: !prev[challengeId] }));
   };
 
   const getDaysLeft = (endDate: string) => {
@@ -79,7 +111,33 @@ export default function ChallengesScreen() {
     return days > 0 ? `${days} Tage uebrig` : 'Beendet';
   };
 
+  const isEnded = (endDate: string) => {
+    return new Date(endDate).getTime() < Date.now();
+  };
+
   const typeInfo = (t: string) => CHALLENGE_TYPES.find(ct => ct.id === t) || CHALLENGE_TYPES[0];
+
+  const getUserProgress = (challengeId: string): ChallengeProgress | undefined => {
+    return progressMap[challengeId]?.find(p => p.userId === user?.id);
+  };
+
+  const isJoined = (challengeId: string): boolean => {
+    return !!getUserProgress(challengeId);
+  };
+
+  const formatValue = (value: number, challengeType: string) => {
+    if (challengeType === 'total_volume') {
+      return value >= 1000 ? `${(value / 1000).toFixed(1)}t` : `${value}kg`;
+    }
+    return value.toString();
+  };
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 0) return <Crown size={14} color={Colors.warning} />;
+    if (rank === 1) return <Medal size={14} color="#C0C0C0" />;
+    if (rank === 2) return <Medal size={14} color="#CD7F32" />;
+    return null;
+  };
 
   return (
     <>
@@ -119,20 +177,111 @@ export default function ChallengesScreen() {
             challenges.map(challenge => {
               const info = typeInfo(challenge.type);
               const Icon = info.icon;
+              const joined = isJoined(challenge.id);
+              const userProg = getUserProgress(challenge.id);
+              const participants = progressMap[challenge.id] || [];
+              const progressPercent = userProg ? Math.min(100, Math.round((userProg.currentValue / challenge.target) * 100)) : 0;
+              const ended = isEnded(challenge.endDate);
+              const expanded = expandedChallenges[challenge.id];
+              const isComplete = userProg && userProg.currentValue >= challenge.target;
+
               return (
-                <View key={challenge.id} style={styles.challengeCard}>
+                <View key={challenge.id} style={[styles.challengeCard, ended && styles.challengeCardEnded]}>
+                  {/* Header */}
                   <View style={styles.challengeHeader}>
-                    <Icon size={20} color={Colors.accent} />
-                    <Text style={styles.challengeName}>{challenge.name}</Text>
+                    <Icon size={20} color={isComplete ? Colors.success : Colors.accent} />
+                    <Text style={styles.challengeName} numberOfLines={1}>{challenge.name}</Text>
+                    {isComplete && <Check size={18} color={Colors.success} />}
                   </View>
+
                   {challenge.description ? <Text style={styles.challengeDesc}>{challenge.description}</Text> : null}
+
+                  {/* Meta row */}
                   <View style={styles.challengeMeta}>
-                    <Text style={styles.metaText}>Ziel: {challenge.target} {info.unit}</Text>
-                    <Text style={styles.metaText}>{getDaysLeft(challenge.endDate)}</Text>
+                    <Text style={styles.metaText}>Ziel: {formatValue(challenge.target, challenge.type)} {challenge.type !== 'total_volume' ? info.unit : ''}</Text>
+                    <Text style={[styles.metaText, ended && { color: Colors.error }]}>{getDaysLeft(challenge.endDate)}</Text>
                   </View>
-                  <TouchableOpacity style={styles.joinButton} onPress={() => handleJoin(challenge.id)}>
-                    <Text style={styles.joinButtonText}>Teilnehmen</Text>
-                  </TouchableOpacity>
+
+                  {/* Progress section (if joined) */}
+                  {joined && userProg && (
+                    <View style={styles.progressSection}>
+                      <View style={styles.progressHeader}>
+                        <Text style={styles.progressLabel}>
+                          Dein Fortschritt
+                        </Text>
+                        <Text style={[styles.progressValue, isComplete && { color: Colors.success }]}>
+                          {formatValue(userProg.currentValue, challenge.type)} / {formatValue(challenge.target, challenge.type)}
+                        </Text>
+                      </View>
+                      <View style={styles.progressBarBg}>
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            {
+                              width: `${progressPercent}%`,
+                              backgroundColor: isComplete ? Colors.success : Colors.accent,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={styles.progressPercent}>{progressPercent}%</Text>
+                    </View>
+                  )}
+
+                  {/* Participant count + toggle */}
+                  {participants.length > 0 && (
+                    <TouchableOpacity style={styles.participantsToggle} onPress={() => toggleExpanded(challenge.id)}>
+                      <Users size={14} color={Colors.textMuted} />
+                      <Text style={styles.participantsCount}>
+                        {participants.length} Teilnehmer{participants.length !== 1 ? '' : ''}
+                      </Text>
+                      {expanded ? (
+                        <ChevronUp size={16} color={Colors.textMuted} />
+                      ) : (
+                        <ChevronDown size={16} color={Colors.textMuted} />
+                      )}
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Expanded leaderboard */}
+                  {expanded && participants.length > 0 && (
+                    <View style={styles.leaderboard}>
+                      {participants.map((p, idx) => {
+                        const isCurrentUser = p.userId === user?.id;
+                        const pPercent = Math.min(100, Math.round((p.currentValue / challenge.target) * 100));
+                        const pComplete = p.currentValue >= challenge.target;
+                        return (
+                          <View key={p.userId} style={[styles.leaderboardRow, isCurrentUser && styles.leaderboardRowSelf]}>
+                            <View style={styles.leaderboardRank}>
+                              {getRankIcon(idx) || <Text style={styles.rankNumber}>{idx + 1}</Text>}
+                            </View>
+                            <Text style={[styles.leaderboardName, isCurrentUser && styles.leaderboardNameSelf]} numberOfLines={1}>
+                              {isCurrentUser ? 'Du' : (p.name || `Teilnehmer ${idx + 1}`)}
+                            </Text>
+                            <View style={styles.leaderboardBarContainer}>
+                              <View style={[styles.leaderboardBar, { width: `${pPercent}%`, backgroundColor: pComplete ? Colors.success : Colors.accent }]} />
+                            </View>
+                            <Text style={[styles.leaderboardValue, pComplete && { color: Colors.success }]}>
+                              {formatValue(p.currentValue, challenge.type)}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+
+                  {/* Action button */}
+                  {!ended && !joined && (
+                    <TouchableOpacity style={styles.joinButton} onPress={() => handleJoin(challenge.id)}>
+                      <Text style={styles.joinButtonText}>Teilnehmen</Text>
+                    </TouchableOpacity>
+                  )}
+                  {joined && !ended && (
+                    <View style={styles.joinedBadge}>
+                      <Check size={14} color={Colors.success} />
+                      <Text style={styles.joinedText}>Beigetreten</Text>
+                    </View>
+                  )}
                 </View>
               );
             })
@@ -192,7 +341,7 @@ export default function ChallengesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.xxl * 2, gap: Spacing.md },
   loadingText: { color: Colors.textSecondary, fontSize: 14 },
@@ -201,30 +350,62 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: Colors.textSecondary },
   emptyState: { alignItems: 'center', padding: Spacing.xxl, marginHorizontal: Spacing.lg, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border },
   emptyText: { fontSize: 18, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
-  emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },
+  emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' as const },
   challengeCard: { backgroundColor: Colors.surface, marginHorizontal: Spacing.lg, marginBottom: Spacing.md, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
-  challengeHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
-  challengeName: { fontSize: 17, fontWeight: '600' as const, color: Colors.text },
+  challengeCardEnded: { opacity: 0.7 },
+  challengeHeader: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: Spacing.sm, marginBottom: Spacing.xs },
+  challengeName: { fontSize: 17, fontWeight: '600' as const, color: Colors.text, flex: 1 },
   challengeDesc: { fontSize: 14, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  challengeMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  challengeMeta: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, marginBottom: Spacing.sm },
   metaText: { fontSize: 13, color: Colors.textMuted },
-  joinButton: { backgroundColor: Colors.accent, borderRadius: BorderRadius.sm, padding: Spacing.sm, alignItems: 'center' },
+
+  // Progress section
+  progressSection: { backgroundColor: Colors.background, borderRadius: BorderRadius.sm, padding: Spacing.sm, marginBottom: Spacing.sm },
+  progressHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: Spacing.xs },
+  progressLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' as const },
+  progressValue: { fontSize: 13, color: Colors.accent, fontWeight: '700' as const },
+  progressBarBg: { height: 8, backgroundColor: Colors.surfaceLight, borderRadius: 4, overflow: 'hidden' as const },
+  progressBarFill: { height: '100%' as const, borderRadius: 4, minWidth: 4 },
+  progressPercent: { fontSize: 11, color: Colors.textMuted, textAlign: 'right' as const, marginTop: 2 },
+
+  // Participants toggle
+  participantsToggle: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: Spacing.xs, paddingVertical: Spacing.xs, marginBottom: Spacing.xs },
+  participantsCount: { fontSize: 13, color: Colors.textMuted, flex: 1 },
+
+  // Leaderboard
+  leaderboard: { backgroundColor: Colors.background, borderRadius: BorderRadius.sm, padding: Spacing.sm, marginBottom: Spacing.sm },
+  leaderboardRow: { flexDirection: 'row' as const, alignItems: 'center' as const, paddingVertical: Spacing.xs, gap: Spacing.sm },
+  leaderboardRowSelf: { backgroundColor: Colors.accent + '15', borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.xs },
+  leaderboardRank: { width: 20, alignItems: 'center' as const },
+  rankNumber: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' as const },
+  leaderboardName: { fontSize: 13, color: Colors.text, width: 80 },
+  leaderboardNameSelf: { fontWeight: '700' as const, color: Colors.accent },
+  leaderboardBarContainer: { flex: 1, height: 6, backgroundColor: Colors.surfaceLight, borderRadius: 3, overflow: 'hidden' as const },
+  leaderboardBar: { height: '100%' as const, borderRadius: 3, minWidth: 2 },
+  leaderboardValue: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' as const, width: 50, textAlign: 'right' as const },
+
+  // Buttons
+  joinButton: { backgroundColor: Colors.accent, borderRadius: BorderRadius.sm, padding: Spacing.sm, alignItems: 'center' as const },
   joinButtonText: { color: Colors.text, fontWeight: '600' as const },
-  createButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.accent, marginHorizontal: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.md, gap: Spacing.sm },
+  joinedBadge: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: Spacing.xs, paddingVertical: Spacing.xs },
+  joinedText: { fontSize: 13, color: Colors.success, fontWeight: '500' as const },
+  createButton: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: Colors.accent, marginHorizontal: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.md, gap: Spacing.sm },
   createButtonText: { color: Colors.text, fontSize: 16, fontWeight: '600' as const },
+
+  // Modal
   modalContainer: { flex: 1, backgroundColor: Colors.background },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  modalHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, padding: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border },
   modalTitle: { fontSize: 18, fontWeight: '600' as const, color: Colors.text },
   saveButton: { fontSize: 16, color: Colors.accent, fontWeight: '600' as const },
   modalBody: { flex: 1, padding: Spacing.lg },
   input: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, color: Colors.text, fontSize: 16, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.md },
   label: { fontSize: 14, fontWeight: '600' as const, color: Colors.text, marginBottom: Spacing.sm, marginTop: Spacing.sm },
-  typeOption: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md, backgroundColor: Colors.surface, borderRadius: BorderRadius.sm, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  typeOption: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: Spacing.sm, padding: Spacing.md, backgroundColor: Colors.surface, borderRadius: BorderRadius.sm, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   typeOptionActive: { borderColor: Colors.accent },
   typeLabel: { fontSize: 15, color: Colors.textSecondary },
   typeLabelActive: { color: Colors.accent, fontWeight: '600' as const },
-  daysRow: { flexDirection: 'row', gap: Spacing.sm },
-  dayChip: { flex: 1, padding: Spacing.sm, borderRadius: BorderRadius.sm, backgroundColor: Colors.surface, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+  daysRow: { flexDirection: 'row' as const, gap: Spacing.sm },
+  dayChip: { flex: 1, padding: Spacing.sm, borderRadius: BorderRadius.sm, backgroundColor: Colors.surface, alignItems: 'center' as const, borderWidth: 1, borderColor: Colors.border },
   dayChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accent + '15' },
   dayChipText: { fontSize: 14, color: Colors.textSecondary },
   dayChipTextActive: { color: Colors.accent, fontWeight: '600' as const },

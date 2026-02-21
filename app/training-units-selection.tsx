@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { CheckSquare, Square, ArrowLeft, Save, Dumbbell, Clock, Target } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -14,6 +15,8 @@ export default function TrainingUnitsSelectionScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { workoutPlans, updateWorkoutPlan } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const params = useLocalSearchParams<{
     clientId: string;
     planId: string;
@@ -256,7 +259,7 @@ export default function TrainingUnitsSelectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: Colors.background 

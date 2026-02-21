@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useNotifications } from '@/hooks/use-notifications';
 
-function getNotificationIcon(type: string) {
+function getNotificationIcon(type: string, Colors: any) {
   switch (type) {
     case 'badge': return <Trophy size={20} color={Colors.warning} />;
     case 'streak': return <Flame size={20} color={Colors.accent} />;
@@ -30,6 +31,8 @@ function timeAgo(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const { notifications, unreadCount, isLoading, markRead, markAllRead } = useNotifications();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   if (isLoading) {
     return (
@@ -70,7 +73,7 @@ export default function NotificationsScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.notifIcon}>
-                {getNotificationIcon(item.type)}
+                {getNotificationIcon(item.type, Colors)}
               </View>
               <View style={styles.notifContent}>
                 <Text style={styles.notifTitle}>{item.title}</Text>
@@ -86,7 +89,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

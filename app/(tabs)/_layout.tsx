@@ -3,11 +3,12 @@ import { Dumbbell, BookOpen, Calendar, BarChart3, User, Bell } from "lucide-reac
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import { Colors } from "@/constants/colors";
+import { useColors } from "@/hooks/use-colors";
 import { useNotifications } from "@/hooks/use-notifications";
 
 function NotificationBell() {
   const { unreadCount } = useNotifications();
+  const Colors = useColors();
   const router = useRouter();
 
   return (
@@ -39,6 +40,8 @@ function NotificationBell() {
 }
 
 export default function TabLayout() {
+  const Colors = useColors();
+
   return (
     <Tabs
       screenOptions={{

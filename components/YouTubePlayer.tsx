@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Linking, Image } from 'react-native';
 import { Play, ExternalLink, WifiOff } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 interface YouTubePlayerProps {
   videoUrl: string;
@@ -38,6 +39,8 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   videoUrl,
   autoPlay = false,
 }) => {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [showPlayer, setShowPlayer] = useState(autoPlay);
   const [loadError, setLoadError] = useState(false);
 
@@ -126,7 +129,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   playerContainer: {
     width: '100%',
     aspectRatio: 16 / 9,

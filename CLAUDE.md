@@ -11,7 +11,7 @@ Sprache der UI: Deutsch (de-DE). Functional Wiehl ist Studio #1.
 - **Auth**: bcrypt + JWT (mit studioId) + E-Mail-Reset (Resend API)
 - **Multi-Tenant**: studio_id auf allen Tabellen, JWT studioId, X-Studio-Id Header
 - **State Management**: @nkzw/create-context-hook + AsyncStorage
-- **Styling**: NativeWind (Dark Theme, per-Studio Branding moeglich)
+- **Styling**: NativeWind (Dark Theme, per-Studio Branding via `useColors()` Hook)
 - **Routing**: Expo Router (File-based)
 - **Testing**: bun test (built-in runner)
 - **Deployment**: PM2 + Nginx + Bun auf Hetzner CX22
@@ -44,7 +44,7 @@ backend/
   hono.ts               # Hono Server Entry (Bun.serve, CORS mit X-Studio-Id)
   storage.ts             # Zentrale Daten-Abstraktion (14 Tabellen, DB + Memory)
   trpc/
-    app-router.ts        # Alle tRPC Routes (39 Prozeduren, 13 Router)
+    app-router.ts        # Alle tRPC Routes (40 Prozeduren, 13 Router)
     create-context.ts    # tRPC Context, JWT mit studioId, 5 Role-Middlewares
     routes/              # Einzelne tRPC Prozeduren
       studios/           # Studio CRUD (get, update, list, create)
@@ -55,6 +55,7 @@ hooks/
   use-gamification.tsx   # XP, Badges, Streaks, Levels (Server-Sync)
   use-notifications.tsx  # In-App Benachrichtigungen (Server-Sync)
   use-studio.tsx         # Studio-Branding + Colors Context
+  use-colors.ts          # useColors() Hook - liefert studioColors fuer alle Screens
 components/
   RestTimer.tsx          # Rest-Timer (konfigurierbar, Play/Pause, Vibration)
   WorkoutSetRow.tsx      # Set-Eingabe mit Typen (Normal/Warmup/Dropset/Failure)
@@ -85,7 +86,7 @@ __tests__/
 - `measurements.create` / `measurements.list`
 - `gamification.get` / `gamification.sync` / `gamification.leaderboard` (studio-scoped)
 - `routines.create` / `routines.list` / `routines.update` / `routines.delete`
-- `challenges.create` (trainerProcedure, studio-scoped) / `challenges.list` (studio-scoped) / `challenges.join` / `challenges.progress`
+- `challenges.create` (trainerProcedure, studio-scoped) / `challenges.list` (studio-scoped) / `challenges.join` / `challenges.progress` / `challenges.refreshProgress`
 - `notifications.list` / `notifications.markRead` / `notifications.markAllRead` / `notifications.unreadCount`
 - `studios.get` (protectedProcedure) / `studios.update` (adminProcedure) / `studios.list` (superadminProcedure) / `studios.create` (superadminProcedure)
 
@@ -105,6 +106,8 @@ __tests__/
 - **Role Middleware**: `publicProcedure`, `protectedProcedure`, `trainerProcedure`, `adminProcedure`, `superadminProcedure`
 - **Superadmin**: Kann X-Studio-Id Header setzen fuer Cross-Studio-Zugriff
 - **Gamification**: Server-Sync mit AsyncStorage-Fallback (Leaderboard studio-scoped)
+- **Studio-Branding**: `useColors()` Hook liefert studioColors, Screens nutzen `createStyles(Colors)` Pattern fuer dynamische Farben
+- **Challenges**: Fortschritt wird automatisch aus Workout-Daten berechnet (`challenges.refreshProgress`), Leaderboard pro Challenge
 - **PM2**: IMMER `Bun.serve()` explizit verwenden (kein `export default`)
 - **postinstall**: Fuehrt `patch-metro-exports.js` automatisch aus
 
@@ -112,7 +115,7 @@ __tests__/
 - Native Push-Notifications: In-App Notification Center implementiert (kein Service Worker / expo-notifications)
 - Mobile Builds: Nicht getestet (nur Web)
 - Passwort-Reset E-Mail: Braucht RESEND_API_KEY in .env
-- Studio-Branding: Farben werden per-Studio gespeichert, aber UI nutzt noch nicht ueberall studioColors
+- Studio-Branding: Alle Screens nutzen `useColors()` Hook; `createStyles(Colors)` Pattern fuer dynamische StyleSheets
 
 ## Server
 - **Domain**: app.functional-wiehl.de (SSL via Nginx)

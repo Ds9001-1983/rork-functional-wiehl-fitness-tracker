@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target, Edit3, Check, Trash2, ClipboardList } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -15,8 +16,10 @@ export default function CustomerManagementScreen() {
   const { user } = useAuth();
   const { clients, updateClient, removeClient } = useClients();
   const { workoutPlans, updateWorkoutPlan } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
-  
+
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<UserType | null>(null);
   const [showClientDetails, setShowClientDetails] = useState<boolean>(false);
@@ -433,7 +436,7 @@ export default function CustomerManagementScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,

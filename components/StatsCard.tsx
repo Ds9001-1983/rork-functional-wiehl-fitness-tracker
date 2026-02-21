@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 interface StatsCardProps {
   title: string;
@@ -15,8 +16,11 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   value,
   subtitle,
   icon,
-  color = Colors.accent,
+  color: colorProp,
 }) => {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const color = colorProp ?? Colors.accent;
   return (
     <View style={styles.container} testID="stats-card">
       {icon && (
@@ -34,7 +38,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.surface,

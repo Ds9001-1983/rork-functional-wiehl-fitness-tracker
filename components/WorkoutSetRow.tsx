@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Check, X, TrendingUp } from 'lucide-react-native';
 import { WorkoutSet, SetType } from '@/types/workout';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 interface WorkoutSetRowProps {
   set: WorkoutSet;
@@ -14,13 +15,6 @@ interface WorkoutSetRowProps {
   previousCompleted?: boolean; // was previous set at this index completed?
 }
 
-const SET_TYPE_LABELS: Record<SetType, { label: string; short: string; color: string }> = {
-  normal: { label: 'Normal', short: '', color: Colors.textMuted },
-  warmup: { label: 'Aufwärmen', short: 'W', color: Colors.warning },
-  dropset: { label: 'Drop Set', short: 'D', color: Colors.error },
-  failure: { label: 'Bis Versagen', short: 'F', color: '#E040FB' },
-};
-
 export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   set,
   setNumber,
@@ -30,6 +24,14 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   previousReps,
   previousCompleted,
 }) => {
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const SET_TYPE_LABELS: Record<SetType, { label: string; short: string; color: string }> = useMemo(() => ({
+    normal: { label: 'Normal', short: '', color: Colors.textMuted },
+    warmup: { label: 'Aufwärmen', short: 'W', color: Colors.warning },
+    dropset: { label: 'Drop Set', short: 'D', color: Colors.error },
+    failure: { label: 'Bis Versagen', short: 'F', color: '#E040FB' },
+  }), [Colors]);
   const [weightText, setWeightText] = useState(set.weight > 0 ? set.weight.toString() : '');
   const [repsText, setRepsText] = useState(set.reps > 0 ? set.reps.toString() : '');
 
@@ -133,7 +135,7 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
