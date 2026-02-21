@@ -15,13 +15,13 @@ export default function PrivacyPolicyScreen() {
       <Stack.Screen options={{ title: 'Datenschutz' }} />
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <Text style={styles.title}>Datenschutzerklaerung</Text>
+          <Text style={styles.title}>Datenschutzerklärung</Text>
           <Text style={styles.lastUpdated}>Stand: Februar 2026</Text>
 
           <Text style={styles.sectionTitle}>1. Verantwortliche Stelle</Text>
           <Text style={styles.paragraph}>
             SUPERBAND Marketing{'\n'}
-            Verantwortlich fuer die Datenverarbeitung in der Functional Wiehl Fitness App.{'\n'}
+            Verantwortlich für die Datenverarbeitung in der Functional Wiehl Fitness App.{'\n'}
             Kontakt: datenschutz@functional-wiehl.de
           </Text>
 
@@ -29,17 +29,17 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.paragraph}>
             Bei der Nutzung unserer App werden folgende personenbezogene Daten erhoben:{'\n\n'}
             - <Text style={styles.bold}>Kontodaten:</Text> Name, E-Mail-Adresse, Telefonnummer{'\n'}
-            - <Text style={styles.bold}>Trainingsdaten:</Text> Workouts, Uebungen, Gewichte, Wiederholungen, Dauer{'\n'}
-            - <Text style={styles.bold}>Koerperdaten:</Text> Koerpermasse (optional, nur wenn du sie eingibst){'\n'}
+            - <Text style={styles.bold}>Trainingsdaten:</Text> Workouts, Übungen, Gewichte, Wiederholungen, Dauer{'\n'}
+            - <Text style={styles.bold}>Körperdaten:</Text> Körpermaße (optional, nur wenn du sie eingibst){'\n'}
             - <Text style={styles.bold}>Nutzungsdaten:</Text> Streaks, Badges, XP-Punkte, Trainingsfortschritt{'\n'}
             - <Text style={styles.bold}>Technische Daten:</Text> Geraetyp, App-Version (kein Tracking durch Dritte)
           </Text>
 
           <Text style={styles.sectionTitle}>3. Zweck der Verarbeitung</Text>
           <Text style={styles.paragraph}>
-            Deine Daten werden ausschliesslich verwendet fuer:{'\n\n'}
+            Deine Daten werden ausschließlich verwendet für:{'\n\n'}
             - Bereitstellung der Fitness-Tracking-Funktionen{'\n'}
-            - Personalisierte Trainingsplaene durch deinen Trainer{'\n'}
+            - Personalisierte Trainingspläne durch deinen Trainer{'\n'}
             - Fortschrittsverfolgung und Gamification (XP, Badges, Streaks){'\n'}
             - Studio-interne Ranglisten und Challenges
           </Text>
@@ -60,7 +60,7 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.sectionTitle}>6. Weitergabe an Dritte</Text>
           <Text style={styles.paragraph}>
             Deine Daten werden <Text style={styles.bold}>nicht</Text> an Dritte weitergegeben,
-            verkauft oder fuer Werbezwecke genutzt.
+            verkauft oder für Werbezwecke genutzt.
             Es findet kein Tracking durch Google Analytics, Facebook oder andere Dienste statt.
           </Text>
 
@@ -77,7 +77,7 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.sectionTitle}>8. Speicherdauer</Text>
           <Text style={styles.paragraph}>
             Deine Daten werden gespeichert, solange dein Konto aktiv ist.
-            Bei Kontolöschung werden alle personenbezogenen Daten unwiderruflich geloescht.
+            Bei Kontolöschung werden alle personenbezogenen Daten unwiderruflich gelöscht.
           </Text>
 
           <Text style={styles.sectionTitle}>9. Kontakt</Text>

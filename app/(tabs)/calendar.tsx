@@ -217,8 +217,11 @@ export default function CalendarScreen() {
 
           {selectedWorkouts.length === 0 ? (
             <View style={styles.emptyDay}>
-              <CalendarIcon size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyDayText}>Kein Training an diesem Tag</Text>
+              <CalendarIcon size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyDayTitle}>Noch kein Training an diesem Tag</Text>
+              <Text style={styles.emptyDaySubtext}>
+                Jeder Trainingstag zählt — starte jetzt und fülle deinen Kalender!
+              </Text>
               <TouchableOpacity
                 style={styles.startWorkoutButton}
                 onPress={() => {
@@ -227,7 +230,7 @@ export default function CalendarScreen() {
                 }}
               >
                 <Plus size={16} color={Colors.background} />
-                <Text style={styles.startWorkoutButtonText}>Training starten</Text>
+                <Text style={styles.startWorkoutButtonText}>Workout starten</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -266,7 +269,7 @@ export default function CalendarScreen() {
                         {workout.completed && totalSets > 0 && (
                           <View style={styles.metaItem}>
                             <Dumbbell size={12} color={Colors.textMuted} />
-                            <Text style={styles.metaText}>{totalSets} Saetze</Text>
+                            <Text style={styles.metaText}>{totalSets} Sätze</Text>
                           </View>
                         )}
                         {!workout.completed && (
@@ -410,15 +413,24 @@ const createStyles = (Colors: any) => StyleSheet.create({
   emptyDay: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  emptyDayText: {
+  emptyDayTitle: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginTop: Spacing.md,
+  },
+  emptyDaySubtext: {
     color: Colors.textMuted,
     fontSize: 14,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   startWorkoutButton: {
     flexDirection: 'row',

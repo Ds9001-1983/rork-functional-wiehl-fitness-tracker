@@ -72,7 +72,7 @@ export default function ExerciseSelectScreen() {
         <Search size={20} color={Colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Uebung suchen..."
+          placeholder="Übung suchen..."
           placeholderTextColor={Colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -121,9 +121,9 @@ export default function ExerciseSelectScreen() {
         {filteredExercises.length === 0 && (searchQuery.length > 0 || selectedCategory) ? (
           <View style={styles.emptySearch}>
             <Search size={32} color={Colors.textMuted} />
-            <Text style={styles.emptySearchText}>Keine Uebungen gefunden</Text>
+            <Text style={styles.emptySearchText}>Keine Übungen gefunden</Text>
             <Text style={styles.emptySearchHint}>
-              {searchQuery.length > 0 ? `Keine Ergebnisse fuer "${searchQuery}"` : 'Keine Uebungen in dieser Kategorie'}
+              {searchQuery.length > 0 ? `Keine Ergebnisse für "${searchQuery}"` : 'Keine Übungen in dieser Kategorie'}
             </Text>
           </View>
         ) : (
@@ -150,7 +150,7 @@ export default function ExerciseSelectScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>{selectedExercise?.name}</Text>
                 {selectedExercise?.isCustom && (
-                  <Text style={styles.customBadge}>Eigene Uebung</Text>
+                  <Text style={styles.customBadge}>Eigene Übung</Text>
                 )}
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -197,7 +197,7 @@ export default function ExerciseSelectScreen() {
                           })}
                         </Text>
                         <Text style={styles.historyDetail}>
-                          {entry.sets.length} Saetze - Max {maxWeight} kg - {totalVolume} kg Vol.
+                          {entry.sets.length} Sätze - Max {maxWeight} kg - {totalVolume} kg Vol.
                         </Text>
                       </View>
                     );
@@ -214,7 +214,7 @@ export default function ExerciseSelectScreen() {
 
               <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
                 <Plus size={20} color={Colors.text} />
-                <Text style={styles.addButtonText}>Zum Workout hinzufuegen</Text>
+                <Text style={styles.addButtonText}>Zum Workout hinzufügen</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

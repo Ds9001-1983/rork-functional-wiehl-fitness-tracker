@@ -171,7 +171,7 @@ export default function ChallengesScreen() {
             <View style={styles.emptyState}>
               <Users size={48} color={Colors.textMuted} />
               <Text style={styles.emptyText}>Keine aktiven Challenges</Text>
-              {isTrainer && <Text style={styles.emptySubtext}>Erstelle die erste Challenge fuer dein Studio!</Text>}
+              {isTrainer && <Text style={styles.emptySubtext}>Erstelle die erste Challenge für dein Studio!</Text>}
             </View>
           ) : (
             challenges.map(challenge => {

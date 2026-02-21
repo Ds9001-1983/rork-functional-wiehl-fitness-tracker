@@ -75,7 +75,7 @@ export const trainerProcedure = t.procedure.use(async ({ ctx, next }) => {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
   if (ctx.user.role !== 'trainer' && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur fuer Trainer' });
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Trainer' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
@@ -86,7 +86,7 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
   if (ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur fuer Administratoren' });
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Administratoren' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
@@ -97,7 +97,7 @@ export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
   if (ctx.user.role !== 'superadmin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur fuer SUPERBAND Administratoren' });
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für SUPERBAND Administratoren' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });

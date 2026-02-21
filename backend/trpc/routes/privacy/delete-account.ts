@@ -21,10 +21,10 @@ export default protectedProcedure
     if (!success) {
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
-        message: 'Konto konnte nicht geloescht werden. Bitte kontaktiere den Support.',
+        message: 'Konto konnte nicht gelöscht werden. Bitte kontaktiere den Support.',
       });
     }
 
     console.log(`[Privacy] DSGVO: Account deleted for user ${ctx.user.userId} (${ctx.user.email})`);
-    return { success: true, message: 'Dein Konto und alle Daten wurden geloescht.' };
+    return { success: true, message: 'Dein Konto und alle Daten wurden gelöscht.' };
   });

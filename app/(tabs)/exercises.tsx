@@ -49,7 +49,7 @@ export default function ExercisesScreen() {
       if (data) setCustomExercises(JSON.parse(data));
     }).catch(err => {
       console.warn('[Exercises] Fehler beim Laden eigener Uebungen:', err);
-      setStatusMessage({ type: 'error', text: 'Eigene Uebungen konnten nicht geladen werden.' });
+      setStatusMessage({ type: 'error', text: 'Eigene Übungen konnten nicht geladen werden.' });
     });
   }, []);
 
@@ -115,7 +115,7 @@ export default function ExercisesScreen() {
     await AsyncStorage.setItem('customExercises', JSON.stringify(updated));
     setModalVisible(false);
     setShowDeleteConfirm(false);
-    setStatusMessage({ type: 'success', text: 'Uebung geloescht.' });
+    setStatusMessage({ type: 'success', text: 'Übung gelöscht.' });
   };
 
   // Get exercise history for detail modal
@@ -136,7 +136,7 @@ export default function ExercisesScreen() {
         <Search size={20} color={Colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Uebung suchen..."
+          placeholder="Übung suchen..."
           placeholderTextColor={Colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -188,15 +188,15 @@ export default function ExercisesScreen() {
           onPress={() => setShowCreateModal(true)}
         >
           <Plus size={20} color={Colors.accent} />
-          <Text style={styles.createExerciseText}>Eigene Uebung erstellen</Text>
+          <Text style={styles.createExerciseText}>Eigene Übung erstellen</Text>
         </TouchableOpacity>
 
         {filteredExercises.length === 0 && (searchQuery.length > 0 || selectedCategory) ? (
           <View style={styles.emptySearch}>
             <Search size={32} color={Colors.textMuted} />
-            <Text style={styles.emptySearchText}>Keine Uebungen gefunden</Text>
+            <Text style={styles.emptySearchText}>Keine Übungen gefunden</Text>
             <Text style={styles.emptySearchHint}>
-              {searchQuery.length > 0 ? `Keine Ergebnisse fuer "${searchQuery}"` : 'Keine Uebungen in dieser Kategorie'}
+              {searchQuery.length > 0 ? `Keine Ergebnisse fuer "${searchQuery}"` : 'Keine Übungen in dieser Kategorie'}
             </Text>
           </View>
         ) : (
@@ -223,7 +223,7 @@ export default function ExercisesScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>{selectedExercise?.name}</Text>
                 {selectedExercise?.isCustom && (
-                  <Text style={styles.customBadge}>Eigene Uebung</Text>
+                  <Text style={styles.customBadge}>Eigene Übung</Text>
                 )}
               </View>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -271,7 +271,7 @@ export default function ExercisesScreen() {
                           })}
                         </Text>
                         <Text style={styles.historyDetail}>
-                          {entry.sets.length} Saetze - Max {maxWeight} kg - {totalVolume} kg Vol.
+                          {entry.sets.length} Sätze - Max {maxWeight} kg - {totalVolume} kg Vol.
                         </Text>
                       </View>
                     );
@@ -285,7 +285,7 @@ export default function ExercisesScreen() {
                   <YouTubePlayer videoUrl={selectedExercise.videoUrl} />
                   <TouchableOpacity style={styles.videoExternalLink} onPress={handleOpenVideoExternal}>
                     <Youtube size={16} color={Colors.accent} />
-                    <Text style={styles.videoExternalLinkText}>Auf YouTube oeffnen</Text>
+                    <Text style={styles.videoExternalLinkText}>Auf YouTube öffnen</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -293,7 +293,7 @@ export default function ExercisesScreen() {
               {activeWorkout && (
                 <TouchableOpacity style={styles.addButton} onPress={handleAddToWorkout}>
                   <Plus size={20} color={Colors.text} />
-                  <Text style={styles.addButtonText}>Zum Workout hinzufuegen</Text>
+                  <Text style={styles.addButtonText}>Zum Workout hinzufügen</Text>
                 </TouchableOpacity>
               )}
 
@@ -303,7 +303,7 @@ export default function ExercisesScreen() {
                   onPress={() => setShowDeleteConfirm(true)}
                 >
                   <Trash2 size={18} color={Colors.error} />
-                  <Text style={styles.deleteCustomButtonText}>Eigene Uebung loeschen</Text>
+                  <Text style={styles.deleteCustomButtonText}>Eigene Übung löschen</Text>
                 </TouchableOpacity>
               )}
             </ScrollView>
@@ -313,9 +313,9 @@ export default function ExercisesScreen() {
 
       <ConfirmDialog
         visible={showDeleteConfirm}
-        title="Uebung loeschen"
-        message={`"${selectedExercise?.name}" wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.`}
-        confirmText="Loeschen"
+        title="Übung löschen"
+        message={`"${selectedExercise?.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`}
+        confirmText="Löschen"
         cancelText="Abbrechen"
         destructive
         onConfirm={handleDeleteCustomExercise}
@@ -333,7 +333,7 @@ export default function ExercisesScreen() {
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
               <X size={24} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.createModalTitle}>Neue Uebung</Text>
+            <Text style={styles.createModalTitle}>Neue Übung</Text>
             <TouchableOpacity onPress={handleCreateExercise}>
               <Text style={styles.saveButton}>Speichern</Text>
             </TouchableOpacity>

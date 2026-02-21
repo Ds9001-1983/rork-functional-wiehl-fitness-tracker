@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity } from 'lucide-react-native';
+import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -34,6 +34,7 @@ export default function TrainerClientsScreen() {
     return { text: `Kein Training seit ${daysAgo} Tagen`, color: Colors.error };
   };
 
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [clientFirstName, setClientFirstName] = useState('');
   const [clientLastName, setClientLastName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -51,8 +52,8 @@ export default function TrainerClientsScreen() {
 
   const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isValidPhone = (phone: string) => /^[\d\s\-+()]{6,}$/.test(phone.trim());
-  const getEmailError = () => clientEmail.length > 0 && !isValidEmail(clientEmail) ? 'Ungueltige E-Mail' : '';
-  const getPhoneError = () => clientPhone.length > 0 && !isValidPhone(clientPhone) ? 'Ungueltige Nummer' : '';
+  const getEmailError = () => clientEmail.length > 0 && !isValidEmail(clientEmail) ? 'Ungültige E-Mail' : '';
+  const getPhoneError = () => clientPhone.length > 0 && !isValidPhone(clientPhone) ? 'Ungültige Nummer' : '';
 
   const generateStarterPassword = (): string => {
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -73,11 +74,11 @@ export default function TrainerClientsScreen() {
       return;
     }
     if (!clientEmail.trim() || !isValidEmail(clientEmail)) {
-      setStatusMessage({ type: 'error', text: 'Bitte eine gueltige E-Mail eingeben (z.B. name@example.de).' });
+      setStatusMessage({ type: 'error', text: 'Bitte eine gültige E-Mail eingeben (z.B. name@example.de).' });
       return;
     }
     if (!clientPhone.trim() || !isValidPhone(clientPhone)) {
-      setStatusMessage({ type: 'error', text: 'Bitte eine gueltige Telefonnummer eingeben (mind. 6 Ziffern).' });
+      setStatusMessage({ type: 'error', text: 'Bitte eine gültige Telefonnummer eingeben (mind. 6 Ziffern).' });
       return;
     }
 
@@ -94,7 +95,7 @@ export default function TrainerClientsScreen() {
 
       const subject = encodeURIComponent(`Dein Zugang zur Functional Wiehl App`);
       const body = encodeURIComponent(
-        `Hallo ${fullName},\n\nDein Trainer hat dir Zugang zur Functional Wiehl Fitness App eingerichtet.\n\nDeine Anmeldedaten:\nE-Mail: ${clientEmail.trim().toLowerCase()}\nPasswort: ${starterPassword}\n\nBitte melde dich an unter: https://app.functional-wiehl.de\n\nBitte aendere dein Passwort nach dem ersten Login.\n\nViel Spass beim Training!\nDein Functional Wiehl Team`
+        `Hallo ${fullName},\n\nDein Trainer hat dir Zugang zur Functional Wiehl Fitness App eingerichtet.\n\nDeine Anmeldedaten:\nE-Mail: ${clientEmail.trim().toLowerCase()}\nPasswort: ${starterPassword}\n\nBitte melde dich an unter: https://app.functional-wiehl.de\n\nBitte ändere dein Passwort nach dem ersten Login.\n\nViel Spass beim Training!\nDein Functional Wiehl Team`
       );
       const mailtoUrl = `mailto:${clientEmail.trim().toLowerCase()}?subject=${subject}&body=${body}`;
 
@@ -192,40 +193,52 @@ export default function TrainerClientsScreen() {
 
       {/* Neuen Kunden anlegen */}
       <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Neuen Kunden anlegen</Text>
-          <UserPlus size={20} color={Colors.accent} />
-        </View>
-        <View style={styles.row}>
-          <User size={18} color={Colors.textSecondary} />
-          <TextInput value={clientFirstName} onChangeText={setClientFirstName} placeholder="Vorname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
-        </View>
-        <View style={styles.row}>
-          <User size={18} color={Colors.textSecondary} />
-          <TextInput value={clientLastName} onChangeText={setClientLastName} placeholder="Nachname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
-        </View>
-        <View>
-          <View style={[styles.row, getPhoneError() ? styles.rowError : null]}>
-            <Phone size={18} color={getPhoneError() ? Colors.error : Colors.textSecondary} />
-            <TextInput value={clientPhone} onChangeText={setClientPhone} placeholder="Handynummer *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="phone-pad" />
+        <TouchableOpacity style={styles.cardHeader} onPress={() => setShowCreateForm(!showCreateForm)} activeOpacity={0.7}>
+          <View style={styles.cardHeaderLeft}>
+            <UserPlus size={20} color={Colors.accent} />
+            <Text style={styles.cardTitle}>Neuen Kunden anlegen</Text>
           </View>
-          {getPhoneError() ? <Text style={styles.fieldError}>{getPhoneError()}</Text> : null}
-        </View>
-        <View>
-          <View style={[styles.row, getEmailError() ? styles.rowError : null]}>
-            <Mail size={18} color={getEmailError() ? Colors.error : Colors.textSecondary} />
-            <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder="E-Mail-Adresse *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="email-address" autoCapitalize="none" />
-          </View>
-          {getEmailError() ? <Text style={styles.fieldError}>{getEmailError()}</Text> : null}
-        </View>
-        <View style={styles.infoBox}>
-          <Mail size={16} color={Colors.accent} />
-          <Text style={styles.infoText}>Ihr E-Mail-Client wird geoeffnet, um dem Kunden seine Anmeldedaten zu senden.</Text>
-        </View>
-        <TouchableOpacity style={styles.primaryButton} onPress={handleCreateClient}>
-          <UserPlus size={18} color={Colors.text} />
-          <Text style={styles.primaryButtonText}>Kunde anlegen</Text>
+          {showCreateForm ? <ChevronUp size={20} color={Colors.textMuted} /> : <ChevronDown size={20} color={Colors.textMuted} />}
         </TouchableOpacity>
+        {!showCreateForm ? (
+          <TouchableOpacity style={styles.primaryButton} onPress={() => setShowCreateForm(true)}>
+            <UserPlus size={18} color={Colors.text} />
+            <Text style={styles.primaryButtonText}>+ Neuer Kunde</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <View style={styles.row}>
+              <User size={18} color={Colors.textSecondary} />
+              <TextInput value={clientFirstName} onChangeText={setClientFirstName} placeholder="Vorname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
+            </View>
+            <View style={styles.row}>
+              <User size={18} color={Colors.textSecondary} />
+              <TextInput value={clientLastName} onChangeText={setClientLastName} placeholder="Nachname *" placeholderTextColor={Colors.textMuted} style={styles.input} />
+            </View>
+            <View>
+              <View style={[styles.row, getPhoneError() ? styles.rowError : null]}>
+                <Phone size={18} color={getPhoneError() ? Colors.error : Colors.textSecondary} />
+                <TextInput value={clientPhone} onChangeText={setClientPhone} placeholder="Handynummer *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="phone-pad" />
+              </View>
+              {getPhoneError() ? <Text style={styles.fieldError}>{getPhoneError()}</Text> : null}
+            </View>
+            <View>
+              <View style={[styles.row, getEmailError() ? styles.rowError : null]}>
+                <Mail size={18} color={getEmailError() ? Colors.error : Colors.textSecondary} />
+                <TextInput value={clientEmail} onChangeText={setClientEmail} placeholder="E-Mail-Adresse *" placeholderTextColor={Colors.textMuted} style={styles.input} keyboardType="email-address" autoCapitalize="none" />
+              </View>
+              {getEmailError() ? <Text style={styles.fieldError}>{getEmailError()}</Text> : null}
+            </View>
+            <View style={styles.infoBox}>
+              <Mail size={16} color={Colors.accent} />
+              <Text style={styles.infoText}>Ihr E-Mail-Client wird geöffnet, um dem Kunden seine Anmeldedaten zu senden.</Text>
+            </View>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleCreateClient}>
+              <UserPlus size={18} color={Colors.text} />
+              <Text style={styles.primaryButtonText}>Kunde anlegen</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* Training planen */}
@@ -237,7 +250,7 @@ export default function TrainerClientsScreen() {
             <Text style={styles.scheduleButtonText}>Planen</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.cardDescription}>Waehlen Sie einen Kunden und erstellen Sie geplante Trainings mit Kalender-Integration.</Text>
+        <Text style={styles.cardDescription}>Wählen Sie einen Kunden und erstellen Sie geplante Trainings mit Kalender-Integration.</Text>
       </View>
 
       {/* Kundenliste */}
@@ -258,8 +271,8 @@ export default function TrainerClientsScreen() {
               <Text style={styles.onboardingTitle}>Erste Schritte als Trainer</Text>
             </View>
             {[
-              { num: '1', text: 'Kunde anlegen - Formular oben ausfuellen' },
-              { num: '2', text: 'Trainingsplan erstellen - Im Plaene-Tab' },
+              { num: '1', text: 'Kunde anlegen - Formular oben ausfüllen' },
+              { num: '2', text: 'Trainingsplan erstellen - Im Pläne-Tab' },
               { num: '3', text: 'Training planen - Kalender-basiert zuweisen' },
             ].map(step => (
               <View key={step.num} style={styles.onboardingStep}>
@@ -293,7 +306,7 @@ export default function TrainerClientsScreen() {
                         })()}
                         {c.passwordChanged === false && (
                           <View style={styles.passwordBadge}>
-                            <Text style={styles.passwordBadgeText}>PW aendern</Text>
+                            <Text style={styles.passwordBadgeText}>Initiales PW</Text>
                           </View>
                         )}
                       </View>
@@ -343,6 +356,7 @@ const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   card: { backgroundColor: Colors.surface, marginHorizontal: Spacing.lg, marginTop: Spacing.lg, borderRadius: BorderRadius.lg, padding: Spacing.lg, borderWidth: 1, borderColor: Colors.border },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   cardTitle: { fontSize: 18, fontWeight: '600', color: Colors.text },
   cardDescription: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },

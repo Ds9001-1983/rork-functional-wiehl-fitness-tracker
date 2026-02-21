@@ -45,10 +45,10 @@ interface MeasurementField {
 
 const FIELDS: MeasurementField[] = [
   { key: 'gewicht', label: 'Gewicht', unit: 'kg', placeholder: 'z.B. 78.5' },
-  { key: 'koerperfett', label: 'Koerperfett', unit: '%', placeholder: 'z.B. 18.0' },
+  { key: 'koerperfett', label: 'Körperfett', unit: '%', placeholder: 'z.B. 18.0' },
   { key: 'brust', label: 'Brust', unit: 'cm', placeholder: 'z.B. 100' },
   { key: 'taille', label: 'Taille', unit: 'cm', placeholder: 'z.B. 82' },
-  { key: 'huefte', label: 'Huefte', unit: 'cm', placeholder: 'z.B. 96' },
+  { key: 'huefte', label: 'Hüfte', unit: 'cm', placeholder: 'z.B. 96' },
   { key: 'bizepsLinks', label: 'Bizeps Links', unit: 'cm', placeholder: 'z.B. 35' },
   { key: 'bizepsRechts', label: 'Bizeps Rechts', unit: 'cm', placeholder: 'z.B. 35.5' },
   { key: 'oberschenkelLinks', label: 'Oberschenkel Links', unit: 'cm', placeholder: 'z.B. 56' },
@@ -58,10 +58,10 @@ const FIELDS: MeasurementField[] = [
 // Trend-faehige Metriken (nur solche mit genug Datenpunkten zeigen)
 const TREND_METRICS: { key: keyof Omit<Measurement, 'id' | 'userId' | 'date'>; label: string; unit: string; color: string }[] = [
   { key: 'gewicht', label: 'Gewicht', unit: 'kg', color: '#FF6B35' },
-  { key: 'koerperfett', label: 'Koerperfett', unit: '%', color: '#4CAF50' },
+  { key: 'koerperfett', label: 'Körperfett', unit: '%', color: '#4CAF50' },
   { key: 'brust', label: 'Brust', unit: 'cm', color: '#2196F3' },
   { key: 'taille', label: 'Taille', unit: 'cm', color: '#FF9800' },
-  { key: 'huefte', label: 'Huefte', unit: 'cm', color: '#9C27B0' },
+  { key: 'huefte', label: 'Hüfte', unit: 'cm', color: '#9C27B0' },
   { key: 'bizepsLinks', label: 'Bizeps L', unit: 'cm', color: '#00BCD4' },
   { key: 'bizepsRechts', label: 'Bizeps R', unit: 'cm', color: '#009688' },
   { key: 'oberschenkelLinks', label: 'Oberschenkel L', unit: 'cm', color: '#E91E63' },
@@ -208,7 +208,7 @@ export default function BodyMeasurementsScreen() {
 
     const hasValidValue = FIELDS.some(f => (newMeasurement as any)[f.key] != null);
     if (!hasValidValue) {
-      setStatusMessage({ type: 'error', text: 'Bitte gib mindestens einen gueltigen Wert ein.' });
+      setStatusMessage({ type: 'error', text: 'Bitte gib mindestens einen gültigen Wert ein.' });
       setIsSaving(false);
       return;
     }
@@ -245,11 +245,11 @@ export default function BodyMeasurementsScreen() {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     } catch (e) {
-      console.error('[BodyMeasurements] Loeschen Fehler:', e);
+      console.error('[BodyMeasurements] Löschen Fehler:', e);
     }
     setDeleteTargetId(null);
     setShowDeleteConfirm(false);
-    setStatusMessage({ type: 'success', text: 'Messung geloescht.' });
+    setStatusMessage({ type: 'success', text: 'Messung gelöscht.' });
   };
 
   const getBarWidth = (value: number): number => {
@@ -401,7 +401,7 @@ export default function BodyMeasurementsScreen() {
         {trendEntries.length < 2 ? (
           <View style={styles.emptyTrend}>
             <Text style={styles.emptyText}>
-              Mindestens 2 Messungen fuer {selectedMetricInfo?.label || 'diese Metrik'} noetig.
+              Mindestens 2 Messungen für {selectedMetricInfo?.label || 'diese Metrik'} nötig.
             </Text>
           </View>
         ) : (
@@ -529,7 +529,7 @@ export default function BodyMeasurementsScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Koerpermasse',
+          title: 'Körpermaße',
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
           headerTitleStyle: { fontWeight: '700' },
@@ -574,9 +574,9 @@ export default function BodyMeasurementsScreen() {
 
       <ConfirmDialog
         visible={showDeleteConfirm}
-        title="Messung loeschen"
-        message="Diese Messung wirklich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden."
-        confirmText="Loeschen"
+        title="Messung löschen"
+        message="Diese Messung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmText="Löschen"
         cancelText="Abbrechen"
         destructive
         onConfirm={handleDelete}

@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
-import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield, HelpCircle, X } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { TrendingUp, Award, Target, Activity, Trophy, BarChart3, Zap, Shield, HelpCircle, X, Dumbbell, Plus } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -21,8 +22,9 @@ type StatsTab = 'overview' | 'records' | 'muscles' | 'achievements';
 type TimePeriod = '7d' | '30d' | '90d' | 'all';
 
 export default function StatsScreen() {
+  const router = useRouter();
   const { user } = useAuth();
-  const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume, workouts } = useWorkouts();
+  const { setCurrentUserId, getWorkoutHistory, getPersonalRecords, getDetailedRecords, getMuscleGroupVolume, workouts, startWorkout } = useWorkouts();
   const { gamification, unlockedBadges, level, levelName, xpProgress, allBadges, recalculateFromWorkouts } = useGamification();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
@@ -147,6 +149,8 @@ export default function StatsScreen() {
 
   const maxMuscleVolume = sortedMuscleVolume.length > 0 ? sortedMuscleVolume[0][1] : 1;
 
+  const hasNoWorkouts = userWorkouts.length === 0;
+
   const unlockedIds = new Set(unlockedBadges.map(b => b.badgeId));
 
   return (
@@ -178,7 +182,7 @@ export default function StatsScreen() {
 
         <View style={styles.tabBar}>
           {([
-            { key: 'overview', label: 'Uebersicht' },
+            { key: 'overview', label: 'Übersicht' },
             { key: 'achievements', label: 'Erfolge' },
             { key: 'records', label: 'Rekorde' },
             { key: 'muscles', label: 'Muskeln' },
@@ -197,179 +201,201 @@ export default function StatsScreen() {
 
         {activeTab === 'overview' && (
           <>
-            <View style={styles.filterRow}>
-              {([
-                { key: '7d', label: '7 Tage' },
-                { key: '30d', label: '30 Tage' },
-                { key: '90d', label: '90 Tage' },
-                { key: 'all', label: 'Gesamt' },
-              ] as const).map(filter => (
+            {hasNoWorkouts ? (
+              <View style={styles.emptyOverview}>
+                <Dumbbell size={56} color={Colors.textMuted} />
+                <Text style={styles.emptyOverviewTitle}>Keine Statistiken vorhanden</Text>
+                <Text style={styles.emptyOverviewSubtext}>
+                  Starte dein erstes Workout, um deine Statistiken zu füllen! Hier siehst du dann deinen Fortschritt, deine Serie und deine Bestleistungen.
+                </Text>
                 <TouchableOpacity
-                  key={filter.key}
-                  style={[styles.filterChip, timePeriod === filter.key && styles.filterChipActive]}
-                  onPress={() => setTimePeriod(filter.key)}
+                  style={styles.emptyOverviewButton}
+                  onPress={() => {
+                    startWorkout();
+                    router.push('/active-workout' as never);
+                  }}
                 >
-                  <Text style={[styles.filterChipText, timePeriod === filter.key && styles.filterChipTextActive]}>
-                    {filter.label}
-                  </Text>
+                  <Plus size={18} color={Colors.background} />
+                  <Text style={styles.emptyOverviewButtonText}>Erstes Workout starten</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.statsGrid}>
-              <StatsCard
-                title="Gesamt Workouts"
-                value={filteredWorkouts.length}
-                icon={<Activity size={20} color={Colors.accent} />}
-                color={Colors.accent}
-              />
-              <StatsCard
-                title="Gesamt Volumen"
-                value={`${(totalVolume / 1000).toFixed(1)}t`}
-                icon={<TrendingUp size={20} color={Colors.success} />}
-                color={Colors.success}
-              />
-              <StatsCard
-                title="Gesamt Saetze"
-                value={totalSets}
-                icon={<Target size={20} color={Colors.warning} />}
-                color={Colors.warning}
-              />
-              <StatsCard
-                title="Aktuelle Serie"
-                value={`${gamification.currentStreak} Tage`}
-                icon={<Award size={20} color={Colors.error} />}
-                color={Colors.error}
-              />
-            </View>
-
-            {/* Trend indicators */}
-            {timePeriod !== 'all' && (workoutTrend || volumeTrend) && (
-              <View style={styles.trendRow}>
-                {workoutTrend && (
-                  <Text style={[styles.trendText, workoutTrend.up ? styles.trendUp : styles.trendDown]}>
-                    Workouts: {workoutTrend.up ? '↑' : '↓'} {Math.abs(workoutTrend.pct)}% vs Vorperiode
-                  </Text>
-                )}
-                {volumeTrend && (
-                  <Text style={[styles.trendText, volumeTrend.up ? styles.trendUp : styles.trendDown]}>
-                    Volumen: {volumeTrend.up ? '↑' : '↓'} {Math.abs(volumeTrend.pct)}% vs Vorperiode
-                  </Text>
-                )}
               </View>
-            )}
-
-            {/* Streak Info Card */}
-            <View style={styles.section}>
-              <View style={styles.streakCard}>
-                <View style={styles.streakRow}>
-                  <View style={styles.streakItem}>
-                    <Text style={styles.streakValue}>{gamification.currentStreak}</Text>
-                    <Text style={styles.streakLabel}>Aktuelle Serie</Text>
-                  </View>
-                  <View style={styles.streakDivider} />
-                  <View style={styles.streakItem}>
-                    <Text style={styles.streakValue}>{gamification.longestStreak}</Text>
-                    <Text style={styles.streakLabel}>Laengste Serie</Text>
-                  </View>
-                  <View style={styles.streakDivider} />
-                  <View style={styles.streakItem}>
-                    <View style={styles.freezeRow}>
-                      <Shield size={16} color="#42A5F5" />
-                      <Text style={styles.streakValue}>{gamification.streakFreezes}</Text>
-                    </View>
-                    <Text style={styles.streakLabel}>Streak Freeze</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.chartHeader}>
-                <Text style={styles.sectionTitleStandalone}>Woechentlicher Fortschritt</Text>
-                <View style={styles.chartToggle}>
-                  <TouchableOpacity
-                    style={[styles.chartToggleBtn, chartMode === 'count' && styles.chartToggleBtnActive]}
-                    onPress={() => setChartMode('count')}
-                  >
-                    <Text style={[styles.chartToggleText, chartMode === 'count' && styles.chartToggleTextActive]}>Anzahl</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.chartToggleBtn, chartMode === 'volume' && styles.chartToggleBtnActive]}
-                    onPress={() => setChartMode('volume')}
-                  >
-                    <Text style={[styles.chartToggleText, chartMode === 'volume' && styles.chartToggleTextActive]}>Volumen</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View style={styles.weekChart}>
-                {(() => {
-                  const dayData = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
-                    const dayWorkouts = filteredWorkouts.filter(w => {
-                      const workoutDay = new Date(w.date).getDay();
-                      return workoutDay === (index + 1) % 7;
-                    });
-                    const vol = dayWorkouts.reduce((sum, w) =>
-                      sum + w.exercises.reduce((eSum, ex) =>
-                        eSum + ex.sets.reduce((sSum, s) => sSum + s.weight * s.reps, 0), 0), 0);
-                    return { day, count: dayWorkouts.length, volume: vol };
-                  });
-                  const maxVal = chartMode === 'count'
-                    ? Math.max(...dayData.map(d => d.count), 1)
-                    : Math.max(...dayData.map(d => d.volume), 1);
-                  return dayData.map((d, i) => {
-                    const val = chartMode === 'count' ? d.count : d.volume;
-                    const height = Math.min(100, (val / maxVal) * 100);
-                    const label = chartMode === 'count' ? (d.count > 0 ? `${d.count}` : '') : (d.volume > 0 ? `${(d.volume / 1000).toFixed(1)}t` : '');
-                    return (
-                      <View key={`${d.day}-${i}`} style={styles.dayColumn}>
-                        <View style={styles.barContainer}>
-                          <View style={[styles.bar, { height: Math.max(height, 2) }]} />
-                        </View>
-                        <Text style={styles.dayLabel}>{d.day}</Text>
-                        {label ? <Text style={styles.dayCount}>{label}</Text> : null}
-                      </View>
-                    );
-                  });
-                })()}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Trophy size={20} color={Colors.accent} />
-                <Text style={styles.sectionTitle}>Top Bestleistungen</Text>
-              </View>
-              {sortedDetailedRecords.length > 0 ? (
-                <View style={styles.recordsList}>
-                  {sortedDetailedRecords.slice(0, 5).map((record, index) => (
-                    <View
-                      key={record.exerciseId}
-                      style={[styles.recordItem, index === Math.min(4, sortedDetailedRecords.length - 1) && styles.recordItemLast]}
+            ) : (
+              <>
+                <View style={styles.filterRow}>
+                  {([
+                    { key: '7d', label: '7 Tage' },
+                    { key: '30d', label: '30 Tage' },
+                    { key: '90d', label: '90 Tage' },
+                    { key: 'all', label: 'Gesamt' },
+                  ] as const).map(filter => (
+                    <TouchableOpacity
+                      key={filter.key}
+                      style={[styles.filterChip, timePeriod === filter.key && styles.filterChipActive]}
+                      onPress={() => setTimePeriod(filter.key)}
                     >
-                      <View style={styles.recordLeft}>
-                        <Text style={styles.recordRank}>#{index + 1}</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.recordName}>{getExerciseName(record.exerciseId)}</Text>
-                          <Text style={styles.recordDate}>
-                            {new Date(record.date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.recordValue}>{record.weight} kg</Text>
-                    </View>
+                      <Text style={[styles.filterChipText, timePeriod === filter.key && styles.filterChipTextActive]}>
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
                   ))}
                 </View>
-              ) : (
-                <View style={styles.emptyRecords}>
-                  <Trophy size={40} color={Colors.textMuted} />
-                  <Text style={styles.emptyText}>Noch keine Bestleistungen</Text>
-                  <Text style={styles.emptySubtext}>
-                    Schliesse Workouts ab, um deine Rekorde zu tracken!
-                  </Text>
+
+                <View style={styles.statsGrid}>
+                  <StatsCard
+                    title="Gesamt Workouts"
+                    value={filteredWorkouts.length}
+                    icon={<Activity size={20} color={Colors.accent} />}
+                    color={Colors.accent}
+                  />
+                  <StatsCard
+                    title="Gesamt Volumen"
+                    value={`${(totalVolume / 1000).toFixed(1)}t`}
+                    icon={<TrendingUp size={20} color={Colors.success} />}
+                    color={Colors.success}
+                  />
+                  <StatsCard
+                    title="Gesamt Sätze"
+                    value={totalSets}
+                    icon={<Target size={20} color={Colors.warning} />}
+                    color={Colors.warning}
+                  />
+                  <StatsCard
+                    title="Aktuelle Serie"
+                    value={`${gamification.currentStreak} Tage`}
+                    icon={<Award size={20} color={Colors.error} />}
+                    color={Colors.error}
+                  />
                 </View>
-              )}
-            </View>
+
+                {/* Trend indicators */}
+                {timePeriod !== 'all' && (workoutTrend || volumeTrend) && (
+                  <View style={styles.trendRow}>
+                    {workoutTrend && (
+                      <Text style={[styles.trendText, workoutTrend.up ? styles.trendUp : styles.trendDown]}>
+                        Workouts: {workoutTrend.up ? '↑' : '↓'} {Math.abs(workoutTrend.pct)}% vs Vorperiode
+                      </Text>
+                    )}
+                    {volumeTrend && (
+                      <Text style={[styles.trendText, volumeTrend.up ? styles.trendUp : styles.trendDown]}>
+                        Volumen: {volumeTrend.up ? '↑' : '↓'} {Math.abs(volumeTrend.pct)}% vs Vorperiode
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {/* Streak Info Card */}
+                <View style={styles.section}>
+                  <View style={styles.streakCard}>
+                    <View style={styles.streakRow}>
+                      <View style={styles.streakItem}>
+                        <Text style={styles.streakValue}>{gamification.currentStreak}</Text>
+                        <Text style={styles.streakLabel}>Aktuelle Serie</Text>
+                      </View>
+                      <View style={styles.streakDivider} />
+                      <View style={styles.streakItem}>
+                        <Text style={styles.streakValue}>{gamification.longestStreak}</Text>
+                        <Text style={styles.streakLabel}>Längste Serie</Text>
+                      </View>
+                      <View style={styles.streakDivider} />
+                      <View style={styles.streakItem}>
+                        <View style={styles.freezeRow}>
+                          <Shield size={16} color="#42A5F5" />
+                          <Text style={styles.streakValue}>{gamification.streakFreezes}</Text>
+                        </View>
+                        <Text style={styles.streakLabel}>Streak Freeze</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <View style={styles.chartHeader}>
+                    <Text style={styles.sectionTitleStandalone}>Wöchentlicher Fortschritt</Text>
+                    <View style={styles.chartToggle}>
+                      <TouchableOpacity
+                        style={[styles.chartToggleBtn, chartMode === 'count' && styles.chartToggleBtnActive]}
+                        onPress={() => setChartMode('count')}
+                      >
+                        <Text style={[styles.chartToggleText, chartMode === 'count' && styles.chartToggleTextActive]}>Anzahl</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.chartToggleBtn, chartMode === 'volume' && styles.chartToggleBtnActive]}
+                        onPress={() => setChartMode('volume')}
+                      >
+                        <Text style={[styles.chartToggleText, chartMode === 'volume' && styles.chartToggleTextActive]}>Volumen</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.weekChart}>
+                    {(() => {
+                      const dayData = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((day, index) => {
+                        const dayWorkouts = filteredWorkouts.filter(w => {
+                          const workoutDay = new Date(w.date).getDay();
+                          return workoutDay === (index + 1) % 7;
+                        });
+                        const vol = dayWorkouts.reduce((sum, w) =>
+                          sum + w.exercises.reduce((eSum, ex) =>
+                            eSum + ex.sets.reduce((sSum, s) => sSum + s.weight * s.reps, 0), 0), 0);
+                        return { day, count: dayWorkouts.length, volume: vol };
+                      });
+                      const maxVal = chartMode === 'count'
+                        ? Math.max(...dayData.map(d => d.count), 1)
+                        : Math.max(...dayData.map(d => d.volume), 1);
+                      return dayData.map((d, i) => {
+                        const val = chartMode === 'count' ? d.count : d.volume;
+                        const height = Math.min(100, (val / maxVal) * 100);
+                        const label = chartMode === 'count' ? (d.count > 0 ? `${d.count}` : '') : (d.volume > 0 ? `${(d.volume / 1000).toFixed(1)}t` : '');
+                        return (
+                          <View key={`${d.day}-${i}`} style={styles.dayColumn}>
+                            <View style={styles.barContainer}>
+                              <View style={[styles.bar, { height: Math.max(height, 2) }]} />
+                            </View>
+                            <Text style={styles.dayLabel}>{d.day}</Text>
+                            {label ? <Text style={styles.dayCount}>{label}</Text> : null}
+                          </View>
+                        );
+                      });
+                    })()}
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Trophy size={20} color={Colors.accent} />
+                    <Text style={styles.sectionTitle}>Top Bestleistungen</Text>
+                  </View>
+                  {sortedDetailedRecords.length > 0 ? (
+                    <View style={styles.recordsList}>
+                      {sortedDetailedRecords.slice(0, 5).map((record, index) => (
+                        <View
+                          key={record.exerciseId}
+                          style={[styles.recordItem, index === Math.min(4, sortedDetailedRecords.length - 1) && styles.recordItemLast]}
+                        >
+                          <View style={styles.recordLeft}>
+                            <Text style={styles.recordRank}>#{index + 1}</Text>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.recordName}>{getExerciseName(record.exerciseId)}</Text>
+                              <Text style={styles.recordDate}>
+                                {new Date(record.date).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.recordValue}>{record.weight} kg</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyRecords}>
+                      <Trophy size={40} color={Colors.textMuted} />
+                      <Text style={styles.emptyText}>Noch keine Bestleistungen</Text>
+                      <Text style={styles.emptySubtext}>
+                        Schließe Workouts ab, um deine Rekorde zu tracken!
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            )}
           </>
         )}
 
@@ -442,7 +468,7 @@ export default function StatsScreen() {
               <Trophy size={20} color={Colors.accent} />
               <Text style={styles.sectionTitle}>Alle Rekorde</Text>
             </View>
-            <Text style={styles.recordsSubtext}>Geschaetztes 1RM (Epley-Formel)</Text>
+            <Text style={styles.recordsSubtext}>Geschätztes 1RM (Epley-Formel)</Text>
 
             {sortedDetailedRecords.length > 0 ? (
               <View style={styles.recordsList}>
@@ -470,7 +496,10 @@ export default function StatsScreen() {
             ) : (
               <View style={styles.emptyRecords}>
                 <Trophy size={40} color={Colors.textMuted} />
-                <Text style={styles.emptyText}>Noch keine Daten</Text>
+                <Text style={styles.emptyText}>Noch keine Rekorde</Text>
+                <Text style={styles.emptySubtext}>
+                  Schließe Workouts mit Gewichten ab, um deine persönlichen Rekorde zu sehen.
+                </Text>
               </View>
             )}
           </View>
@@ -515,14 +544,14 @@ export default function StatsScreen() {
                           ]}
                         />
                       </View>
-                      <Text style={styles.muscleSets}>{sets} Saetze</Text>
+                      <Text style={styles.muscleSets}>{sets} Sätze</Text>
                     </View>
                   ))}
                 </View>
               ) : (
                 <View style={styles.emptyRecords}>
                   <BarChart3 size={40} color={Colors.textMuted} />
-                  <Text style={styles.emptyText}>Keine Daten fuer diesen Zeitraum</Text>
+                  <Text style={styles.emptyText}>Keine Daten für diesen Zeitraum</Text>
                   <Text style={styles.emptySubtext}>
                     Trainiere, um deine Muskelgruppen-Verteilung zu sehen.
                   </Text>
@@ -548,11 +577,11 @@ export default function StatsScreen() {
 
             <View style={styles.xpTable}>
               <View style={styles.xpRow}>
-                <Text style={styles.xpAction}>Workout abschliessen</Text>
+                <Text style={styles.xpAction}>Workout abschließen</Text>
                 <Text style={styles.xpValue}>+50 XP</Text>
               </View>
               <View style={styles.xpRow}>
-                <Text style={styles.xpAction}>Persoenlicher Rekord</Text>
+                <Text style={styles.xpAction}>Persönlicher Rekord</Text>
                 <Text style={styles.xpValue}>+100 XP</Text>
               </View>
               <View style={styles.xpRow}>
@@ -653,6 +682,11 @@ const createStyles = (Colors: any) => StyleSheet.create({
   badgeDesc: { fontSize: 11, color: Colors.textSecondary },
   badgeDescLocked: { color: Colors.textMuted },
   badgeDate: { fontSize: 10, color: Colors.accent, marginTop: 4 },
+  emptyOverview: { marginHorizontal: Spacing.lg, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  emptyOverviewTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text, marginTop: Spacing.lg },
+  emptyOverviewSubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center', lineHeight: 20, paddingHorizontal: Spacing.md },
+  emptyOverviewButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, backgroundColor: Colors.accent, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg },
+  emptyOverviewButtonText: { color: Colors.background, fontSize: 16, fontWeight: '600' as const },
   emptyRecords: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.xl, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   emptyText: { fontSize: 16, fontWeight: '600' as const, color: Colors.textSecondary, marginTop: Spacing.md },
   emptySubtext: { fontSize: 14, color: Colors.textMuted, marginTop: Spacing.sm, textAlign: 'center' },

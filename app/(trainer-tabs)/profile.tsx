@@ -68,7 +68,7 @@ export default function TrainerProfileScreen() {
       <ConfirmDialog
         visible={showLogoutConfirm}
         title="Abmelden"
-        message="Moechtest du dich wirklich abmelden?"
+        message="Möchtest du dich wirklich abmelden?"
         confirmText="Abmelden"
         cancelText="Abbrechen"
         destructive
@@ -118,7 +118,7 @@ export default function TrainerProfileScreen() {
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemLeft}>
               <Lock size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Passwort aendern</Text>
+              <Text style={styles.menuItemText}>Passwort ändern</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -178,7 +178,7 @@ export default function TrainerProfileScreen() {
             <View style={[styles.inputContainer, { opacity: 0.6 }]}>
               <Text style={{ color: Colors.textMuted, fontSize: 16 }}>{user?.email || ''}</Text>
             </View>
-            <Text style={styles.inputHint}>E-Mail kann nicht geaendert werden</Text>
+            <Text style={styles.inputHint}>E-Mail kann nicht geändert werden</Text>
           </View>
         </View>
       </Modal>

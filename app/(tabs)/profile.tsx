@@ -136,7 +136,7 @@ export default function ProfileScreen() {
       await logout();
       router.replace('/login');
     } catch (e: any) {
-      setStatusMessage({ type: 'error', text: e?.message || 'Konto konnte nicht geloescht werden.' });
+      setStatusMessage({ type: 'error', text: e?.message || 'Konto konnte nicht gelöscht werden.' });
     } finally {
       setIsDeleting(false);
     }
@@ -147,7 +147,7 @@ export default function ProfileScreen() {
       <ConfirmDialog
         visible={showLogoutConfirm}
         title="Abmelden"
-        message="Moechtest du dich wirklich abmelden?"
+        message="Möchtest du dich wirklich abmelden?"
         confirmText="Abmelden"
         cancelText="Abbrechen"
         destructive
@@ -164,10 +164,10 @@ export default function ProfileScreen() {
       >
         <View style={styles.deleteOverlay}>
           <View style={styles.deleteDialog}>
-            <Text style={styles.deleteTitle}>Konto endgueltig loeschen</Text>
+            <Text style={styles.deleteTitle}>Konto endgültig löschen</Text>
             <Text style={styles.deleteMessage}>
-              Alle deine Daten (Workouts, Koerpermasse, Fortschritt, Badges) werden unwiderruflich geloescht.
-              {'\n\n'}Gib zur Bestaetigung deine E-Mail-Adresse ein:
+              Alle deine Daten (Workouts, Körpermaße, Fortschritt, Badges) werden unwiderruflich gelöscht.
+              {'\n\n'}Gib zur Bestätigung deine E-Mail-Adresse ein:
             </Text>
             <TextInput
               style={styles.deleteInput}
@@ -191,7 +191,7 @@ export default function ProfileScreen() {
                 disabled={isDeleting || deleteConfirmEmail !== user?.email}
               >
                 <Text style={styles.deleteConfirmText}>
-                  {isDeleting ? 'Loesche...' : 'Endgueltig loeschen'}
+                  {isDeleting ? 'Lösche...' : 'Endgültig löschen'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -282,7 +282,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/body-measurements')}>
             <View style={styles.menuItemLeft}>
               <Ruler size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Koerpermasse</Text>
+              <Text style={styles.menuItemText}>Körpermaße</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -306,7 +306,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemLeft}>
               <Lock size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Passwort aendern</Text>
+              <Text style={styles.menuItemText}>Passwort ändern</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -328,7 +328,7 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-policy')}>
             <View style={styles.menuItemLeft}>
               <Shield size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Datenschutzerklaerung</Text>
+              <Text style={styles.menuItemText}>Datenschutzerklärung</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
@@ -349,7 +349,7 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Trash2 size={20} color={Colors.error} />
-              <Text style={[styles.menuItemText, { color: Colors.error }]}>Konto und Daten loeschen</Text>
+              <Text style={[styles.menuItemText, { color: Colors.error }]}>Konto und Daten löschen</Text>
             </View>
             <ChevronRight size={20} color={Colors.error} />
           </TouchableOpacity>
@@ -436,7 +436,7 @@ export default function ProfileScreen() {
             <View style={[styles.inputContainer, styles.inputDisabled]}>
               <Text style={styles.inputDisabledText}>{user?.email || ''}</Text>
             </View>
-            <Text style={styles.inputHint}>E-Mail kann nicht geaendert werden</Text>
+            <Text style={styles.inputHint}>E-Mail kann nicht geändert werden</Text>
           </View>
         </View>
       </Modal>

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
@@ -59,12 +60,12 @@ function RootLayoutNav() {
       <Stack.Screen name="schedule-training" options={{ title: 'Training planen' }} />
       <Stack.Screen name="customer-management" options={{ title: 'Kundenverwaltung' }} />
       <Stack.Screen name="training-units-selection" options={{ title: 'Trainingseinheiten auswählen' }} />
-      <Stack.Screen name="exercise-select" options={{ title: 'Uebung auswaehlen' }} />
+      <Stack.Screen name="exercise-select" options={{ title: 'Übung auswählen' }} />
       <Stack.Screen name="routines" options={{ title: 'Routinen' }} />
       <Stack.Screen name="workout-detail/[id]" options={{ title: 'Workout Details' }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      <Stack.Screen name="reset-password" options={{ title: 'Passwort zuruecksetzen' }} />
-      <Stack.Screen name="body-measurements" options={{ title: 'Koerpermasse' }} />
+      <Stack.Screen name="reset-password" options={{ title: 'Passwort zurücksetzen' }} />
+      <Stack.Screen name="body-measurements" options={{ title: 'Körpermaße' }} />
       <Stack.Screen name="leaderboard" options={{ title: 'Rangliste' }} />
       <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
       <Stack.Screen name="notifications" options={{ title: 'Benachrichtigungen' }} />
@@ -80,23 +81,25 @@ export default function RootLayout() {
   return (
     <trpc.Provider client={trpcReactClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <AuthProvider>
-            <StudioProvider>
-              <ClientsProvider>
-                <WorkoutProvider>
-                  <GamificationProvider>
-                    <NotificationProvider>
-                      <ErrorBoundary>
-                        <OfflineBanner />
-                        <RootLayoutNav />
-                      </ErrorBoundary>
-                    </NotificationProvider>
-                  </GamificationProvider>
-                </WorkoutProvider>
-              </ClientsProvider>
-            </StudioProvider>
-          </AuthProvider>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
+          <View style={{ flex: 1, maxWidth: 768, width: '100%', alignSelf: 'center', backgroundColor: '#0A0A0A' }}>
+            <AuthProvider>
+              <StudioProvider>
+                <ClientsProvider>
+                  <WorkoutProvider>
+                    <GamificationProvider>
+                      <NotificationProvider>
+                        <ErrorBoundary>
+                          <OfflineBanner />
+                          <RootLayoutNav />
+                        </ErrorBoundary>
+                      </NotificationProvider>
+                    </GamificationProvider>
+                  </WorkoutProvider>
+                </ClientsProvider>
+              </StudioProvider>
+            </AuthProvider>
+          </View>
         </GestureHandlerRootView>
       </QueryClientProvider>
     </trpc.Provider>

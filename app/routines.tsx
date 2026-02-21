@@ -77,7 +77,7 @@ export default function RoutinesScreen() {
       return;
     }
     if (newRoutineExercises.length === 0) {
-      setStatusMessage({ type: 'error', text: 'Fuege mindestens eine Uebung hinzu.' });
+      setStatusMessage({ type: 'error', text: 'Füge mindestens eine Übung hinzu.' });
       return;
     }
 
@@ -140,7 +140,7 @@ export default function RoutinesScreen() {
       return;
     }
     if (editRoutineExercises.length === 0) {
-      setStatusMessage({ type: 'error', text: 'Fuege mindestens eine Uebung hinzu.' });
+      setStatusMessage({ type: 'error', text: 'Füge mindestens eine Übung hinzu.' });
       return;
     }
 
@@ -227,7 +227,7 @@ export default function RoutinesScreen() {
             <View style={styles.headerRow}>
               <View>
                 <Text style={styles.title}>Meine Routinen</Text>
-                <Text style={styles.subtitle}>Erstelle Vorlagen fuer deine Workouts</Text>
+                <Text style={styles.subtitle}>Erstelle Vorlagen für deine Workouts</Text>
               </View>
               {routines.length > 1 && (
                 <TouchableOpacity style={styles.sortButton} onPress={cycleSortMode}>
@@ -331,7 +331,7 @@ export default function RoutinesScreen() {
               />
 
               <Text style={styles.exercisesLabel}>
-                Uebungen ({newRoutineExercises.length})
+                Übungen ({newRoutineExercises.length})
               </Text>
 
               {newRoutineExercises.map((re, index) => (
@@ -342,7 +342,7 @@ export default function RoutinesScreen() {
                     </Text>
                     <View style={styles.exerciseRowInputs}>
                       <View style={styles.miniInput}>
-                        <Text style={styles.miniLabel}>Saetze</Text>
+                        <Text style={styles.miniLabel}>Sätze</Text>
                         <TouchableOpacity
                           style={styles.miniInputBox}
                           onPress={() => {
@@ -380,7 +380,7 @@ export default function RoutinesScreen() {
                 onPress={() => setShowExercisePicker(true)}
               >
                 <Plus size={18} color={Colors.accent} />
-                <Text style={styles.addExerciseText}>Uebung hinzufuegen</Text>
+                <Text style={styles.addExerciseText}>Übung hinzufügen</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -392,7 +392,7 @@ export default function RoutinesScreen() {
                 <TouchableOpacity onPress={() => setShowExercisePicker(false)}>
                   <X size={24} color={Colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.modalTitle}>Uebung waehlen</Text>
+                <Text style={styles.modalTitle}>Übung wählen</Text>
                 <View style={{ width: 24 }} />
               </View>
 
@@ -467,7 +467,7 @@ export default function RoutinesScreen() {
               />
 
               <Text style={styles.exercisesLabel}>
-                Uebungen ({editRoutineExercises.length})
+                Übungen ({editRoutineExercises.length})
               </Text>
 
               {editRoutineExercises.map((re, index) => (
@@ -478,7 +478,7 @@ export default function RoutinesScreen() {
                     </Text>
                     <View style={styles.exerciseRowInputs}>
                       <View style={styles.miniInput}>
-                        <Text style={styles.miniLabel}>Saetze</Text>
+                        <Text style={styles.miniLabel}>Sätze</Text>
                         <TouchableOpacity
                           style={styles.miniInputBox}
                           onPress={() => {
@@ -516,7 +516,7 @@ export default function RoutinesScreen() {
                 onPress={() => setShowEditExercisePicker(true)}
               >
                 <Plus size={18} color={Colors.accent} />
-                <Text style={styles.addExerciseText}>Uebung hinzufuegen</Text>
+                <Text style={styles.addExerciseText}>Übung hinzufügen</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -528,7 +528,7 @@ export default function RoutinesScreen() {
                 <TouchableOpacity onPress={() => setShowEditExercisePicker(false)}>
                   <X size={24} color={Colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.modalTitle}>Uebung waehlen</Text>
+                <Text style={styles.modalTitle}>Übung wählen</Text>
                 <View style={{ width: 24 }} />
               </View>
 
@@ -582,9 +582,9 @@ export default function RoutinesScreen() {
 
         <ConfirmDialog
           visible={showDeleteConfirm}
-          title="Routine loeschen"
-          message={deleteTarget ? `"${deleteTarget.name}" wirklich loeschen?` : ''}
-          confirmText="Loeschen"
+          title="Routine löschen"
+          message={deleteTarget ? `"${deleteTarget.name}" wirklich löschen?` : ''}
+          confirmText="Löschen"
           cancelText="Abbrechen"
           destructive
           onConfirm={() => {
@@ -602,8 +602,8 @@ export default function RoutinesScreen() {
 
         <ConfirmDialog
           visible={showDiscardConfirm}
-          title="Nicht gespeicherte Aenderungen"
-          message="Willst du die Aenderungen verwerfen?"
+          title="Nicht gespeicherte Änderungen"
+          message="Willst du die Änderungen verwerfen?"
           confirmText="Verwerfen"
           cancelText="Weiter bearbeiten"
           destructive

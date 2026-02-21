@@ -348,11 +348,11 @@ export default function CustomerManagementScreen() {
 
                   {/* Training Plans */}
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Trainingsplaene</Text>
+                    <Text style={styles.sectionTitle}>Trainingspläne</Text>
                     {getClientPlans(selectedClient.id).length === 0 ? (
                       <View style={styles.emptyPlanState}>
                         <ClipboardList size={24} color={Colors.textMuted} />
-                        <Text style={styles.emptyPlanText}>Keine Plaene zugewiesen</Text>
+                        <Text style={styles.emptyPlanText}>Keine Pläne zugewiesen</Text>
                       </View>
                     ) : (
                       getClientPlans(selectedClient.id).map((plan) => (
@@ -363,7 +363,7 @@ export default function CustomerManagementScreen() {
                               <Text style={styles.planItemDesc}>{plan.description}</Text>
                             ) : null}
                             <Text style={styles.planItemMeta}>
-                              {plan.exercises.length} Uebungen
+                              {plan.exercises.length} Übungen
                             </Text>
                           </View>
                           <TouchableOpacity
@@ -386,7 +386,7 @@ export default function CustomerManagementScreen() {
                         <Text style={styles.infoValue}>
                           {Math.round(getClientPerformance(selectedClient.id).totalVolume).toLocaleString('de-DE')} kg
                         </Text>
-                        <Text style={styles.infoLabel}>Laengste Serie:</Text>
+                        <Text style={styles.infoLabel}>Längste Serie:</Text>
                         <Text style={styles.infoValue}>
                           {getClientPerformance(selectedClient.id).longestStreak} Tage
                         </Text>
@@ -422,7 +422,7 @@ export default function CustomerManagementScreen() {
           <ConfirmDialog
             visible={showDeleteConfirm}
             title="Kunde entfernen"
-            message={`Moechten Sie ${selectedClient.name} wirklich entfernen? Diese Aktion kann nicht rueckgaengig gemacht werden.`}
+            message={`Möchten Sie ${selectedClient.name} wirklich entfernen? Diese Aktion kann nicht rückgängig gemacht werden.`}
             confirmText="Entfernen"
             cancelText="Abbrechen"
             destructive

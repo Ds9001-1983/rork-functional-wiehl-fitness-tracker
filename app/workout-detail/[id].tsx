@@ -167,7 +167,7 @@ export default function WorkoutDetailScreen() {
           <View style={styles.statCard}>
             <Dumbbell size={18} color={Colors.accent} />
             <Text style={styles.statValue}>{totalSets}</Text>
-            <Text style={styles.statLabel}>Saetze</Text>
+            <Text style={styles.statLabel}>Sätze</Text>
           </View>
           <View style={styles.statCard}>
             <TrendingUp size={18} color={Colors.accent} />
@@ -194,7 +194,7 @@ export default function WorkoutDetailScreen() {
         )}
 
         {/* Exercise breakdown */}
-        <Text style={styles.sectionTitle}>Uebungen</Text>
+        <Text style={styles.sectionTitle}>Übungen</Text>
 
         {workout.exercises.map((exercise, exerciseIndex) => {
           const name = getExerciseName(exercise.exerciseId);
@@ -216,7 +216,7 @@ export default function WorkoutDetailScreen() {
                 </View>
                 <View style={styles.exerciseHeaderRight}>
                   <Text style={styles.exerciseSummary}>
-                    {completedSets}/{exercise.sets.length} Saetze
+                    {completedSets}/{exercise.sets.length} Sätze
                   </Text>
                   {exerciseVolume > 0 && (
                     <Text style={styles.exerciseVolume}>{exerciseVolume}kg Vol.</Text>
@@ -273,7 +273,7 @@ export default function WorkoutDetailScreen() {
 
         {workout.exercises.length === 0 && (
           <View style={styles.emptyExercises}>
-            <Text style={styles.emptyExercisesText}>Keine Uebungen in diesem Workout</Text>
+            <Text style={styles.emptyExercisesText}>Keine Übungen in diesem Workout</Text>
           </View>
         )}
 
@@ -294,16 +294,16 @@ export default function WorkoutDetailScreen() {
             onPress={() => setShowDeleteConfirm(true)}
           >
             <Trash2 size={18} color={Colors.error} />
-            <Text style={styles.deleteButtonText}>Loeschen</Text>
+            <Text style={styles.deleteButtonText}>Löschen</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
       <ConfirmDialog
         visible={showDeleteConfirm}
-        title="Workout loeschen"
-        message={`Moechtest du "${workout.name}" wirklich loeschen? Dies kann nicht rueckgaengig gemacht werden.`}
-        confirmText="Loeschen"
+        title="Workout löschen"
+        message={`Möchtest du "${workout.name}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.`}
+        confirmText="Löschen"
         cancelText="Abbrechen"
         destructive
         onConfirm={async () => {

@@ -14,7 +14,7 @@ export const workoutCompleteMessages: Record<CoachingTone, string[]> = {
   motivator: [
     'Super gemacht! Jedes Workout zaehlt.',
     'Du bist auf dem richtigen Weg! Weiter so.',
-    'Toll, dass du heute trainiert hast. Dein Koerper dankt es dir!',
+    'Toll, dass du heute trainiert hast. Dein Körper dankt es dir!',
     'Starke Leistung! Du wirst jeden Tag besser.',
   ],
   competitor: [
@@ -25,9 +25,9 @@ export const workoutCompleteMessages: Record<CoachingTone, string[]> = {
   ],
   scientist: [
     'Workout protokolliert. Deine Konsistenz ist der Schluessel zum Erfolg.',
-    'Training abgeschlossen. Denk an ausreichend Protein fuer die Regeneration.',
+    'Training abgeschlossen. Denk an ausreichend Protein für die Regeneration.',
     'Daten gespeichert. Regelmaessiges Training verbessert nachweislich Kraft und Ausdauer.',
-    'Workout erfasst. Achte auf mindestens 48h Pause fuer die trainierten Muskelgruppen.',
+    'Workout erfasst. Achte auf mindestens 48h Pause für die trainierten Muskelgruppen.',
   ],
   buddy: [
     'Yeah, geschafft! Das war ein gutes Training!',
@@ -54,9 +54,9 @@ export const streakMessages: Record<CoachingTone, Record<string, string[]>> = {
     streak_lost: ['Serie gerissen. Steh auf und starte eine neue – noch laenger!'],
   },
   scientist: {
-    new_streak: ['Neue Trainingsroutine erkannt. Konsistenz ist der beste Praediktor fuer Erfolg.'],
+    new_streak: ['Neue Trainingsroutine erkannt. Konsistenz ist der beste Prädiktor für Erfolg.'],
     streak_3: ['3 Tage Aktivitaet. Studien zeigen: nach 21 Tagen wird es zur Gewohnheit.'],
-    streak_7: ['7 Tage konsistent. Dein Koerper beginnt sich anzupassen.'],
+    streak_7: ['7 Tage konsistent. Dein Körper beginnt sich anzupassen.'],
     streak_30: ['30-Tage-Marke erreicht. Hormonell optimierte Regeneration nach regelmaessigem Training.'],
     streak_lost: ['Trainingsunterbrechung registriert. 1-2 Tage Pause beeinflussen die Fitness minimal.'],
   },

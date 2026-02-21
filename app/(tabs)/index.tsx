@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, Zap } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, Zap, X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -33,6 +34,18 @@ export default function WorkoutScreen() {
   const { gamification } = useGamification();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem('welcomeDismissed').then(val => {
+      if (val === 'true') setShowWelcome(false);
+    });
+  }, []);
+
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    AsyncStorage.setItem('welcomeDismissed', 'true');
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -159,8 +172,15 @@ export default function WorkoutScreen() {
           </Text>
         </View>
 
-        {userWorkouts.length === 0 && routines.length === 0 && (
+        {userWorkouts.length === 0 && routines.length === 0 && showWelcome && (
           <View style={styles.welcomeCard}>
+            <TouchableOpacity
+              style={styles.welcomeDismiss}
+              onPress={dismissWelcome}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
             <View style={styles.welcomeHeader}>
               <Target size={20} color={Colors.accent} />
               <Text style={styles.welcomeTitle}>Willkommen bei Functional Wiehl!</Text>
@@ -168,7 +188,7 @@ export default function WorkoutScreen() {
             <Text style={styles.welcomeSubtitle}>So startest du in 3 Schritten:</Text>
             {[
               { num: '1', text: 'Workout starten - Tippe auf den Button unten' },
-              { num: '2', text: 'Uebungen hinzufuegen - Waehle aus 80+ Uebungen' },
+              { num: '2', text: 'Übungen hinzufügen - Wähle aus 80+ Übungen' },
               { num: '3', text: 'Fortschritt tracken - Sieh deine Statistiken im Stats-Tab' },
             ].map(step => (
               <View key={step.num} style={styles.welcomeStep}>
@@ -225,7 +245,7 @@ export default function WorkoutScreen() {
               <View style={styles.continueText}>
                 <Text style={styles.continueTitle}>Workout fortsetzen</Text>
                 <Text style={styles.continueSubtitle}>
-                  {activeWorkout.exercises.length} Uebungen
+                  {activeWorkout.exercises.length} Übungen
                 </Text>
               </View>
             </View>
@@ -258,7 +278,7 @@ export default function WorkoutScreen() {
                 <View style={styles.todayPlanInfo}>
                   <Text style={styles.todayPlanName}>{plan.name}</Text>
                   <Text style={styles.todayPlanDetails}>
-                    {plan.exercises.length} Uebungen
+                    {plan.exercises.length} Übungen
                     {plan.schedule?.find(s => s.dayOfWeek === new Date().getDay())?.time
                       ? ` - ${plan.schedule.find(s => s.dayOfWeek === new Date().getDay())?.time}`
                       : ''}
@@ -274,7 +294,7 @@ export default function WorkoutScreen() {
         {myPlans.length > 0 && todaysPlans.length === 0 && !activeWorkout && (
           <View style={styles.myPlansSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Meine Plaene</Text>
+              <Text style={styles.sectionTitle}>Meine Pläne</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.planScroller}>
               {myPlans.slice(0, 5).map(plan => (
@@ -338,7 +358,7 @@ export default function WorkoutScreen() {
                 <View style={styles.routineInfo}>
                   <Text style={styles.routineName}>{routine.name}</Text>
                   <Text style={styles.routineDetails}>
-                    {routine.exercises.length} Uebungen
+                    {routine.exercises.length} Übungen
                     {routine.timesUsed > 0 && ` - ${routine.timesUsed}x verwendet`}
                   </Text>
                 </View>
@@ -716,6 +736,14 @@ const createStyles = (Colors: any) => StyleSheet.create({
     borderLeftColor: Colors.accent,
     borderWidth: 1,
     borderColor: Colors.border,
+    position: 'relative' as const,
+  },
+  welcomeDismiss: {
+    position: 'absolute' as const,
+    top: Spacing.sm,
+    right: Spacing.sm,
+    zIndex: 1,
+    padding: 4,
   },
   welcomeHeader: {
     flexDirection: 'row',

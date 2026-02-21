@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { WifiOff, RefreshCw, Check, Cloud } from 'lucide-react-native';
+import { WifiOff, RefreshCw, Check, Cloud, X } from 'lucide-react-native';
 import { Spacing } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
+import { useAuth } from '@/hooks/use-auth';
 import { trpcClient } from '@/lib/trpc';
 import { syncQueue, SyncStatus } from '@/lib/sync-queue';
 
 export const OfflineBanner: React.FC = () => {
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const { isAuthenticated } = useAuth();
   const [isOffline, setIsOffline] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     pendingCount: 0,
@@ -72,6 +74,9 @@ export const OfflineBanner: React.FC = () => {
     }
   }, [syncStatus.isSyncing]);
 
+  // Don't show banner on login page
+  if (!isAuthenticated) return null;
+
   const showBanner = isOffline || syncStatus.pendingCount > 0 || syncStatus.isSyncing || justSynced;
 
   useEffect(() => {
@@ -122,8 +127,11 @@ export const OfflineBanner: React.FC = () => {
       <Animated.View style={[styles.banner, styles.pendingBanner, { opacity }]}>
         <TouchableOpacity style={styles.syncRow} onPress={handleManualSync} activeOpacity={0.7}>
           <Cloud size={14} color={Colors.background} />
-          <Text style={styles.text}>{syncStatus.pendingCount} Aenderung{syncStatus.pendingCount !== 1 ? 'en' : ''} warten auf Sync</Text>
+          <Text style={styles.text}>{syncStatus.pendingCount} Änderung{syncStatus.pendingCount !== 1 ? 'en' : ''} warten auf Sync</Text>
           <RefreshCw size={12} color={Colors.background} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => syncQueue.clear()} style={styles.dismissButton}>
+          <X size={14} color={Colors.background} />
         </TouchableOpacity>
       </Animated.View>
     );
@@ -155,6 +163,11 @@ const createStyles = (Colors: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flex: 1,
+  },
+  dismissButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   text: {
     fontSize: 12,

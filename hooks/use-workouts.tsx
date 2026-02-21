@@ -518,10 +518,13 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       newPlan = { ...plan, id: Date.now().toString() };
     }
 
-    const updatedPlans = [...workoutPlans, newPlan];
-    setWorkoutPlans(updatedPlans);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
-  }, [workoutPlans]);
+    setWorkoutPlans(prev => {
+      const deduped = prev.filter(p => p.id !== newPlan.id);
+      const updated = [...deduped, newPlan];
+      AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const createWorkout = useCallback(async (workout: Omit<Workout, 'id'>) => {
     let newWorkout: Workout;
@@ -565,20 +568,18 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       syncQueue.enqueue('plans.update', mutationInput);
     }
 
-    const updatedPlans = workoutPlans.map(p =>
-      p.id === planId ? updatedPlan : p
-    );
-
-    setWorkoutPlans(updatedPlans);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
-  }, [workoutPlans]);
+    setWorkoutPlans(prev => {
+      const updated = prev.map(p => p.id === planId ? updatedPlan : p);
+      AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const assignPlanToUser = useCallback(async (planId: string, userId: string, createInstance?: boolean) => {
     try {
       const result = await trpcClient.plans.assign.mutate({ planId, userId, createInstance });
 
       if (createInstance && result.instanceId) {
-        // Instance was created server-side, refresh plans
         await refreshFromServer();
         return;
       }
@@ -586,69 +587,66 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       // Local fallback
     }
 
-    const plan = workoutPlans.find(p => p.id === planId);
-    if (!plan) return;
+    setWorkoutPlans(prev => {
+      const plan = prev.find(p => p.id === planId);
+      if (!plan) return prev;
 
-    if (createInstance) {
-      // Local fallback: create instance copy
-      const instance: WorkoutPlan = {
-        id: Math.random().toString(36).substring(2, 9),
-        name: plan.name,
-        description: plan.description,
-        exercises: JSON.parse(JSON.stringify(plan.exercises)),
-        createdBy: plan.createdBy,
-        assignedTo: [userId],
-        schedule: plan.schedule ? JSON.parse(JSON.stringify(plan.schedule)) : undefined,
-        templateId: planId,
-        isInstance: true,
-        customizedFields: [],
-      };
-
-      const updatedPlans = [...workoutPlans, instance];
-      setWorkoutPlans(updatedPlans);
-      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
-    } else {
-      const updatedPlan = {
-        ...plan,
-        assignedTo: [...(plan.assignedTo || []), userId],
-      };
-
-      const updatedPlans = workoutPlans.map(p =>
-        p.id === planId ? updatedPlan : p
-      );
-
-      setWorkoutPlans(updatedPlans);
-      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
-    }
-  }, [workoutPlans]);
+      if (createInstance) {
+        const instance: WorkoutPlan = {
+          id: Math.random().toString(36).substring(2, 9),
+          name: plan.name,
+          description: plan.description,
+          exercises: JSON.parse(JSON.stringify(plan.exercises)),
+          createdBy: plan.createdBy,
+          assignedTo: [userId],
+          schedule: plan.schedule ? JSON.parse(JSON.stringify(plan.schedule)) : undefined,
+          templateId: planId,
+          isInstance: true,
+          customizedFields: [],
+        };
+        const updated = [...prev, instance];
+        AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+        return updated;
+      } else {
+        const updated = prev.map(p =>
+          p.id === planId
+            ? { ...p, assignedTo: [...(p.assignedTo || []), userId] }
+            : p
+        );
+        AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+        return updated;
+      }
+    });
+  }, []);
 
   const instantiatePlan = useCallback(async (templateId: string, userIds: string[]) => {
     try {
       await trpcClient.plans.instantiate.mutate({ templateId, userIds });
       await refreshFromServer();
     } catch (error) {
-      // Local fallback: create instances for each user
-      const template = workoutPlans.find(p => p.id === templateId);
-      if (!template) return;
+      setWorkoutPlans(prev => {
+        const template = prev.find(p => p.id === templateId);
+        if (!template) return prev;
 
-      const newInstances: WorkoutPlan[] = userIds.map(userId => ({
-        id: Math.random().toString(36).substring(2, 9),
-        name: template.name,
-        description: template.description,
-        exercises: JSON.parse(JSON.stringify(template.exercises)),
-        createdBy: template.createdBy,
-        assignedTo: [userId],
-        schedule: template.schedule ? JSON.parse(JSON.stringify(template.schedule)) : undefined,
-        templateId: templateId,
-        isInstance: true,
-        customizedFields: [],
-      }));
+        const newInstances: WorkoutPlan[] = userIds.map(userId => ({
+          id: Math.random().toString(36).substring(2, 9),
+          name: template.name,
+          description: template.description,
+          exercises: JSON.parse(JSON.stringify(template.exercises)),
+          createdBy: template.createdBy,
+          assignedTo: [userId],
+          schedule: template.schedule ? JSON.parse(JSON.stringify(template.schedule)) : undefined,
+          templateId: templateId,
+          isInstance: true,
+          customizedFields: [],
+        }));
 
-      const updatedPlans = [...workoutPlans, ...newInstances];
-      setWorkoutPlans(updatedPlans);
-      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+        const updated = [...prev, ...newInstances];
+        AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+        return updated;
+      });
     }
-  }, [workoutPlans]);
+  }, []);
 
   const saveRoutine = useCallback(async (routine: Omit<Routine, 'id' | 'timesUsed'>) => {
     let newRoutine: Routine;
@@ -768,10 +766,12 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       syncQueue.enqueue('plans.delete', { id: planId });
     }
 
-    const updatedPlans = workoutPlans.filter(p => p.id !== planId);
-    setWorkoutPlans(updatedPlans);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
-  }, [workoutPlans]);
+    setWorkoutPlans(prev => {
+      const updated = prev.filter(p => p.id !== planId);
+      AsyncStorage.setItem('workoutPlans', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
 
   const duplicatePlan = useCallback(async (planId: string) => {
     const plan = workoutPlans.find(p => p.id === planId);
@@ -786,6 +786,26 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       schedule: plan.schedule,
     });
   }, [workoutPlans, createWorkoutPlan]);
+
+  // Deduplicate plans by ID (prevents stale closure duplicates)
+  useEffect(() => {
+    const ids = new Set<string>();
+    const hasDupes = workoutPlans.some(p => {
+      if (ids.has(p.id)) return true;
+      ids.add(p.id);
+      return false;
+    });
+    if (hasDupes) {
+      const seen = new Set<string>();
+      const deduped = workoutPlans.filter(p => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+      setWorkoutPlans(deduped);
+      AsyncStorage.setItem('workoutPlans', JSON.stringify(deduped));
+    }
+  }, [workoutPlans]);
 
   return useMemo(() => ({
     workouts,

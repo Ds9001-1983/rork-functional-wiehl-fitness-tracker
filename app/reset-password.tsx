@@ -28,7 +28,7 @@ export default function ResetPasswordScreen() {
       return;
     }
     if (!token) {
-      setError('Ungueltiger Reset-Link.');
+      setError('Ungültiger Reset-Link.');
       return;
     }
 
@@ -47,11 +47,11 @@ export default function ResetPasswordScreen() {
   if (success) {
     return (
       <>
-        <Stack.Screen options={{ title: 'Passwort zurueckgesetzt' }} />
+        <Stack.Screen options={{ title: 'Passwort zurückgesetzt' }} />
         <View style={styles.container}>
           <View style={styles.successCard}>
             <Check size={48} color={Colors.success} />
-            <Text style={styles.successTitle}>Passwort geaendert!</Text>
+            <Text style={styles.successTitle}>Passwort geändert!</Text>
             <Text style={styles.successText}>Du kannst dich jetzt mit deinem neuen Passwort anmelden.</Text>
             <TouchableOpacity style={styles.button} onPress={() => router.replace('/login')}>
               <Text style={styles.buttonText}>Zum Login</Text>
@@ -64,7 +64,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Passwort zuruecksetzen' }} />
+      <Stack.Screen options={{ title: 'Passwort zurücksetzen' }} />
       <View style={styles.container}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <ArrowLeft size={20} color={Colors.text} />
@@ -96,7 +96,7 @@ export default function ResetPasswordScreen() {
           />
 
           <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
-            {loading ? <ActivityIndicator color={Colors.text} /> : <Text style={styles.buttonText}>Passwort aendern</Text>}
+            {loading ? <ActivityIndicator color={Colors.text} /> : <Text style={styles.buttonText}>Passwort ändern</Text>}
           </TouchableOpacity>
         </View>
       </View>

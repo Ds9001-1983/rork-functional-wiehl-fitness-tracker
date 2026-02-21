@@ -89,6 +89,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('studioId');
       await AsyncStorage.removeItem('studio');
+      await AsyncStorage.removeItem('savedEmail');
+      await AsyncStorage.removeItem('syncQueue');
+      await syncQueue.clear();
       setUser(null);
     } catch (error) {
       console.error('[Auth] Logout Fehler:', error);

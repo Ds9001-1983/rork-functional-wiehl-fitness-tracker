@@ -25,10 +25,12 @@ export default function TrainerPlansScreen() {
 
   // Filter toggle
   const [showFilter, setShowFilter] = useState<'all' | 'templates' | 'instances'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredPlans = showFilter === 'templates' ? templates
+  const filteredPlans = (showFilter === 'templates' ? templates
     : showFilter === 'instances' ? instances
-    : workoutPlans;
+    : workoutPlans
+  ).filter(p => searchQuery.trim().length === 0 || p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()));
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -139,7 +141,7 @@ export default function TrainerPlansScreen() {
       return;
     }
     if (createExercises.length === 0) {
-      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Uebung hinzufuegen.' });
+      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Übung hinzufügen.' });
       return;
     }
     try {
@@ -171,7 +173,7 @@ export default function TrainerPlansScreen() {
 
   const handleAssignPlan = async () => {
     if (!selectedPlanId || selectedClientIds.length === 0) {
-      setStatusMessage({ type: 'error', text: 'Bitte Plan und mindestens einen Kunden auswaehlen.' });
+      setStatusMessage({ type: 'error', text: 'Bitte Plan und mindestens einen Kunden auswählen.' });
       return;
     }
 
@@ -266,9 +268,9 @@ export default function TrainerPlansScreen() {
       await deletePlan(deletePlanId);
       setShowDeleteConfirm(false);
       setDeletePlanId('');
-      setStatusMessage({ type: 'success', text: 'Trainingsplan wurde geloescht.' });
+      setStatusMessage({ type: 'success', text: 'Trainingsplan wurde gelöscht.' });
     } catch {
-      setStatusMessage({ type: 'error', text: 'Plan konnte nicht geloescht werden.' });
+      setStatusMessage({ type: 'error', text: 'Plan konnte nicht gelöscht werden.' });
     }
   };
 
@@ -287,25 +289,25 @@ export default function TrainerPlansScreen() {
 
   const getDeleteMessage = () => {
     const plan = workoutPlans.find(p => p.id === deletePlanId);
-    if (!plan) return 'Moechten Sie diesen Trainingsplan wirklich loeschen?';
+    if (!plan) return 'Möchten Sie diesen Trainingsplan wirklich löschen?';
 
     if (plan.isInstance) {
       const userName = plan.assignedTo?.[0]
         ? clients.find(c => c.id === plan.assignedTo?.[0])?.name || 'einem Kunden'
         : 'einem Kunden';
-      return `Diese Plan-Instanz fuer ${userName} wird geloescht. Die Vorlage bleibt erhalten.`;
+      return `Diese Plan-Instanz für ${userName} wird gelöscht. Die Vorlage bleibt erhalten.`;
     }
 
     const instCount = instances.filter(i => i.templateId === plan.id).length;
     if (instCount > 0) {
-      return `Diese Vorlage hat ${instCount} aktive Instanz${instCount !== 1 ? 'en' : ''}. Nur die Vorlage wird geloescht, Instanzen bleiben erhalten.`;
+      return `Diese Vorlage hat ${instCount} aktive Instanz${instCount !== 1 ? 'en' : ''}. Nur die Vorlage wird gelöscht, Instanzen bleiben erhalten.`;
     }
 
     const count = plan.assignedTo?.length || 0;
     if (count > 0) {
-      return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Moechten Sie ihn trotzdem loeschen?`;
+      return `Dieser Plan ist ${count} Kunde${count !== 1 ? 'n' : ''} zugewiesen. Möchten Sie ihn trotzdem löschen?`;
     }
-    return 'Moechten Sie diesen Trainingsplan wirklich loeschen?';
+    return 'Möchten Sie diesen Trainingsplan wirklich löschen?';
   };
 
   return (
@@ -327,11 +329,30 @@ export default function TrainerPlansScreen() {
       {/* Trainingsplaene */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Trainingsplaene ({workoutPlans.length})</Text>
+          <Text style={styles.cardTitle}>Trainingspläne ({workoutPlans.length})</Text>
           <TouchableOpacity style={styles.addButton} onPress={() => setShowCreateModal(true)}>
             <Plus size={18} color={Colors.text} />
           </TouchableOpacity>
         </View>
+
+        {/* Search Field */}
+        {workoutPlans.length > 0 && (
+          <View style={styles.searchRow}>
+            <Search size={18} color={Colors.textSecondary} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Plan suchen..."
+              placeholderTextColor={Colors.textMuted}
+              style={styles.searchInput}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Filter Tabs */}
         {workoutPlans.length > 0 && (
@@ -370,7 +391,7 @@ export default function TrainerPlansScreen() {
             <ClipboardList size={32} color={Colors.textMuted} />
             <Text style={styles.emptyText}>
               {workoutPlans.length === 0
-                ? 'Noch keine Trainingsplaene erstellt'
+                ? 'Noch keine Trainingspläne erstellt'
                 : showFilter === 'templates' ? 'Keine Vorlagen vorhanden' : 'Keine Instanzen vorhanden'}
             </Text>
             <Text style={styles.emptySubtext}>
@@ -394,7 +415,7 @@ export default function TrainerPlansScreen() {
 
               return (
                 <View key={plan.id} style={[styles.planCard, isInstance && styles.planCardInstance]}>
-                  <View style={styles.planInfo}>
+                  <TouchableOpacity style={styles.planInfo} onPress={() => openEditModal(plan)} activeOpacity={0.7}>
                     <View style={styles.planNameRow}>
                       <Text style={styles.planName}>{plan.name}</Text>
                       {isInstance ? (
@@ -410,11 +431,11 @@ export default function TrainerPlansScreen() {
                       )}
                     </View>
                     {plan.description ? <Text style={styles.planDesc}>{plan.description}</Text> : null}
-                    <Text style={styles.planMeta}>{plan.exercises.length} Uebungen</Text>
+                    <Text style={styles.planMeta}>{plan.exercises.length} Übungen</Text>
                     {isInstance && assignedUserName && (
                       <View style={styles.assignedBadge}>
                         <Users size={12} color={Colors.accent} />
-                        <Text style={styles.assignedText}>Fuer: {assignedUserName}</Text>
+                        <Text style={styles.assignedText}>Für: {assignedUserName}</Text>
                       </View>
                     )}
                     {isInstance && templateName && (
@@ -439,37 +460,47 @@ export default function TrainerPlansScreen() {
                     {isInstance && (plan.customizedFields?.length ?? 0) > 0 && (
                       <Text style={styles.customizedHint}>Individuell angepasst</Text>
                     )}
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.planActions}>
-                    <TouchableOpacity style={styles.actionIcon} onPress={() => openEditModal(plan)}>
-                      <Edit3 size={16} color={Colors.textSecondary} />
-                    </TouchableOpacity>
-                    {!isInstance && (
-                      <TouchableOpacity style={styles.actionIcon} onPress={() => handleDuplicatePlan(plan.id)}>
-                        <Copy size={16} color={Colors.textSecondary} />
+                    <View {...{title: 'Bearbeiten'} as any}>
+                      <TouchableOpacity style={styles.actionIcon} onPress={() => openEditModal(plan)} accessibilityLabel="Bearbeiten">
+                        <Edit3 size={16} color={Colors.textSecondary} />
                       </TouchableOpacity>
+                    </View>
+                    {!isInstance && (
+                      <View {...{title: 'Duplizieren'} as any}>
+                        <TouchableOpacity style={styles.actionIcon} onPress={() => handleDuplicatePlan(plan.id)} accessibilityLabel="Duplizieren">
+                          <Copy size={16} color={Colors.textSecondary} />
+                        </TouchableOpacity>
+                      </View>
                     )}
                     {!isInstance && (
+                      <View {...{title: 'Zuweisen'} as any}>
+                        <TouchableOpacity
+                          style={styles.actionIcon}
+                          accessibilityLabel="Zuweisen"
+                          onPress={() => {
+                            setSelectedPlanId(plan.id);
+                            setSelectedClientIds([]);
+                            setShowAssignModal(true);
+                          }}
+                        >
+                          <Send size={16} color={Colors.accent} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    <View {...{title: 'Löschen'} as any}>
                       <TouchableOpacity
                         style={styles.actionIcon}
+                        accessibilityLabel="Löschen"
                         onPress={() => {
-                          setSelectedPlanId(plan.id);
-                          setSelectedClientIds([]);
-                          setShowAssignModal(true);
+                          setDeletePlanId(plan.id);
+                          setShowDeleteConfirm(true);
                         }}
                       >
-                        <Send size={16} color={Colors.accent} />
+                        <Trash2 size={16} color={Colors.error} />
                       </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      style={styles.actionIcon}
-                      onPress={() => {
-                        setDeletePlanId(plan.id);
-                        setShowDeleteConfirm(true);
-                      }}
-                    >
-                      <Trash2 size={16} color={Colors.error} />
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               );
@@ -481,9 +512,9 @@ export default function TrainerPlansScreen() {
       {/* Delete Confirmation */}
       <ConfirmDialog
         visible={showDeleteConfirm}
-        title="Trainingsplan loeschen"
+        title="Trainingsplan löschen"
         message={getDeleteMessage()}
-        confirmText="Loeschen"
+        confirmText="Löschen"
         cancelText="Abbrechen"
         destructive
         onConfirm={handleDeletePlan}
@@ -502,7 +533,7 @@ export default function TrainerPlansScreen() {
           <ScrollView style={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.row}>
               <ClipboardList size={18} color={Colors.textSecondary} />
-              <TextInput value={planName} onChangeText={setPlanName} placeholder="Planname (z.B. Oberkoerper Push) *" placeholderTextColor={Colors.textMuted} style={styles.input} />
+              <TextInput value={planName} onChangeText={setPlanName} placeholder="Planname (z.B. Oberkörper Push) *" placeholderTextColor={Colors.textMuted} style={styles.input} />
             </View>
             <View style={styles.row}>
               <Edit3 size={18} color={Colors.textSecondary} />
@@ -511,19 +542,19 @@ export default function TrainerPlansScreen() {
 
             {/* Selected Exercises */}
             <Text style={styles.exerciseSectionTitle}>
-              Uebungen ({createExercises.length})
+              Übungen ({createExercises.length})
             </Text>
             {createExercises.length === 0 ? (
               <View style={styles.emptyExerciseState}>
                 <Dumbbell size={20} color={Colors.textMuted} />
-                <Text style={styles.emptyExerciseText}>Suche unten, um Uebungen hinzuzufuegen</Text>
+                <Text style={styles.emptyExerciseText}>Suche unten, um Übungen hinzuzufügen</Text>
               </View>
             ) : (
               createExercises.map((ex) => (
                 <View key={ex.id} style={styles.selectedExercise}>
                   <View style={styles.selectedExerciseInfo}>
                     <Text style={styles.selectedExerciseName}>{getExerciseName(ex.exerciseId)}</Text>
-                    <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Saetze</Text>
+                    <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Sätze</Text>
                   </View>
                   <TouchableOpacity onPress={() => setCreateExercises(prev => prev.filter(e => e.id !== ex.id))} style={styles.removeExerciseButton}>
                     <X size={16} color={Colors.error} />
@@ -538,7 +569,7 @@ export default function TrainerPlansScreen() {
               <TextInput
                 value={exerciseSearch}
                 onChangeText={setExerciseSearch}
-                placeholder="Uebung suchen..."
+                placeholder="Übung suchen..."
                 placeholderTextColor={Colors.textMuted}
                 style={styles.input}
               />
@@ -606,13 +637,13 @@ export default function TrainerPlansScreen() {
 
             {/* Edit Exercises */}
             <Text style={styles.exerciseSectionTitle}>
-              Uebungen ({editExercises.length})
+              Übungen ({editExercises.length})
             </Text>
             {editExercises.map((ex) => (
               <View key={ex.id} style={styles.selectedExercise}>
                 <View style={styles.selectedExerciseInfo}>
                   <Text style={styles.selectedExerciseName}>{getExerciseName(ex.exerciseId)}</Text>
-                  <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Saetze</Text>
+                  <Text style={styles.selectedExerciseMeta}>{ex.sets.length} Sätze</Text>
                 </View>
                 <TouchableOpacity onPress={() => setEditExercises(prev => prev.filter(e => e.id !== ex.id))} style={styles.removeExerciseButton}>
                   <X size={16} color={Colors.error} />
@@ -626,7 +657,7 @@ export default function TrainerPlansScreen() {
               <TextInput
                 value={editExerciseSearch}
                 onChangeText={setEditExerciseSearch}
-                placeholder="Uebung suchen..."
+                placeholder="Übung suchen..."
                 placeholderTextColor={Colors.textMuted}
                 style={styles.input}
               />
@@ -691,9 +722,9 @@ export default function TrainerPlansScreen() {
               </View>
             ) : (
               <>
-                <Text style={styles.assignHint}>Fuer jeden Kunden wird eine individuelle Plan-Kopie erstellt.</Text>
+                <Text style={styles.assignHint}>Für jeden Kunden wird eine individuelle Plan-Kopie erstellt.</Text>
                 {selectedClientIds.length > 0 && (
-                  <Text style={styles.selectionCount}>{selectedClientIds.length} ausgewaehlt</Text>
+                  <Text style={styles.selectionCount}>{selectedClientIds.length} ausgewählt</Text>
                 )}
                 {clients.map((c) => {
                   const isSelected = selectedClientIds.includes(c.id);
@@ -744,8 +775,8 @@ export default function TrainerPlansScreen() {
       {/* Discard Confirmation */}
       <ConfirmDialog
         visible={showDiscardConfirm}
-        title="Nicht gespeicherte Aenderungen"
-        message="Willst du die Aenderungen verwerfen?"
+        title="Nicht gespeicherte Änderungen"
+        message="Willst du die Änderungen verwerfen?"
         confirmText="Verwerfen"
         cancelText="Weiter bearbeiten"
         destructive
@@ -783,7 +814,7 @@ const createStyles = (Colors: any) => StyleSheet.create({
   assignedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   assignedText: { fontSize: 11, color: Colors.accent },
   planActions: { flexDirection: 'column', alignItems: 'center', gap: Spacing.xs },
-  actionIcon: { padding: Spacing.xs },
+  actionIcon: { padding: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   input: { flex: 1, height: 44, paddingHorizontal: Spacing.sm, color: Colors.text, fontSize: 15 },
   modalContainer: { flex: 1, backgroundColor: Colors.background },
@@ -813,6 +844,8 @@ const createStyles = (Colors: any) => StyleSheet.create({
   exerciseOption: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, marginBottom: Spacing.xs, borderWidth: 1, borderColor: Colors.border },
   exerciseOptionName: { fontSize: 14, fontWeight: '500', color: Colors.text },
   exerciseOptionMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 1 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
+  searchInput: { flex: 1, height: 40, paddingHorizontal: Spacing.sm, color: Colors.text, fontSize: 14 },
   filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md },
   filterTab: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.sm, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
   filterTabActive: { borderColor: Colors.accent, backgroundColor: Colors.accent + '20' },

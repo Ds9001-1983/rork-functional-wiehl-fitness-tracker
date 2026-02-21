@@ -11,7 +11,7 @@ const { width } = Dimensions.get('window');
 
 const GOALS = [
   { id: 'muscle', label: 'Muskelaufbau', icon: '\u{1F4AA}', desc: 'Muskelmasse aufbauen und staerker werden' },
-  { id: 'lose_weight', label: 'Abnehmen', icon: '\u{1F525}', desc: 'Koerperfett reduzieren und definierter werden' },
+  { id: 'lose_weight', label: 'Abnehmen', icon: '\u{1F525}', desc: 'Körperfett reduzieren und definierter werden' },
   { id: 'fitness', label: 'Allgemeine Fitness', icon: '\u{1F3C3}', desc: 'Ausdauer und Beweglichkeit verbessern' },
   { id: 'strength', label: 'Kraft', icon: '\u{1F3CB}\u{FE0F}', desc: 'Maximalkraft steigern' },
 ];
@@ -23,9 +23,9 @@ const LEVELS = [
 ];
 
 const DAYS = [
-  { id: '2', label: '2 Tage', desc: 'Ideal fuer den Einstieg' },
+  { id: '2', label: '2 Tage', desc: 'Ideal für den Einstieg' },
   { id: '3', label: '3 Tage', desc: 'Gutes Gleichgewicht' },
-  { id: '4', label: '4 Tage', desc: 'Fuer Ambitionierte' },
+  { id: '4', label: '4 Tage', desc: 'Für Ambitionierte' },
   { id: '5', label: '5+ Tage', desc: 'Maximales Training' },
 ];
 
@@ -93,7 +93,7 @@ export default function OnboardingScreen() {
           <View style={styles.stepContent}>
             <Calendar size={40} color={Colors.accent} />
             <Text style={styles.stepTitle}>Trainingstage pro Woche</Text>
-            <Text style={styles.stepSubtitle}>Wie oft moechtest du trainieren?</Text>
+            <Text style={styles.stepSubtitle}>Wie oft möchtest du trainieren?</Text>
             {DAYS.map(d => (
               <TouchableOpacity key={d.id} style={[styles.option, days === d.id && styles.optionSelected]} onPress={() => setDays(d.id)}>
                 <View style={styles.optionInfo}>

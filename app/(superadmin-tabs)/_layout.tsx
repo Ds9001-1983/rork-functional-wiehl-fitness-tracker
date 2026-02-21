@@ -41,7 +41,7 @@ export default function SuperadminTabLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: "Uebersicht",
+          title: "Übersicht",
           tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
         }}
       />

@@ -28,8 +28,8 @@ export default publicProcedure
           body: JSON.stringify({
             from: 'Functional Wiehl <noreply@functional-wiehl.de>',
             to: [input.email],
-            subject: 'Passwort zuruecksetzen',
-            html: `<p>Hallo,</p><p>Klicke auf den folgenden Link, um dein Passwort zurueckzusetzen:</p><p><a href="${APP_URL}/reset-password?token=${token}">Passwort zuruecksetzen</a></p><p>Der Link ist 1 Stunde gueltig.</p><p>Functional Wiehl</p>`,
+            subject: 'Passwort zurücksetzen',
+            html: `<p>Hallo,</p><p>Klicke auf den folgenden Link, um dein Passwort zurückzusetzen:</p><p><a href="${APP_URL}/reset-password?token=${token}">Passwort zurücksetzen</a></p><p>Der Link ist 1 Stunde gültig.</p><p>Functional Wiehl</p>`,
           }),
         });
       } catch (err) {

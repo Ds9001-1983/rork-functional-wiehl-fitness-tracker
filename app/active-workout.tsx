@@ -204,7 +204,7 @@ export default function ActiveWorkoutScreen() {
                 {notesExpanded && (
                   <TextInput
                     style={styles.notesInput}
-                    placeholder="Notizen zur Uebung..."
+                    placeholder="Notizen zur Übung..."
                     placeholderTextColor={Colors.textMuted}
                     value={exercise.notes || ''}
                     onChangeText={(text) => updateExerciseNotes?.(exerciseIndex, text)}
@@ -249,7 +249,7 @@ export default function ActiveWorkoutScreen() {
                   onPress={() => addSet(exerciseIndex)}
                 >
                   <Plus size={16} color={Colors.text} />
-                  <Text style={styles.addSetButtonText}>Satz hinzufuegen</Text>
+                  <Text style={styles.addSetButtonText}>Satz hinzufügen</Text>
                 </TouchableOpacity>
               </View>
             );
@@ -257,7 +257,7 @@ export default function ActiveWorkoutScreen() {
 
           <TouchableOpacity style={styles.addExerciseButton} onPress={handleAddExercise}>
             <Plus size={20} color={Colors.text} />
-            <Text style={styles.addExerciseButtonText}>Uebung hinzufuegen</Text>
+            <Text style={styles.addExerciseButtonText}>Übung hinzufügen</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.discardButton} onPress={handleDiscardWorkout}>
@@ -370,11 +370,11 @@ export default function ActiveWorkoutScreen() {
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{completionResult.stats.exerciseCount}</Text>
-                  <Text style={styles.statLabel}>Uebungen</Text>
+                  <Text style={styles.statLabel}>Übungen</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{completionResult.stats.totalSets}</Text>
-                  <Text style={styles.statLabel}>Saetze</Text>
+                  <Text style={styles.statLabel}>Sätze</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>

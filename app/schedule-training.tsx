@@ -191,7 +191,7 @@ export default function ScheduleTrainingScreen() {
 
       setStatusMessage({ type: 'success', text: message });
 
-      // Felder zuruecksetzen
+      // Felder zurücksetzen
       setSelectedClientId('');
       setPlanName('');
       setSelectedExercises([]);
@@ -200,7 +200,7 @@ export default function ScheduleTrainingScreen() {
       setSelectedWeekdays([]);
       setRecurringEndDate('');
 
-      // Nach 2 Sekunden zurueck zum Trainer Center
+      // Nach 2 Sekunden zurück zum Trainer Center
       setTimeout(() => {
         router.push('/trainer');
       }, 2000);
@@ -264,7 +264,7 @@ export default function ScheduleTrainingScreen() {
         {/* Step Indicator */}
         {(() => {
           const currentStep = !selectedClientId ? 1 : !planName.trim() ? 2 : selectedExercises.length === 0 ? 3 : 4;
-          const stepLabels = ['Kunde', 'Name', 'Uebungen', 'Datum', 'Fertig'];
+          const stepLabels = ['Kunde', 'Name', 'Übungen', 'Datum', 'Fertig'];
           return (
             <View style={styles.stepIndicator}>
               {stepLabels.map((label, index) => {

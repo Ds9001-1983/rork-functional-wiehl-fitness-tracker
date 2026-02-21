@@ -53,7 +53,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         onPress={() => Linking.openURL(videoUrl)}
       >
         <ExternalLink size={18} color={Colors.text} />
-        <Text style={styles.fallbackText}>Video extern oeffnen</Text>
+        <Text style={styles.fallbackText}>Video extern öffnen</Text>
       </TouchableOpacity>
     );
   }
