@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Check, X, TrendingUp } from 'lucide-react-native';
 import { WorkoutSet, SetType } from '@/types/workout';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
+import { ScrollableNumberInput } from '@/components/ScrollableNumberInput';
 
 interface WorkoutSetRowProps {
   set: WorkoutSet;
@@ -32,17 +33,6 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
     dropset: { label: 'Drop Set', short: 'D', color: Colors.error },
     failure: { label: 'Bis Versagen', short: 'F', color: '#E040FB' },
   }), [Colors]);
-  const [weightText, setWeightText] = useState(set.weight > 0 ? set.weight.toString() : '');
-  const [repsText, setRepsText] = useState(set.reps > 0 ? set.reps.toString() : '');
-
-  useEffect(() => {
-    setWeightText(set.weight > 0 ? set.weight.toString() : '');
-  }, [set.weight]);
-
-  useEffect(() => {
-    setRepsText(set.reps > 0 ? set.reps.toString() : '');
-  }, [set.reps]);
-
   const setTypeInfo = SET_TYPE_LABELS[set.type || 'normal'];
   const hasPrevious = previousWeight !== undefined && previousReps !== undefined;
 
@@ -51,20 +41,6 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
     const currentIndex = types.indexOf(set.type || 'normal');
     const nextType = types[(currentIndex + 1) % types.length];
     onUpdate({ type: nextType });
-  };
-
-  const commitWeight = () => {
-    const parsed = parseFloat(weightText);
-    const value = isNaN(parsed) ? 0 : parsed;
-    onUpdate({ weight: value });
-    if (value === 0) setWeightText('');
-  };
-
-  const commitReps = () => {
-    const parsed = parseInt(repsText, 10);
-    const value = isNaN(parsed) ? 0 : parsed;
-    onUpdate({ reps: value });
-    if (value === 0) setRepsText('');
   };
 
   const fillFromPrevious = () => {
@@ -94,31 +70,23 @@ export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
         </TouchableOpacity>
       )}
 
-      <TextInput
-        style={styles.input}
-        value={weightText}
-        onChangeText={setWeightText}
-        onEndEditing={commitWeight}
-        onBlur={commitWeight}
-        keyboardType="decimal-pad"
+      <ScrollableNumberInput
+        value={set.weight}
+        onValueChange={(v) => onUpdate({ weight: v })}
+        step={2.5}
+        precision={1}
         placeholder="0"
-        placeholderTextColor={Colors.textMuted}
-        selectTextOnFocus
+        suffix="kg"
       />
 
-      <Text style={styles.unitLabel}>kg</Text>
       <Text style={styles.separator}>x</Text>
 
-      <TextInput
-        style={styles.input}
-        value={repsText}
-        onChangeText={setRepsText}
-        onEndEditing={commitReps}
-        onBlur={commitReps}
-        keyboardType="number-pad"
+      <ScrollableNumberInput
+        value={set.reps}
+        onValueChange={(v) => onUpdate({ reps: v })}
+        step={1}
+        precision={0}
         placeholder="0"
-        placeholderTextColor={Colors.textMuted}
-        selectTextOnFocus
       />
 
       <TouchableOpacity
@@ -139,7 +107,7 @@ const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.md,
     backgroundColor: Colors.surfaceLight,
     borderRadius: BorderRadius.sm,
@@ -175,23 +143,6 @@ const createStyles = (Colors: any) => StyleSheet.create({
     color: Colors.accent,
     textAlign: 'center',
     textDecorationLine: 'underline',
-  },
-  input: {
-    flex: 1,
-    height: 36,
-    backgroundColor: Colors.background,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.sm,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  unitLabel: {
-    fontSize: 13,
-    color: Colors.textMuted,
-    marginLeft: 4,
   },
   separator: {
     marginHorizontal: Spacing.sm,
