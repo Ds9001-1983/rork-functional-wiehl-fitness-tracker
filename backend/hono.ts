@@ -3,8 +3,14 @@ import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './trpc/app-router.ts';
 import { createContext } from './trpc/create-context.ts';
 import { cors } from 'hono/cors';
+import { apiRateLimit, loginRateLimit } from './middleware/rate-limit.ts';
+import { Sentry } from '../lib/sentry.ts';
 
 const app = new Hono();
+
+// Rate limiting middleware (before CORS)
+app.use('/*', apiRateLimit());
+app.use('/trpc/auth.login*', loginRateLimit());
 
 // CORS middleware
 app.use('/*', cors({
@@ -19,6 +25,7 @@ app.use('/trpc/*', trpcServer({
   createContext: (opts: any) => createContext(opts),
   onError: ({ error, path }: { error: any; path: any }) => {
     console.error('[tRPC] Error on procedure:', path, error.message);
+    Sentry.captureException(error instanceof Error ? error : new Error(error.message), { procedure: path });
   },
   endpoint: '/api/trpc',  // Tell tRPC where it's mounted in the full URL path
 }));
