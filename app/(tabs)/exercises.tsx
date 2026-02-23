@@ -16,6 +16,7 @@ import { useColors } from '@/hooks/use-colors';
 import { exercises as defaultExercises, exerciseCategories } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { YouTubePlayer } from '@/components/YouTubePlayer';
+import { ExerciseProgressChart } from '@/components/ExerciseProgressChart';
 import { Exercise, ExerciseCategory } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
 import StatusBanner from '@/components/StatusBanner';
@@ -261,9 +262,17 @@ export default function ExercisesScreen() {
                 </TouchableOpacity>
               )}
 
-              {/* Exercise History */}
+              {/* Exercise Progress Chart */}
               {exerciseHistory.length > 0 && (
                 <View style={[styles.modalSection, { marginTop: Spacing.lg }]}>
+                  <Text style={styles.modalSectionTitle}>Fortschritt</Text>
+                  <ExerciseProgressChart history={exerciseHistory} />
+                </View>
+              )}
+
+              {/* Exercise History */}
+              {exerciseHistory.length > 0 && (
+                <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>
                     Verlauf ({exerciseHistory.length} Workouts)
                   </Text>

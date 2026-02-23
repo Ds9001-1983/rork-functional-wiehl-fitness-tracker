@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Target, Dumbbell, Calendar, ChevronRight, Check } from 'lucide-react-native';
+import { Target, Dumbbell, Calendar, ChevronRight, Check, Sparkles } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
+import { useWorkouts } from '@/hooks/use-workouts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getTemplateForUser } from '@/data/workout-templates';
 
 const { width } = Dimensions.get('window');
 
@@ -32,20 +34,39 @@ const DAYS = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const { user, updateProfile } = useAuth();
+  const { saveRoutine } = useWorkouts();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState('');
   const [level, setLevel] = useState('');
   const [days, setDays] = useState('');
+  const [creatingPlan, setCreatingPlan] = useState(false);
 
   const handleComplete = async () => {
+    setCreatingPlan(true);
     try {
       await AsyncStorage.setItem('onboarding', JSON.stringify({ goal, level, days, completedAt: new Date().toISOString() }));
       await AsyncStorage.setItem('onboardingComplete', 'true');
       // Try to save to server
       try { await updateProfile({ }); } catch {}
+
+      // Create starter routines from template
+      const template = getTemplateForUser(goal, level, days);
+      if (template) {
+        for (const routine of template.routines) {
+          try {
+            await saveRoutine({
+              name: routine.name,
+              description: template.description,
+              exercises: routine.exercises,
+              createdBy: user?.id || '',
+            });
+          } catch {}
+        }
+      }
     } catch {}
+    setCreatingPlan(false);
     router.replace('/(tabs)');
   };
 
@@ -137,12 +158,21 @@ export default function OnboardingScreen() {
           )}
 
           <TouchableOpacity
-            style={[styles.navNext, !canProceed && styles.navNextDisabled]}
-            disabled={!canProceed}
+            style={[styles.navNext, (!canProceed || creatingPlan) && styles.navNextDisabled]}
+            disabled={!canProceed || creatingPlan}
             onPress={() => step < 2 ? setStep(step + 1) : handleComplete()}
           >
-            <Text style={styles.navNextText}>{step < 2 ? 'Weiter' : 'Los geht\'s!'}</Text>
-            <ChevronRight size={18} color={Colors.text} />
+            {step === 2 && creatingPlan ? (
+              <>
+                <Sparkles size={18} color={Colors.text} />
+                <Text style={styles.navNextText}>Plan wird erstellt...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.navNextText}>{step < 2 ? 'Weiter' : 'Los geht\'s!'}</Text>
+                <ChevronRight size={18} color={Colors.text} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>

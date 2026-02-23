@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useGamification } from '@/hooks/use-gamification';
 import { StatsCard } from '@/components/StatsCard';
+import { InstallBanner } from '@/components/InstallBanner';
 import { exercises as exerciseDb } from '@/data/exercises';
 
 export default function WorkoutScreen() {
@@ -159,6 +160,7 @@ export default function WorkoutScreen() {
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        <InstallBanner />
         <View style={styles.header}>
           <Text style={styles.greeting}>
             Hallo, {user?.name || 'Athlet'}!

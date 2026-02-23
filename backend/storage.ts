@@ -395,6 +395,67 @@ async function initializeTables() {
       await addColumnIfNotExists(table, 'studio_id', 'INTEGER DEFAULT 1');
     }
 
+    // Push subscriptions for Web Push notifications
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        studio_id INTEGER DEFAULT 1,
+        endpoint TEXT NOT NULL,
+        keys_p256dh TEXT NOT NULL,
+        keys_auth TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, endpoint)
+      )
+    `);
+
+    // Chat messages for trainer-client communication
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        studio_id INTEGER DEFAULT 1,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        message TEXT NOT NULL,
+        read_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Mesocycles for periodization planning
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS mesocycles (
+        id SERIAL PRIMARY KEY,
+        studio_id INTEGER DEFAULT 1,
+        client_id INTEGER,
+        name VARCHAR(255) NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        phases JSONB DEFAULT '[]',
+        created_by INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Progress photos
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS progress_photos (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        studio_id INTEGER DEFAULT 1,
+        image_data TEXT NOT NULL,
+        category VARCHAR(20) DEFAULT 'front',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await createIndexIfNotExists('idx_push_subscriptions_user_id', 'push_subscriptions (user_id)');
+    await createIndexIfNotExists('idx_chat_messages_participants', 'chat_messages (sender_id, receiver_id)');
+    await createIndexIfNotExists('idx_chat_messages_receiver', 'chat_messages (receiver_id, read_at)');
+    await createIndexIfNotExists('idx_mesocycles_client_id', 'mesocycles (client_id)');
+    await createIndexIfNotExists('idx_progress_photos_user_id', 'progress_photos (user_id)');
+
     // DSGVO: Add consent fields to users
     await addColumnIfNotExists('users', 'consented_at', 'TIMESTAMP');
     await addColumnIfNotExists('users', 'privacy_version', "VARCHAR(10) DEFAULT '1.0'");
@@ -1841,6 +1902,223 @@ export const storage = {
       notificationsData = notificationsData.filter(n => n.userId !== userId);
       studioMembersData = studioMembersData.filter(m => m.userId !== userId);
       console.log(`[Storage] DSGVO: All in-memory data deleted for user ${userId}`);
+      return true;
+    },
+  },
+
+  // Push Subscriptions
+  pushSubscriptions: {
+    async subscribe(userId: string, studioId: string, endpoint: string, p256dh: string, auth: string) {
+      if (pool) {
+        try {
+          await pool.query(
+            `INSERT INTO push_subscriptions (user_id, studio_id, endpoint, keys_p256dh, keys_auth)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id, endpoint) DO UPDATE SET keys_p256dh = $4, keys_auth = $5`,
+            [userId, studioId, endpoint, p256dh, auth]
+          );
+          return true;
+        } catch (err) {
+          console.log('[Storage] Push subscribe failed:', err);
+          return false;
+        }
+      }
+      return true;
+    },
+
+    async unsubscribe(userId: string, endpoint: string) {
+      if (pool) {
+        try {
+          await pool.query(`DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2`, [userId, endpoint]);
+        } catch {}
+      }
+      return true;
+    },
+
+    async getByUserId(userId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(`SELECT * FROM push_subscriptions WHERE user_id = $1`, [userId]);
+          return result.rows;
+        } catch { return []; }
+      }
+      return [];
+    },
+
+    async getByStudioId(studioId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(`SELECT * FROM push_subscriptions WHERE studio_id = $1`, [studioId]);
+          return result.rows;
+        } catch { return []; }
+      }
+      return [];
+    },
+  },
+
+  // Chat Messages
+  chatMessages: {
+    async send(studioId: string, senderId: string, receiverId: string, message: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO chat_messages (studio_id, sender_id, receiver_id, message) VALUES ($1, $2, $3, $4) RETURNING *`,
+            [studioId, senderId, receiverId, message]
+          );
+          return result.rows[0];
+        } catch (err) {
+          console.log('[Storage] Chat send failed:', err);
+          return null;
+        }
+      }
+      return { id: Date.now().toString(), studio_id: studioId, sender_id: senderId, receiver_id: receiverId, message, created_at: new Date().toISOString(), read_at: null };
+    },
+
+    async list(userId1: string, userId2: string, limit = 50) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `SELECT * FROM chat_messages
+             WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+             ORDER BY created_at DESC LIMIT $3`,
+            [userId1, userId2, limit]
+          );
+          return result.rows.reverse();
+        } catch { return []; }
+      }
+      return [];
+    },
+
+    async markRead(userId: string, senderId: string) {
+      if (pool) {
+        try {
+          await pool.query(
+            `UPDATE chat_messages SET read_at = CURRENT_TIMESTAMP WHERE receiver_id = $1 AND sender_id = $2 AND read_at IS NULL`,
+            [userId, senderId]
+          );
+        } catch {}
+      }
+    },
+
+    async getUnreadCount(userId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `SELECT COUNT(*)::int as count FROM chat_messages WHERE receiver_id = $1 AND read_at IS NULL`,
+            [userId]
+          );
+          return result.rows[0]?.count || 0;
+        } catch { return 0; }
+      }
+      return 0;
+    },
+  },
+
+  // Mesocycles
+  mesocycles: {
+    async create(studioId: string, clientId: string | null, name: string, startDate: string, endDate: string, phases: any, createdBy: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO mesocycles (studio_id, client_id, name, start_date, end_date, phases, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [studioId, clientId, name, startDate, endDate, JSON.stringify(phases), createdBy]
+          );
+          return result.rows[0];
+        } catch (err) {
+          console.log('[Storage] Mesocycle create failed:', err);
+          return null;
+        }
+      }
+      return { id: Date.now().toString(), studio_id: studioId, client_id: clientId, name, start_date: startDate, end_date: endDate, phases, created_by: createdBy };
+    },
+
+    async list(studioId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(`SELECT * FROM mesocycles WHERE studio_id = $1 ORDER BY start_date DESC`, [studioId]);
+          return result.rows;
+        } catch { return []; }
+      }
+      return [];
+    },
+
+    async update(id: string, updates: any) {
+      if (pool) {
+        try {
+          const fields: string[] = [];
+          const values: any[] = [];
+          let idx = 1;
+          for (const [key, val] of Object.entries(updates)) {
+            fields.push(`${key} = $${idx}`);
+            values.push(key === 'phases' ? JSON.stringify(val) : val);
+            idx++;
+          }
+          values.push(id);
+          await pool.query(`UPDATE mesocycles SET ${fields.join(', ')} WHERE id = $${idx}`, values);
+          return true;
+        } catch { return false; }
+      }
+      return true;
+    },
+
+    async delete(id: string) {
+      if (pool) {
+        try {
+          await pool.query(`DELETE FROM mesocycles WHERE id = $1`, [id]);
+        } catch {}
+      }
+      return true;
+    },
+  },
+
+  // Progress Photos
+  progressPhotos: {
+    async create(userId: string, studioId: string, imageData: string, category: string, notes?: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `INSERT INTO progress_photos (user_id, studio_id, image_data, category, notes) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, studio_id, category, notes, created_at`,
+            [userId, studioId, imageData, category, notes || null]
+          );
+          return result.rows[0];
+        } catch (err) {
+          console.log('[Storage] Photo create failed:', err);
+          return null;
+        }
+      }
+      return { id: Date.now().toString(), user_id: userId, studio_id: studioId, category, notes, created_at: new Date().toISOString() };
+    },
+
+    async list(userId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id, user_id, studio_id, category, notes, created_at FROM progress_photos WHERE user_id = $1 ORDER BY created_at DESC`,
+            [userId]
+          );
+          return result.rows;
+        } catch { return []; }
+      }
+      return [];
+    },
+
+    async getById(id: string, userId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(`SELECT * FROM progress_photos WHERE id = $1 AND user_id = $2`, [id, userId]);
+          return result.rows[0] || null;
+        } catch { return null; }
+      }
+      return null;
+    },
+
+    async delete(id: string, userId: string) {
+      if (pool) {
+        try {
+          await pool.query(`DELETE FROM progress_photos WHERE id = $1 AND user_id = $2`, [id, userId]);
+        } catch {}
+      }
       return true;
     },
   },

@@ -49,6 +49,8 @@ import studioStats from "./routes/studios/stats";
 import privacyConsent from "./routes/privacy/consent";
 import privacyExportData from "./routes/privacy/export-data";
 import privacyDeleteAccount from "./routes/privacy/delete-account";
+import subscribePush from "./routes/notifications/subscribe-push";
+import unsubscribePush from "./routes/notifications/unsubscribe-push";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -118,6 +120,8 @@ export const appRouter = createTRPCRouter({
     markRead: markReadNotification,
     markAllRead: markAllReadNotifications,
     unreadCount: unreadCountNotifications,
+    subscribePush: subscribePush,
+    unsubscribePush: unsubscribePush,
   }),
   studios: createTRPCRouter({
     get: getStudio,

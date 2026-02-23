@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2 } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -39,12 +39,21 @@ export default function ProfileScreen() {
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/login');
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Check push notification status
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushEnabled(Notification.permission === 'granted');
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -97,6 +106,58 @@ export default function ProfileScreen() {
       switchRole();
     } else if (user?.role === 'client') {
       switchRole();
+    }
+  };
+
+  const handleTogglePush = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setStatusMessage({ type: 'info', text: 'Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.' });
+      return;
+    }
+
+    setPushLoading(true);
+    try {
+      if (!pushEnabled) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          // Subscribe to push
+          const registration = await navigator.serviceWorker?.ready;
+          if (registration) {
+            const subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              // Use a placeholder VAPID key - replace with real one in production
+              applicationServerKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkGs-GDx6QkrJIO8JpyTPSxXgUoN_q-KB14Xhxp4us',
+            });
+            const p256dh = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!)));
+            const auth = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)));
+            await trpcClient.notifications.subscribePush.mutate({
+              endpoint: subscription.endpoint,
+              keys: { p256dh, auth },
+            });
+            setPushEnabled(true);
+            setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen aktiviert!' });
+          }
+        } else {
+          setStatusMessage({ type: 'info', text: 'Push-Berechtigung wurde abgelehnt. Bitte ändere dies in den Browser-Einstellungen.' });
+        }
+      } else {
+        // Unsubscribe
+        const registration = await navigator.serviceWorker?.ready;
+        if (registration) {
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            await trpcClient.notifications.unsubscribePush.mutate({ endpoint: subscription.endpoint });
+            await subscription.unsubscribe();
+          }
+        }
+        setPushEnabled(false);
+        setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen deaktiviert.' });
+      }
+    } catch (error) {
+      console.error('[Push] Error:', error);
+      setStatusMessage({ type: 'error', text: 'Fehler bei Push-Benachrichtigungen.' });
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -309,6 +370,16 @@ export default function ProfileScreen() {
               <Text style={styles.menuItemText}>Passwort ändern</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={handleTogglePush} disabled={pushLoading}>
+            <View style={styles.menuItemLeft}>
+              {pushEnabled ? <Bell size={20} color={Colors.accent} /> : <BellOff size={20} color={Colors.textMuted} />}
+              <Text style={styles.menuItemText}>
+                {pushLoading ? 'Wird geändert...' : pushEnabled ? 'Push-Benachrichtigungen aktiv' : 'Push-Benachrichtigungen aktivieren'}
+              </Text>
+            </View>
+            <View style={[styles.toggleIndicator, pushEnabled && styles.toggleIndicatorActive]} />
           </TouchableOpacity>
 
           {(user?.role === 'trainer') && (
@@ -596,6 +667,17 @@ const createStyles = (Colors: any) => StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     marginLeft: Spacing.md,
+  },
+  toggleIndicator: {
+    width: 40,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.surfaceLight,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleIndicatorActive: {
+    backgroundColor: Colors.accent,
   },
   aboutItem: {
     flexDirection: 'row',
