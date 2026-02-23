@@ -69,6 +69,9 @@ function RootLayoutNav() {
       <Stack.Screen name="leaderboard" options={{ title: 'Rangliste' }} />
       <Stack.Screen name="challenges" options={{ title: 'Challenges' }} />
       <Stack.Screen name="notifications" options={{ title: 'Benachrichtigungen' }} />
+      <Stack.Screen name="progress-photos" options={{ title: 'Fortschrittsfotos' }} />
+      <Stack.Screen name="plate-calculator" options={{ title: 'Hantelrechner' }} />
+      <Stack.Screen name="chat/[userId]" options={{ title: 'Chat' }} />
     </Stack>
   );
 }

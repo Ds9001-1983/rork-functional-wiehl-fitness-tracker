@@ -23,12 +23,16 @@ export interface WorkoutSet {
   rpe?: number; // Rate of Perceived Exertion (1-10)
 }
 
+export type ExerciseGroupType = 'superset' | 'circuit' | 'dropset';
+
 export interface WorkoutExercise {
   id: string;
   exerciseId: string;
   sets: WorkoutSet[];
   notes?: string;
   supersetWith?: string; // ID of paired exercise for supersets
+  groupId?: string; // Groups exercises together
+  groupType?: ExerciseGroupType; // Type of group
 }
 
 export interface Workout {

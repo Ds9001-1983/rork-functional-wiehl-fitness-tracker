@@ -56,6 +56,10 @@ import chatList from "./routes/chat/list";
 import chatUnreadCount from "./routes/chat/unread-count";
 import clientProgress from "./routes/clients/progress";
 import { createMesocycle, listMesocycles, updateMesocycle, deleteMesocycle } from "./routes/plans/mesocycles";
+import photoUpload from "./routes/photos/upload";
+import photoList from "./routes/photos/list";
+import photoDelete from "./routes/photos/delete";
+import aiGeneratePlan from "./routes/plans/ai-generate";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -91,6 +95,7 @@ export const appRouter = createTRPCRouter({
     delete: deletePlan,
     assign: assignPlan,
     instantiate: instantiatePlan,
+    aiGenerate: aiGeneratePlan,
   }),
   mesocycles: createTRPCRouter({
     create: createMesocycle,
@@ -146,6 +151,11 @@ export const appRouter = createTRPCRouter({
     send: chatSend,
     list: chatList,
     unreadCount: chatUnreadCount,
+  }),
+  photos: createTRPCRouter({
+    upload: photoUpload,
+    list: photoList,
+    delete: photoDelete,
   }),
   privacy: createTRPCRouter({
     consent: privacyConsent,

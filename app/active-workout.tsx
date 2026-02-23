@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Save, Timer, MessageSquare, Zap, Smile, Dumbbell } from 'lucide-react-native';
+import { Plus, Save, Timer, MessageSquare, Zap, Smile, Dumbbell, Calculator } from 'lucide-react-native';
+import { ExerciseGroup } from '@/components/ExerciseGroup';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -145,6 +146,12 @@ export default function ActiveWorkoutScreen() {
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity
+                style={styles.timerToggle}
+                onPress={() => router.push('/plate-calculator' as any)}
+              >
+                <Calculator size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.moodToggle, mood && styles.moodToggleActive]}
                 onPress={() => setShowMoodPicker(!showMoodPicker)}
               >
@@ -202,7 +209,15 @@ export default function ActiveWorkoutScreen() {
             const previousSets = getPreviousPerformance(exercise.exerciseId);
             const notesExpanded = expandedNotes[exerciseIndex];
 
-            return (
+            // Check if this exercise starts a new group
+            const isGroupStart = exercise.groupId && (
+              exerciseIndex === 0 || activeWorkout.exercises[exerciseIndex - 1]?.groupId !== exercise.groupId
+            );
+            const isGroupEnd = exercise.groupId && (
+              exerciseIndex === activeWorkout.exercises.length - 1 || activeWorkout.exercises[exerciseIndex + 1]?.groupId !== exercise.groupId
+            );
+
+            const content = (
               <View key={exercise.id} style={styles.exerciseContainer}>
                 <View style={styles.exerciseHeader}>
                   <Text style={styles.exerciseName}>{exerciseData.name}</Text>
@@ -263,6 +278,27 @@ export default function ActiveWorkoutScreen() {
                 </TouchableOpacity>
               </View>
             );
+
+            if (exercise.groupId && exercise.groupType && isGroupStart) {
+              // Collect all exercises in this group
+              const groupExercises: React.ReactNode[] = [content];
+              let nextIdx = exerciseIndex + 1;
+              while (nextIdx < activeWorkout.exercises.length && activeWorkout.exercises[nextIdx]?.groupId === exercise.groupId) {
+                nextIdx++;
+              }
+              return (
+                <ExerciseGroup key={`group-${exercise.groupId}`} groupType={exercise.groupType}>
+                  {content}
+                </ExerciseGroup>
+              );
+            }
+
+            // Skip rendering if part of a group but not the start
+            if (exercise.groupId && exerciseIndex > 0 && activeWorkout.exercises[exerciseIndex - 1]?.groupId === exercise.groupId) {
+              return content; // Still render, the group wrapper is on the first element
+            }
+
+            return content;
           })}
 
           <TouchableOpacity style={styles.addExerciseButton} onPress={handleAddExercise}>

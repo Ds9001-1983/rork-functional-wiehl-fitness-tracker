@@ -8,7 +8,7 @@ export default trainerProcedure
     const studioId = ctx.user.studioId;
 
     // Get client's workouts
-    const allWorkouts = await storage.getWorkouts(studioId);
+    const allWorkouts = await storage.workouts.getAll(studioId);
     const clientWorkouts = (allWorkouts as any[]).filter(
       (w: any) => w.userId === input.clientId && w.completed
     );
@@ -50,7 +50,7 @@ export default trainerProcedure
     }).reverse();
 
     // Compliance: planned vs actual
-    const plans = await storage.getWorkoutPlans(studioId);
+    const plans = await storage.workoutPlans.getAll(studioId);
     const clientPlans = (plans as any[]).filter(
       (p: any) => p.assignedTo?.includes(input.clientId)
     );
@@ -69,7 +69,7 @@ export default trainerProcedure
       : null;
 
     // Streak
-    const gamificationData = await storage.getGamification(input.clientId, studioId);
+    const gamificationData = await storage.gamification.get(input.clientId);
 
     return {
       totalWorkouts: clientWorkouts.length,

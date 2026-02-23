@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff, MessageSquare } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff, MessageSquare, Camera, Calculator } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -360,6 +360,22 @@ export default function ProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Target size={20} color={Colors.textMuted} />
               <Text style={styles.menuItemText}>Challenges</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/progress-photos' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Camera size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Fortschrittsfotos</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/plate-calculator' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Calculator size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Hantelrechner</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>

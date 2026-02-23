@@ -10,7 +10,7 @@ export default protectedProcedure
     const challenges = await storage.challenges.getActive(studioId);
 
     // Get user's workouts
-    const workouts = await storage.workouts.list(userId) as any[];
+    const workouts = await storage.workouts.getByUserId(userId) as any[];
     const completedWorkouts = workouts.filter((w: any) => w.completed);
 
     // Get user's gamification data for streak
