@@ -111,8 +111,7 @@ export default function WorkoutScreen() {
   const myPlans = useMemo(() => {
     if (!user?.id) return [];
     return workoutPlans.filter(p =>
-      (p.isInstance && p.assignedTo?.includes(user.id)) ||
-      (!p.isInstance && p.assignedTo?.includes(user.id))
+      p.assignedTo?.includes(user.id) || p.assignedUserId === user.id
     );
   }, [workoutPlans, user?.id]);
 
@@ -371,10 +370,10 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {/* Routines Section */}
+        {/* Training Plans & Routines Section */}
         <View style={styles.routinesSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Meine Routinen</Text>
+            <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
             <TouchableOpacity onPress={() => router.push('/routines' as never)}>
               <Text style={styles.seeAllText}>Alle</Text>
             </TouchableOpacity>
