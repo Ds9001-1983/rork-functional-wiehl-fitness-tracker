@@ -23,6 +23,17 @@ export default trainerProcedure
       }
 
       console.log('[Server] Created plan instance:', instance.id, 'from template:', input.planId, 'for user:', input.userId);
+
+      try {
+        await storage.notifications.create({
+          userId: input.userId,
+          title: 'Neuer Trainingsplan',
+          body: `Dein Trainer hat dir den Plan "${instance.name}" zugewiesen.`,
+          type: 'system',
+          data: { type: 'plan_assigned', planId: instance.id, templateId: input.planId },
+        });
+      } catch { /* Nicht-kritisch */ }
+
       return { success: true, instanceId: instance.id };
     }
 
@@ -34,5 +45,18 @@ export default trainerProcedure
     }
 
     console.log('[Server] Assigned plan:', input.planId, 'to user:', input.userId);
+
+    try {
+      const allPlans = await storage.workoutPlans.getAll(ctx.user.studioId);
+      const plan = allPlans.find(p => p.id === input.planId);
+      await storage.notifications.create({
+        userId: input.userId,
+        title: 'Neuer Trainingsplan',
+        body: `Dein Trainer hat dir den Plan "${plan?.name || 'Trainingsplan'}" zugewiesen.`,
+        type: 'system',
+        data: { type: 'plan_assigned', planId: input.planId },
+      });
+    } catch { /* Nicht-kritisch */ }
+
     return { success: true };
   });

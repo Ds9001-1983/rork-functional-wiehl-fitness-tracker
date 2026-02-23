@@ -28,6 +28,21 @@ export default trainerProcedure
       instances.push(instance);
     }
 
+    // Benachrichtigungen fuer zugewiesene Kunden erstellen
+    try {
+      for (let i = 0; i < instances.length; i++) {
+        await storage.notifications.create({
+          userId: input.userIds[i],
+          title: 'Neuer Trainingsplan',
+          body: `Dein Trainer hat dir den Plan "${instances[i].name}" zugewiesen.`,
+          type: 'system',
+          data: { type: 'plan_assigned', planId: instances[i].id, templateId: input.templateId },
+        });
+      }
+    } catch {
+      // Nicht-kritisch: Zuweisung klappt trotzdem
+    }
+
     console.log('[Server] Instantiated plan', input.templateId, 'for', input.userIds.length, 'users');
     return { success: true, instances };
   });

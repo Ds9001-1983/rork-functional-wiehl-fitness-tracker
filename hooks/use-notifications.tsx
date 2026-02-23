@@ -69,6 +69,14 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Alle 30 Sekunden nach neuen Notifications pruefen
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
   const markRead = useCallback(async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
