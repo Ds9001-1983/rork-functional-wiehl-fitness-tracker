@@ -686,15 +686,17 @@ export const storage = {
       return clients;
     },
 
-    create: async (client: Omit<StoredClient, 'id'>): Promise<StoredClient> => {
+    create: async (client: Omit<StoredClient, 'id'>, studioId?: string): Promise<StoredClient> => {
+      const effectiveStudioId = studioId || '1';
+
       if (useDatabase && pool) {
         try {
           const hashedPassword = await bcrypt.hash(client.starterPassword || 'TEMP123', 10);
           const userResult = await pool.query(
-            `INSERT INTO users (email, password, role, password_changed)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO users (email, password, role, password_changed, studio_id)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id`,
-            [client.email, hashedPassword, client.role, client.passwordChanged]
+            [client.email, hashedPassword, client.role, client.passwordChanged, effectiveStudioId]
           );
           const userId = userResult.rows[0].id;
 
@@ -711,7 +713,7 @@ export const storage = {
             id: userId.toString(),
             userId: userId.toString(),
           };
-          console.log('[Storage] Created client in DB with user_id:', userId);
+          console.log('[Storage] Created client in DB with user_id:', userId, 'studio_id:', effectiveStudioId);
           return newClient;
         } catch (err: any) {
           console.log('[Storage] DB insert failed for client:', err.message);
@@ -735,6 +737,7 @@ export const storage = {
         role: client.role,
         passwordChanged: client.passwordChanged,
         createdAt: new Date().toISOString(),
+        studioId: effectiveStudioId,
       });
 
       return newClient;

@@ -48,7 +48,7 @@ export default trainerProcedure
         longestStreak: 0,
         personalRecords: {},
       },
-    });
+    }, ctx.user.studioId);
 
     console.log('[Server] Created client:', newClient.id, 'studio:', ctx.user.studioId);
 
