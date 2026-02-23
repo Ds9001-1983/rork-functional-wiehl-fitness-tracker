@@ -8,10 +8,9 @@ export interface StoredUser {
   id: string;
   email: string;
   password: string;
-  role: 'client' | 'trainer' | 'admin' | 'superadmin';
+  role: 'client' | 'trainer' | 'admin';
   passwordChanged: boolean;
   createdAt: string;
-  studioId?: string;
 }
 
 export interface StoredClient {
@@ -50,7 +49,6 @@ export interface StoredWorkout {
   exercises: any[];
   completed: boolean;
   createdBy?: string;
-  studioId?: string;
 }
 
 export interface StoredWorkoutPlan {
@@ -61,7 +59,6 @@ export interface StoredWorkoutPlan {
   createdBy: string;
   assignedTo: string[];
   schedule?: any[];
-  studioId?: string;
   // Template-Instance system
   templateId?: string;
   isInstance?: boolean;
@@ -138,7 +135,6 @@ let notificationsData: { id: string; userId: string; title: string; body: string
 let studiosData: StoredStudio[] = [
   { id: '1', name: 'Functional Wiehl', slug: 'functional-wiehl', logoUrl: null, primaryColor: '#000000', accentColor: '#FF6B35', ownerEmail: 'admin@functional-wiehl.de', maxUsers: 50, createdAt: new Date().toISOString() },
 ];
-let studioMembersData: { studioId: string; userId: string; role: string; joinedAt: string }[] = [];
 let nextId = 100;
 
 const generateId = () => {
@@ -346,16 +342,6 @@ async function initializeTables() {
       )
     `);
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS studio_members (
-        studio_id INTEGER REFERENCES studios(id) ON DELETE CASCADE,
-        user_id INTEGER,
-        role VARCHAR(20) DEFAULT 'client',
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (studio_id, user_id)
-      )
-    `);
-
     // Add columns if they don't exist (for migrations from old schema)
     const addColumnIfNotExists = async (table: string, column: string, type: string) => {
       try {
@@ -376,24 +362,13 @@ async function initializeTables() {
     };
 
     await createIndexIfNotExists('idx_users_email', 'users (email)');
-    await createIndexIfNotExists('idx_users_studio_id', 'users (studio_id)');
     await createIndexIfNotExists('idx_workouts_user_id', 'workouts (user_id)');
     await createIndexIfNotExists('idx_workouts_date', 'workouts (date)');
-    await createIndexIfNotExists('idx_workouts_studio_id', 'workouts (studio_id)');
     await createIndexIfNotExists('idx_notifications_user_id', 'notifications (user_id)');
     await createIndexIfNotExists('idx_notifications_read', 'notifications (user_id, read)');
     await createIndexIfNotExists('idx_body_measurements_user_id', 'body_measurements (user_id)');
     await createIndexIfNotExists('idx_routines_user_id', 'routines (user_id)');
-    await createIndexIfNotExists('idx_challenges_studio_id', 'challenges (studio_id)');
-    await createIndexIfNotExists('idx_studio_members_studio_id', 'studio_members (studio_id)');
     await createIndexIfNotExists('idx_clients_user_id', 'clients (user_id)');
-
-    // Multi-tenant: Add studio_id to all data tables
-    const tenantTables = ['users', 'clients', 'workouts', 'workout_plans', 'body_measurements',
-      'gamification', 'routines', 'challenges', 'notifications', 'invitations', 'password_reset_tokens'];
-    for (const table of tenantTables) {
-      await addColumnIfNotExists(table, 'studio_id', 'INTEGER DEFAULT 1');
-    }
 
     // Push subscriptions for Web Push notifications
     await pool!.query(`
@@ -486,20 +461,10 @@ async function seedDefaultStudio() {
         `INSERT INTO studios (id, name, slug, logo_url, primary_color, accent_color, owner_email, max_users)
          VALUES (1, 'Functional Wiehl', 'functional-wiehl', NULL, '#000000', '#FF6B35', 'admin@functional-wiehl.de', 50)`,
       );
-      // Reset sequence to avoid conflicts
       await pool.query(`SELECT setval('studios_id_seq', (SELECT COALESCE(MAX(id), 1) FROM studios))`);
-      console.log('[Storage] Created default studio: Functional Wiehl');
     }
-    // Ensure all existing users without studio_id get assigned to studio 1
-    await pool.query(`UPDATE users SET studio_id = 1 WHERE studio_id IS NULL`);
-    // Add existing users as studio members
-    await pool.query(
-      `INSERT INTO studio_members (studio_id, user_id, role)
-       SELECT 1, id, role FROM users WHERE id NOT IN (SELECT user_id FROM studio_members WHERE studio_id = 1)
-       ON CONFLICT DO NOTHING`
-    );
   } catch (err) {
-    console.log('[Storage] Could not seed default studio:', err);
+    console.error('[Storage] Could not seed default studio:', err);
   }
 }
 
@@ -549,28 +514,24 @@ export const storage = {
             role: row.role,
             passwordChanged: row.password_changed,
             createdAt: row.created_at,
-            studioId: row.studio_id?.toString() || '1',
           };
         } catch (err) {
           console.log('[Storage] DB query failed for findByEmail:', err);
         }
       }
-      const found = users.find(u => u.email === email);
-      if (found) return { ...found, studioId: found.studioId || '1' };
-      return null;
+      return users.find(u => u.email === email) || null;
     },
 
-    create: async (user: { email: string; password: string; role: string; studioId?: string }): Promise<StoredUser> => {
+    create: async (user: { email: string; password: string; role: string }): Promise<StoredUser> => {
       const hashedPassword = await bcrypt.hash(user.password, 10);
-      const studioId = user.studioId || '1';
 
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO users (email, password, role, password_changed, studio_id)
-             VALUES ($1, $2, $3, FALSE, $4)
-             RETURNING id, email, password, role, password_changed as "passwordChanged", created_at as "createdAt", studio_id`,
-            [user.email, hashedPassword, user.role, studioId]
+            `INSERT INTO users (email, password, role, password_changed)
+             VALUES ($1, $2, $3, FALSE)
+             RETURNING id, email, password, role, password_changed as "passwordChanged", created_at as "createdAt"`,
+            [user.email, hashedPassword, user.role]
           );
           const row = result.rows[0];
           return {
@@ -580,7 +541,6 @@ export const storage = {
             role: row.role,
             passwordChanged: row.passwordChanged,
             createdAt: row.createdAt,
-            studioId: row.studio_id?.toString() || studioId,
           };
         } catch (err) {
           console.log('[Storage] DB insert failed for user:', err);
@@ -594,7 +554,6 @@ export const storage = {
         role: user.role as 'client' | 'trainer',
         passwordChanged: false,
         createdAt: new Date().toISOString(),
-        studioId,
       };
       users.push(newUser);
       return newUser;
@@ -630,7 +589,7 @@ export const storage = {
   },
 
   clients: {
-    getAll: async (studioId?: string): Promise<StoredClient[]> => {
+    getAll: async (): Promise<StoredClient[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(`
@@ -652,9 +611,8 @@ export const storage = {
               c.personal_records as "personalRecords"
             FROM users u
             LEFT JOIN clients c ON u.id = c.user_id
-            ${studioId ? 'WHERE u.studio_id = $1' : ''}
             ORDER BY u.created_at DESC
-          `, studioId ? [studioId] : []);
+          `);
 
           return result.rows.map(row => ({
             id: row.user_id?.toString() || row.client_id?.toString(),
@@ -679,24 +637,18 @@ export const storage = {
           console.log('[Storage] DB query failed for getAll clients:', err);
         }
       }
-
-      if (studioId) {
-        return clients.filter(c => !c.userId || users.find(u => u.id === c.userId)?.studioId === studioId);
-      }
       return clients;
     },
 
-    create: async (client: Omit<StoredClient, 'id'>, studioId?: string): Promise<StoredClient> => {
-      const effectiveStudioId = studioId || '1';
-
+    create: async (client: Omit<StoredClient, 'id'>): Promise<StoredClient> => {
       if (useDatabase && pool) {
         try {
           const hashedPassword = await bcrypt.hash(client.starterPassword || 'TEMP123', 10);
           const userResult = await pool.query(
-            `INSERT INTO users (email, password, role, password_changed, studio_id)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO users (email, password, role, password_changed)
+             VALUES ($1, $2, $3, $4)
              RETURNING id`,
-            [client.email, hashedPassword, client.role, client.passwordChanged, effectiveStudioId]
+            [client.email, hashedPassword, client.role, client.passwordChanged]
           );
           const userId = userResult.rows[0].id;
 
@@ -713,7 +665,7 @@ export const storage = {
             id: userId.toString(),
             userId: userId.toString(),
           };
-          console.log('[Storage] Created client in DB with user_id:', userId, 'studio_id:', effectiveStudioId);
+          console.log('[Storage] Created client in DB with user_id:', userId);
           return newClient;
         } catch (err: any) {
           console.log('[Storage] DB insert failed for client:', err.message);
@@ -737,7 +689,6 @@ export const storage = {
         role: client.role,
         passwordChanged: client.passwordChanged,
         createdAt: new Date().toISOString(),
-        studioId: effectiveStudioId,
       });
 
       return newClient;
@@ -829,14 +780,11 @@ export const storage = {
   },
 
   invitations: {
-    getAll: async (studioId?: string): Promise<StoredInvitation[]> => {
+    getAll: async (): Promise<StoredInvitation[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            studioId
-              ? `SELECT code, name, email, created_at as "createdAt" FROM invitations WHERE studio_id = $1`
-              : `SELECT code, name, email, created_at as "createdAt" FROM invitations`,
-            studioId ? [studioId] : []
+            `SELECT code, name, email, created_at as "createdAt" FROM invitations`
           );
           return result.rows;
         } catch (err) {
@@ -894,16 +842,12 @@ export const storage = {
       return workouts.filter(w => w.userId === userId);
     },
 
-    getAll: async (studioId?: string): Promise<StoredWorkout[]> => {
+    getAll: async (): Promise<StoredWorkout[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            studioId
-              ? `SELECT id::text, user_id as "userId", name, date, duration, exercises, completed, created_by as "createdBy"
-                 FROM workouts WHERE studio_id = $1 ORDER BY date DESC`
-              : `SELECT id::text, user_id as "userId", name, date, duration, exercises, completed, created_by as "createdBy"
-                 FROM workouts ORDER BY date DESC`,
-            studioId ? [studioId] : []
+            `SELECT id::text, user_id as "userId", name, date, duration, exercises, completed, created_by as "createdBy"
+             FROM workouts ORDER BY date DESC`
           );
           return result.rows;
         } catch (err) {
@@ -917,11 +861,11 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO workouts (user_id, name, date, duration, exercises, completed, created_by, studio_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `INSERT INTO workouts (user_id, name, date, duration, exercises, completed, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING id::text, user_id as "userId", name, date, duration, exercises, completed, created_by as "createdBy"`,
             [workout.userId, workout.name, workout.date, workout.duration || 0,
-             JSON.stringify(workout.exercises), workout.completed, workout.createdBy, workout.studioId || 1]
+             JSON.stringify(workout.exercises), workout.completed, workout.createdBy]
           );
           return result.rows[0];
         } catch (err) {
@@ -982,20 +926,14 @@ export const storage = {
   },
 
   workoutPlans: {
-    getAll: async (studioId?: string): Promise<StoredWorkoutPlan[]> => {
+    getAll: async (): Promise<StoredWorkoutPlan[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            studioId
-              ? `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
-                 template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
-                 customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
-                 FROM workout_plans WHERE studio_id = $1 ORDER BY created_at DESC`
-              : `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
-                 template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
-                 customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
-                 FROM workout_plans ORDER BY created_at DESC`,
-            studioId ? [studioId] : []
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
+             FROM workout_plans ORDER BY created_at DESC`
           );
           return result.rows;
         } catch (err) {
@@ -1027,14 +965,14 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO workout_plans (name, description, exercises, created_by, assigned_to, schedule, studio_id,
+            `INSERT INTO workout_plans (name, description, exercises, created_by, assigned_to, schedule,
              template_id, is_instance, customized_fields, assigned_user_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
              RETURNING id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
              template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
              customized_fields as "customizedFields", assigned_user_id as "assignedUserId"`,
             [plan.name, plan.description, JSON.stringify(plan.exercises),
-             plan.createdBy, JSON.stringify(plan.assignedTo || []), JSON.stringify(plan.schedule || []), plan.studioId || 1,
+             plan.createdBy, JSON.stringify(plan.assignedTo || []), JSON.stringify(plan.schedule || []),
              plan.templateId || null, plan.isInstance || false, JSON.stringify(plan.customizedFields || []),
              plan.assignedUserId || null]
           );
@@ -1122,7 +1060,7 @@ export const storage = {
       return true;
     },
 
-    instantiate: async (templateId: string, userId: string, studioId?: string): Promise<StoredWorkoutPlan | null> => {
+    instantiate: async (templateId: string, userId: string): Promise<StoredWorkoutPlan | null> => {
       // Get the template
       let template: StoredWorkoutPlan | null = null;
 
@@ -1130,7 +1068,7 @@ export const storage = {
         try {
           const result = await pool.query(
             `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo",
-             schedule, studio_id as "studioId"
+             schedule
              FROM workout_plans WHERE id = $1`,
             [templateId]
           );
@@ -1154,7 +1092,6 @@ export const storage = {
         createdBy: template.createdBy,
         assignedTo: [userId],
         schedule: template.schedule ? JSON.parse(JSON.stringify(template.schedule)) : [],
-        studioId: studioId || template.studioId || '1',
         templateId: templateId,
         isInstance: true,
         customizedFields: [],
@@ -1328,24 +1265,16 @@ export const storage = {
       else gamificationData.push(entry);
     },
 
-    leaderboard: async (limit: number = 20, studioId?: string): Promise<any[]> => {
+    leaderboard: async (limit: number = 20): Promise<any[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            studioId
-              ? `SELECT g.user_id as "userId", g.xp, g.level, g.current_streak as "currentStreak",
-                 g.badges, c.name
-                 FROM gamification g
-                 LEFT JOIN clients c ON g.user_id = c.user_id::text
-                 LEFT JOIN users u ON g.user_id = u.id::text
-                 WHERE u.studio_id = $2
-                 ORDER BY g.xp DESC LIMIT $1`
-              : `SELECT g.user_id as "userId", g.xp, g.level, g.current_streak as "currentStreak",
-                 g.badges, c.name
-                 FROM gamification g
-                 LEFT JOIN clients c ON g.user_id = c.user_id::text
-                 ORDER BY g.xp DESC LIMIT $1`,
-            studioId ? [limit, studioId] : [limit]
+            `SELECT g.user_id as "userId", g.xp, g.level, g.current_streak as "currentStreak",
+             g.badges, c.name
+             FROM gamification g
+             LEFT JOIN clients c ON g.user_id = c.user_id::text
+             ORDER BY g.xp DESC LIMIT $1`,
+            [limit]
           );
           return result.rows;
         } catch (err) {
@@ -1434,13 +1363,13 @@ export const storage = {
   },
 
   challenges: {
-    create: async (data: { name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string; studioId?: string }): Promise<{ id: string }> => {
+    create: async (data: { name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string }): Promise<{ id: string }> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO challenges (name, description, type, target, start_date, end_date, created_by, studio_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id::text`,
-            [data.name, data.description, data.type, data.target, data.startDate, data.endDate, data.createdBy, data.studioId || 1]
+            `INSERT INTO challenges (name, description, type, target, start_date, end_date, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id::text`,
+            [data.name, data.description, data.type, data.target, data.startDate, data.endDate, data.createdBy]
           );
           return { id: result.rows[0].id };
         } catch (err) {
@@ -1452,18 +1381,13 @@ export const storage = {
       return { id };
     },
 
-    getActive: async (studioId?: string): Promise<any[]> => {
+    getActive: async (): Promise<any[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            studioId
-              ? `SELECT id::text, name, description, type, target, start_date as "startDate",
-                 end_date as "endDate", created_by as "createdBy"
-                 FROM challenges WHERE end_date >= NOW() AND studio_id = $1 ORDER BY start_date DESC`
-              : `SELECT id::text, name, description, type, target, start_date as "startDate",
-                 end_date as "endDate", created_by as "createdBy"
-                 FROM challenges WHERE end_date >= NOW() ORDER BY start_date DESC`,
-            studioId ? [studioId] : []
+            `SELECT id::text, name, description, type, target, start_date as "startDate",
+             end_date as "endDate", created_by as "createdBy"
+             FROM challenges WHERE end_date >= NOW() ORDER BY start_date DESC`
           );
           return result.rows;
         } catch (err) {
@@ -1625,66 +1549,6 @@ export const storage = {
       return studiosData.find(s => s.id === id) || null;
     },
 
-    getBySlug: async (slug: string): Promise<StoredStudio | null> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `SELECT id::text, name, slug, logo_url as "logoUrl", primary_color as "primaryColor",
-             accent_color as "accentColor", owner_email as "ownerEmail", max_users as "maxUsers",
-             created_at as "createdAt" FROM studios WHERE slug = $1`,
-            [slug]
-          );
-          return result.rows[0] || null;
-        } catch (err) {
-          console.log('[Storage] DB query failed for studio by slug:', err);
-        }
-      }
-      return studiosData.find(s => s.slug === slug) || null;
-    },
-
-    getAll: async (): Promise<StoredStudio[]> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `SELECT id::text, name, slug, logo_url as "logoUrl", primary_color as "primaryColor",
-             accent_color as "accentColor", owner_email as "ownerEmail", max_users as "maxUsers",
-             created_at as "createdAt" FROM studios ORDER BY created_at ASC`
-          );
-          return result.rows;
-        } catch (err) {
-          console.log('[Storage] DB query failed for all studios:', err);
-        }
-      }
-      return studiosData;
-    },
-
-    create: async (data: { name: string; slug: string; logoUrl?: string; primaryColor?: string; accentColor?: string; ownerEmail?: string; maxUsers?: number }): Promise<StoredStudio> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `INSERT INTO studios (name, slug, logo_url, primary_color, accent_color, owner_email, max_users)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             RETURNING id::text, name, slug, logo_url as "logoUrl", primary_color as "primaryColor",
-             accent_color as "accentColor", owner_email as "ownerEmail", max_users as "maxUsers",
-             created_at as "createdAt"`,
-            [data.name, data.slug, data.logoUrl || null, data.primaryColor || '#000000',
-             data.accentColor || '#FF6B35', data.ownerEmail || null, data.maxUsers || 50]
-          );
-          return result.rows[0];
-        } catch (err) {
-          console.log('[Storage] DB insert failed for studio:', err);
-        }
-      }
-      const studio: StoredStudio = {
-        id: generateId(), name: data.name, slug: data.slug,
-        logoUrl: data.logoUrl || null, primaryColor: data.primaryColor || '#000000',
-        accentColor: data.accentColor || '#FF6B35', ownerEmail: data.ownerEmail || null,
-        maxUsers: data.maxUsers || 50, createdAt: new Date().toISOString(),
-      };
-      studiosData.push(studio);
-      return studio;
-    },
-
     update: async (id: string, updates: Partial<Omit<StoredStudio, 'id' | 'createdAt'>>): Promise<StoredStudio | null> => {
       if (useDatabase && pool) {
         try {
@@ -1718,73 +1582,6 @@ export const storage = {
       return studio;
     },
 
-    getMemberCount: async (studioId: string): Promise<number> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `SELECT COUNT(*)::integer as count FROM studio_members WHERE studio_id = $1`,
-            [studioId]
-          );
-          return result.rows[0].count;
-        } catch (err) {
-          console.log('[Storage] DB query failed for member count:', err);
-        }
-      }
-      return studioMembersData.filter(m => m.studioId === studioId).length;
-    },
-  },
-
-  studioMembers: {
-    add: async (studioId: string, userId: string, role: string = 'client'): Promise<boolean> => {
-      if (useDatabase && pool) {
-        try {
-          await pool.query(
-            `INSERT INTO studio_members (studio_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-            [studioId, userId, role]
-          );
-          return true;
-        } catch (err) {
-          console.log('[Storage] DB insert failed for studio member:', err);
-        }
-      }
-      if (!studioMembersData.find(m => m.studioId === studioId && m.userId === userId)) {
-        studioMembersData.push({ studioId, userId, role, joinedAt: new Date().toISOString() });
-      }
-      return true;
-    },
-
-    getByStudio: async (studioId: string): Promise<{ userId: string; role: string; joinedAt: string }[]> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `SELECT user_id::text as "userId", role, joined_at as "joinedAt"
-             FROM studio_members WHERE studio_id = $1 ORDER BY joined_at ASC`,
-            [studioId]
-          );
-          return result.rows;
-        } catch (err) {
-          console.log('[Storage] DB query failed for studio members:', err);
-        }
-      }
-      return studioMembersData.filter(m => m.studioId === studioId);
-    },
-
-    remove: async (studioId: string, userId: string): Promise<boolean> => {
-      if (useDatabase && pool) {
-        try {
-          const result = await pool.query(
-            `DELETE FROM studio_members WHERE studio_id = $1 AND user_id = $2`,
-            [studioId, userId]
-          );
-          return (result.rowCount ?? 0) > 0;
-        } catch (err) {
-          console.log('[Storage] DB delete failed for studio member:', err);
-        }
-      }
-      const len = studioMembersData.length;
-      studioMembersData = studioMembersData.filter(m => !(m.studioId === studioId && m.userId === userId));
-      return studioMembersData.length < len;
-    },
   },
 
   // DSGVO: Privacy & consent management
@@ -1882,7 +1679,6 @@ export const storage = {
           await pool.query(`DELETE FROM gamification WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM studio_members WHERE user_id = $1::integer`, [userId]);
           await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
           await pool.query(`DELETE FROM clients WHERE user_id = $1::integer`, [userId]);
           await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
@@ -1903,22 +1699,20 @@ export const storage = {
       routinesData = routinesData.filter(r => r.userId !== userId);
       challengeProgressData = challengeProgressData.filter(p => p.userId !== userId);
       notificationsData = notificationsData.filter(n => n.userId !== userId);
-      studioMembersData = studioMembersData.filter(m => m.userId !== userId);
-      console.log(`[Storage] DSGVO: All in-memory data deleted for user ${userId}`);
       return true;
     },
   },
 
   // Push Subscriptions
   pushSubscriptions: {
-    async subscribe(userId: string, studioId: string, endpoint: string, p256dh: string, auth: string) {
+    async subscribe(userId: string, endpoint: string, p256dh: string, auth: string) {
       if (pool) {
         try {
           await pool.query(
-            `INSERT INTO push_subscriptions (user_id, studio_id, endpoint, keys_p256dh, keys_auth)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (user_id, endpoint) DO UPDATE SET keys_p256dh = $4, keys_auth = $5`,
-            [userId, studioId, endpoint, p256dh, auth]
+            `INSERT INTO push_subscriptions (user_id, endpoint, keys_p256dh, keys_auth)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (user_id, endpoint) DO UPDATE SET keys_p256dh = $3, keys_auth = $4`,
+            [userId, endpoint, p256dh, auth]
           );
           return true;
         } catch (err) {
@@ -1948,25 +1742,16 @@ export const storage = {
       return [];
     },
 
-    async getByStudioId(studioId: string) {
-      if (pool) {
-        try {
-          const result = await pool.query(`SELECT * FROM push_subscriptions WHERE studio_id = $1`, [studioId]);
-          return result.rows;
-        } catch { return []; }
-      }
-      return [];
-    },
   },
 
   // Chat Messages
   chatMessages: {
-    async send(studioId: string, senderId: string, receiverId: string, message: string) {
+    async send(senderId: string, receiverId: string, message: string) {
       if (pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO chat_messages (studio_id, sender_id, receiver_id, message) VALUES ($1, $2, $3, $4) RETURNING *`,
-            [studioId, senderId, receiverId, message]
+            `INSERT INTO chat_messages (sender_id, receiver_id, message) VALUES ($1, $2, $3) RETURNING *`,
+            [senderId, receiverId, message]
           );
           return result.rows[0];
         } catch (err) {
@@ -1974,7 +1759,7 @@ export const storage = {
           return null;
         }
       }
-      return { id: Date.now().toString(), studio_id: studioId, sender_id: senderId, receiver_id: receiverId, message, created_at: new Date().toISOString(), read_at: null };
+      return { id: Date.now().toString(), sender_id: senderId, receiver_id: receiverId, message, created_at: new Date().toISOString(), read_at: null };
     },
 
     async list(userId1: string, userId2: string, limit = 50) {
@@ -2019,13 +1804,13 @@ export const storage = {
 
   // Mesocycles
   mesocycles: {
-    async create(studioId: string, clientId: string | null, name: string, startDate: string, endDate: string, phases: any, createdBy: string) {
+    async create(clientId: string | null, name: string, startDate: string, endDate: string, phases: any, createdBy: string) {
       if (pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO mesocycles (studio_id, client_id, name, start_date, end_date, phases, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-            [studioId, clientId, name, startDate, endDate, JSON.stringify(phases), createdBy]
+            `INSERT INTO mesocycles (client_id, name, start_date, end_date, phases, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [clientId, name, startDate, endDate, JSON.stringify(phases), createdBy]
           );
           return result.rows[0];
         } catch (err) {
@@ -2033,13 +1818,13 @@ export const storage = {
           return null;
         }
       }
-      return { id: Date.now().toString(), studio_id: studioId, client_id: clientId, name, start_date: startDate, end_date: endDate, phases, created_by: createdBy };
+      return { id: Date.now().toString(), client_id: clientId, name, start_date: startDate, end_date: endDate, phases, created_by: createdBy };
     },
 
-    async list(studioId: string) {
+    async list() {
       if (pool) {
         try {
-          const result = await pool.query(`SELECT * FROM mesocycles WHERE studio_id = $1 ORDER BY start_date DESC`, [studioId]);
+          const result = await pool.query(`SELECT * FROM mesocycles ORDER BY start_date DESC`);
           return result.rows;
         } catch { return []; }
       }
@@ -2077,12 +1862,12 @@ export const storage = {
 
   // Progress Photos
   progressPhotos: {
-    async create(userId: string, studioId: string, imageData: string, category: string, notes?: string) {
+    async create(userId: string, imageData: string, category: string, notes?: string) {
       if (pool) {
         try {
           const result = await pool.query(
-            `INSERT INTO progress_photos (user_id, studio_id, image_data, category, notes) VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id, studio_id, category, notes, created_at`,
-            [userId, studioId, imageData, category, notes || null]
+            `INSERT INTO progress_photos (user_id, image_data, category, notes) VALUES ($1, $2, $3, $4) RETURNING id, user_id, category, notes, created_at`,
+            [userId, imageData, category, notes || null]
           );
           return result.rows[0];
         } catch (err) {
@@ -2090,7 +1875,7 @@ export const storage = {
           return null;
         }
       }
-      return { id: Date.now().toString(), user_id: userId, studio_id: studioId, category, notes, created_at: new Date().toISOString() };
+      return { id: Date.now().toString(), user_id: userId, category, notes, created_at: new Date().toISOString() };
     },
 
     async list(userId: string) {

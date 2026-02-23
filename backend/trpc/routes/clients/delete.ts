@@ -8,7 +8,6 @@ export default trainerProcedure
   }))
   .mutation(async ({ input }) => {
     const deleted = await storage.clients.delete(input.id);
-    console.log('[Server] Deleted client:', input.id, 'Success:', deleted);
-    
+
     return { success: deleted };
   });

@@ -55,12 +55,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         if (result.token) {
           await AsyncStorage.setItem('authToken', result.token);
         }
-        if (result.user.studioId) {
-          await AsyncStorage.setItem('studioId', result.user.studioId);
-        }
-        if (result.studio) {
-          await AsyncStorage.setItem('studio', JSON.stringify(result.studio));
-        }
         setUser(result.user);
         return result.user;
       }
@@ -87,8 +81,6 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     try {
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('studioId');
-      await AsyncStorage.removeItem('studio');
       await AsyncStorage.removeItem('savedEmail');
       await AsyncStorage.removeItem('syncQueue');
       await syncQueue.clear();

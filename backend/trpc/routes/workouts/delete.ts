@@ -8,6 +8,5 @@ export default protectedProcedure
   }))
   .mutation(async ({ input }) => {
     const deleted = await storage.workouts.delete(input.id);
-    console.log('[Server] Deleted workout:', input.id, 'success:', deleted);
     return { success: deleted };
   });

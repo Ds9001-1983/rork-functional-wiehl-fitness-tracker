@@ -37,9 +37,6 @@ export default trainerProcedure
       createdBy: input.createdBy,
       assignedTo: input.assignedTo || [],
       schedule: input.schedule,
-      studioId: ctx.user.studioId,
     });
-
-    console.log('[Server] Created workout plan:', plan.id, 'by:', input.createdBy);
     return plan;
   });

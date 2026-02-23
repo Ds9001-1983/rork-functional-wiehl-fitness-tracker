@@ -15,8 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'functional-wiehl-beta-secret-2026'
 export interface AuthUser {
   userId: string;
   email: string;
-  role: 'client' | 'trainer' | 'admin' | 'superadmin';
-  studioId: string;
+  role: 'client' | 'trainer' | 'admin';
 }
 
 export const createContext = async (opts?: any) => {
@@ -33,19 +32,10 @@ export const createContext = async (opts?: any) => {
           userId: decoded.userId,
           email: decoded.email,
           role: decoded.role,
-          studioId: decoded.studioId || '1',
         };
       } catch {
         // Invalid token
       }
-    }
-  }
-
-  // Allow X-Studio-Id header override for superadmin
-  if (user && user.role === 'superadmin') {
-    const studioHeader = opts?.req?.headers?.get?.('x-studio-id') || opts?.req?.headers?.['x-studio-id'];
-    if (studioHeader) {
-      user.studioId = studioHeader;
     }
   }
 
@@ -74,7 +64,7 @@ export const trainerProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
-  if (ctx.user.role !== 'trainer' && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
+  if (ctx.user.role !== 'trainer' && ctx.user.role !== 'admin') {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Trainer' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
@@ -85,19 +75,8 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
-  if (ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
+  if (ctx.user.role !== 'admin') {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Administratoren' });
-  }
-  return next({ ctx: { ...ctx, user: ctx.user } });
-});
-
-// Requires superadmin role (SUPERBAND cross-studio access)
-export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.user) {
-    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
-  }
-  if (ctx.user.role !== 'superadmin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für SUPERBAND Administratoren' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });

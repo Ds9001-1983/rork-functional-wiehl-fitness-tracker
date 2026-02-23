@@ -12,11 +12,11 @@ export default trainerProcedure
     endDate: z.string(),
   }))
   .mutation(async ({ input, ctx }) => {
-    const result = await storage.challenges.create({ ...input, createdBy: ctx.user.userId, studioId: ctx.user.studioId });
+    const result = await storage.challenges.create({ ...input, createdBy: ctx.user.userId });
 
     // Notify all users with gamification data (active users)
     try {
-      const leaderboardUsers = await storage.gamification.leaderboard(100, ctx.user.studioId);
+      const leaderboardUsers = await storage.gamification.leaderboard(100);
       for (const entry of leaderboardUsers) {
         if (entry.userId !== ctx.user.userId) {
           await storage.notifications.create({

@@ -34,7 +34,5 @@ export default protectedProcedure
     if (!workout) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'WORKOUT_NOT_FOUND' });
     }
-
-    console.log('[Server] Updated workout:', id);
     return workout;
   });

@@ -38,14 +38,6 @@ export const loginProcedure = publicProcedure
         c.email === email || c.userId === user.id || c.id === user.id
       );
 
-      const studioId = user.studioId || '1';
-
-      // Load studio branding
-      let studio = null;
-      try {
-        studio = await storage.studios.getById(studioId);
-      } catch { /* non-critical */ }
-
       const userData = {
         id: user.id,
         name: clientData?.name || (user.role === 'admin' ? 'Administrator' : user.role === 'trainer' ? 'Trainer' : email.split('@')[0]),
@@ -55,7 +47,6 @@ export const loginProcedure = publicProcedure
         avatar: clientData?.avatar,
         joinDate: clientData?.joinDate || user.createdAt,
         passwordChanged: user.passwordChanged,
-        studioId,
         stats: clientData?.stats || {
           totalWorkouts: 0,
           totalVolume: 0,
@@ -65,15 +56,13 @@ export const loginProcedure = publicProcedure
         },
       };
 
-      // Generate JWT token with studioId
       const token = signJWT({
         userId: user.id,
         email: user.email,
         role: user.role,
-        studioId,
       });
 
-      return { success: true, user: userData, token, studio };
+      return { success: true, user: userData, token };
 
     } catch (error: any) {
       // Re-throw TRPCErrors as-is (they already have proper HTTP status codes)

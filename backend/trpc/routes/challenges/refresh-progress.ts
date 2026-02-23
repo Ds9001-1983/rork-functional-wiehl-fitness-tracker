@@ -4,10 +4,9 @@ import { storage } from '../../../storage';
 export default protectedProcedure
   .mutation(async ({ ctx }) => {
     const userId = ctx.user.userId;
-    const studioId = ctx.user.studioId;
 
     // Get all active challenges
-    const challenges = await storage.challenges.getActive(studioId);
+    const challenges = await storage.challenges.getActive();
 
     // Get user's workouts
     const workouts = await storage.workouts.getByUserId(userId) as any[];

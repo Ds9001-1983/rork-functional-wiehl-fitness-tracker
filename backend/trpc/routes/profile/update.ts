@@ -18,7 +18,5 @@ export default protectedProcedure
     if (!updated) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'USER_NOT_FOUND' });
     }
-
-    console.log('[Server] Profile updated for user:', userId);
     return { success: true };
   });

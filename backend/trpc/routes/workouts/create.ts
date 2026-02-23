@@ -37,9 +37,6 @@ export default protectedProcedure
       exercises: input.exercises,
       completed: input.completed,
       createdBy: input.createdBy,
-      studioId: ctx.user.studioId,
     });
-
-    console.log('[Server] Created workout:', workout.id, 'for user:', input.userId);
     return workout;
   });

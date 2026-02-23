@@ -14,8 +14,7 @@ export default trainerProcedure
     for (const userId of input.userIds) {
       const instance = await storage.workoutPlans.instantiate(
         input.templateId,
-        userId,
-        ctx.user.studioId
+        userId
       );
 
       if (!instance) {
@@ -42,7 +41,5 @@ export default trainerProcedure
     } catch {
       // Nicht-kritisch: Zuweisung klappt trotzdem
     }
-
-    console.log('[Server] Instantiated plan', input.templateId, 'for', input.userIds.length, 'users');
     return { success: true, instances };
   });

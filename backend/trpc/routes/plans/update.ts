@@ -37,7 +37,5 @@ export default protectedProcedure
     if (!plan) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'PLAN_NOT_FOUND' });
     }
-
-    console.log('[Server] Updated plan:', id);
     return plan;
   });

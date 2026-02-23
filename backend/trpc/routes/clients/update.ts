@@ -17,7 +17,5 @@ export default trainerProcedure
     if (!updated) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'CLIENT_NOT_FOUND' });
     }
-
-    console.log('[Server] Client updated:', id);
     return { success: true };
   });

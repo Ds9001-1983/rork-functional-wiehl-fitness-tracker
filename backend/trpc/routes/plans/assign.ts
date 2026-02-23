@@ -14,15 +14,12 @@ export default trainerProcedure
       // Create an independent instance copy for this user
       const instance = await storage.workoutPlans.instantiate(
         input.planId,
-        input.userId,
-        ctx.user.studioId
+        input.userId
       );
 
       if (!instance) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'PLAN_NOT_FOUND' });
       }
-
-      console.log('[Server] Created plan instance:', instance.id, 'from template:', input.planId, 'for user:', input.userId);
 
       try {
         await storage.notifications.create({
@@ -44,10 +41,8 @@ export default trainerProcedure
       throw new TRPCError({ code: 'NOT_FOUND', message: 'PLAN_NOT_FOUND' });
     }
 
-    console.log('[Server] Assigned plan:', input.planId, 'to user:', input.userId);
-
     try {
-      const allPlans = await storage.workoutPlans.getAll(ctx.user.studioId);
+      const allPlans = await storage.workoutPlans.getAll();
       const plan = allPlans.find(p => p.id === input.planId);
       await storage.notifications.create({
         userId: input.userId,

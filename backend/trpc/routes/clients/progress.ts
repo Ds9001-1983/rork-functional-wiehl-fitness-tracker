@@ -5,10 +5,8 @@ import { z } from 'zod';
 export default trainerProcedure
   .input(z.object({ clientId: z.string() }))
   .query(async ({ input, ctx }) => {
-    const studioId = ctx.user.studioId;
-
     // Get client's workouts
-    const allWorkouts = await storage.workouts.getAll(studioId);
+    const allWorkouts = await storage.workouts.getAll();
     const clientWorkouts = (allWorkouts as any[]).filter(
       (w: any) => w.userId === input.clientId && w.completed
     );
@@ -50,7 +48,7 @@ export default trainerProcedure
     }).reverse();
 
     // Compliance: planned vs actual
-    const plans = await storage.workoutPlans.getAll(studioId);
+    const plans = await storage.workoutPlans.getAll();
     const clientPlans = (plans as any[]).filter(
       (p: any) => p.assignedTo?.includes(input.clientId)
     );

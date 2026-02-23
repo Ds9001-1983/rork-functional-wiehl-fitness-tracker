@@ -3,5 +3,5 @@ import { storage } from '../../../storage';
 
 export default protectedProcedure
   .query(async ({ ctx }) => {
-    return storage.challenges.getActive(ctx.user.studioId);
+    return storage.challenges.getActive();
   });

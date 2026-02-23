@@ -12,12 +12,11 @@ export default trainerProcedure
   }))
   .mutation(async ({ input, ctx }) => {
     // Check if client with this email or phone already exists
-    const existingClients = await storage.clients.getAll(ctx.user.studioId);
+    const existingClients = await storage.clients.getAll();
 
     // Check for duplicate email
     const existingClientByEmail = existingClients.find(client => client.email === input.email);
     if (existingClientByEmail) {
-      console.log('[Server] Client with email already exists:', input.email);
       throw new TRPCError({ code: 'CONFLICT', message: 'EMAIL_EXISTS' });
     }
 
@@ -25,13 +24,11 @@ export default trainerProcedure
     if (input.phone && input.phone.trim()) {
       const existingClientByPhone = existingClients.find(client => client.phone === input.phone);
       if (existingClientByPhone) {
-        console.log('[Server] Client with phone already exists:', input.phone);
         throw new TRPCError({ code: 'CONFLICT', message: 'PHONE_EXISTS' });
       }
     }
 
-    const starterPassword = input.starterPassword || 'TEMP123'; // Fallback password
-    console.log('[Server] Creating client with password:', starterPassword);
+    const starterPassword = input.starterPassword || 'TEMP123';
 
     const newClient = await storage.clients.create({
       name: input.name,
@@ -48,14 +45,7 @@ export default trainerProcedure
         longestStreak: 0,
         personalRecords: {},
       },
-    }, ctx.user.studioId);
-
-    console.log('[Server] Created client:', newClient.id, 'studio:', ctx.user.studioId);
-
-    // Add new user as studio member
-    try {
-      await storage.studioMembers.add(ctx.user.studioId, newClient.id || newClient.userId || '', 'client');
-    } catch { /* non-critical */ }
+    });
 
     return newClient;
   });
