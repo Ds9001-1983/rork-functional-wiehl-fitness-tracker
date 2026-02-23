@@ -74,10 +74,7 @@ export const OfflineBanner: React.FC = () => {
     }
   }, [syncStatus.isSyncing]);
 
-  // Don't show banner on login page
-  if (!isAuthenticated) return null;
-
-  const showBanner = isOffline || syncStatus.pendingCount > 0 || syncStatus.isSyncing || justSynced;
+  const showBanner = isAuthenticated && (isOffline || syncStatus.pendingCount > 0 || syncStatus.isSyncing || justSynced);
 
   useEffect(() => {
     Animated.timing(opacity, {
@@ -85,8 +82,9 @@ export const OfflineBanner: React.FC = () => {
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [showBanner]);
+  }, [showBanner, opacity]);
 
+  // Don't show banner on login page or when nothing to show
   if (!showBanner) return null;
 
   // Just synced successfully
