@@ -1,23 +1,52 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, Zap, X } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { useGamification } from '@/hooks/use-gamification';
 import { StatsCard } from '@/components/StatsCard';
+import { InstallBanner } from '@/components/InstallBanner';
+import { exercises as exerciseDb } from '@/data/exercises';
 
 export default function WorkoutScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { activeWorkout, workouts, startWorkout, setCurrentUserId, getWorkoutHistory } = useWorkouts();
+  const {
+    activeWorkout,
+    routines,
+    workoutPlans,
+    startWorkout,
+    startWorkoutFromRoutine,
+    setCurrentUserId,
+    getWorkoutHistory,
+    getMuscleGroupVolume,
+  } = useWorkouts();
+  const { gamification } = useGamification();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem('welcomeDismissed').then(val => {
+      if (val === 'true') setShowWelcome(false);
+    });
+  }, []);
+
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    AsyncStorage.setItem('welcomeDismissed', 'true');
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -40,13 +69,13 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleQuickStart = () => {
-    startWorkout();
+  const handleStartFromRoutine = (routine: any) => {
+    startWorkoutFromRoutine(routine);
     router.push('/active-workout');
   };
 
   const userWorkouts = getWorkoutHistory();
-  
+
   const todayWorkouts = userWorkouts.filter(w => {
     const today = new Date().toDateString();
     return new Date(w.date).toDateString() === today;
@@ -60,12 +89,81 @@ export default function WorkoutScreen() {
     }, 0);
   }, 0);
 
+  // Weekly progress: how many days this week had workouts
+  const weekProgress = useMemo(() => {
+    const now = new Date();
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const daysWithWorkouts = new Set<string>();
+    for (const w of userWorkouts) {
+      if (w.completed && new Date(w.date) >= startOfWeek) {
+        daysWithWorkouts.add(new Date(w.date).toDateString());
+      }
+    }
+    return daysWithWorkouts.size;
+  }, [userWorkouts]);
+
+  // Assigned plans for this user (plan instances or direct assignments)
+  const myPlans = useMemo(() => {
+    if (!user?.id) return [];
+    return workoutPlans.filter(p =>
+      (p.isInstance && p.assignedTo?.includes(user.id)) ||
+      (!p.isInstance && p.assignedTo?.includes(user.id))
+    );
+  }, [workoutPlans, user?.id]);
+
+  // Today's scheduled plans based on dayOfWeek
+  const todaysPlans = useMemo(() => {
+    const todayDow = new Date().getDay(); // 0=Sun, 1=Mon...
+    return myPlans.filter(p =>
+      p.schedule?.some(s => s.dayOfWeek === todayDow)
+    );
+  }, [myPlans]);
+
+  // Muscle group volume from last 7 days
+  const muscleVolume = getMuscleGroupVolume();
+  const topMuscleGroups = useMemo(() => {
+    return Object.entries(muscleVolume)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6);
+  }, [muscleVolume]);
+
+  const getExerciseName = (exerciseId: string) => {
+    return exerciseDb.find(e => e.id === exerciseId)?.name || exerciseId;
+  };
+
+  const formatDuration = (ms: number) => {
+    const mins = Math.round(ms / 60000);
+    if (mins < 60) return `${mins} Min.`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m`;
+  };
+
+  const handleStartFromPlan = (planId: string) => {
+    startWorkout(planId);
+    router.push('/active-workout');
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.accent} />
+          <Text style={styles.loadingText}>Daten werden geladen...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        <InstallBanner />
         <View style={styles.header}>
           <Text style={styles.greeting}>
-            Hallo, {user?.name || 'Athlet'}! 💪
+            Hallo, {user?.name || 'Athlet'}!
           </Text>
           <Text style={styles.date}>
             {new Date().toLocaleDateString('de-DE', {
@@ -76,21 +174,69 @@ export default function WorkoutScreen() {
           </Text>
         </View>
 
+        {userWorkouts.length === 0 && routines.length === 0 && showWelcome && (
+          <View style={styles.welcomeCard}>
+            <TouchableOpacity
+              style={styles.welcomeDismiss}
+              onPress={dismissWelcome}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <X size={18} color={Colors.textMuted} />
+            </TouchableOpacity>
+            <View style={styles.welcomeHeader}>
+              <Target size={20} color={Colors.accent} />
+              <Text style={styles.welcomeTitle}>Willkommen bei Functional Wiehl!</Text>
+            </View>
+            <Text style={styles.welcomeSubtitle}>So startest du in 3 Schritten:</Text>
+            {[
+              { num: '1', text: 'Workout starten - Tippe auf den Button unten' },
+              { num: '2', text: 'Übungen hinzufügen - Wähle aus 80+ Übungen' },
+              { num: '3', text: 'Fortschritt tracken - Sieh deine Statistiken im Stats-Tab' },
+            ].map(step => (
+              <View key={step.num} style={styles.welcomeStep}>
+                <View style={styles.welcomeStepNumber}>
+                  <Text style={styles.welcomeStepNumberText}>{step.num}</Text>
+                </View>
+                <Text style={styles.welcomeStepText}>{step.text}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.statsRow}>
           <StatsCard
-            title="Workouts Heute"
+            title="Heute"
             value={todayWorkouts.length}
+            subtitle={todayWorkouts.length === 1 ? 'Workout' : 'Workouts'}
             icon={<Clock size={20} color={Colors.accent} />}
             color={Colors.accent}
           />
           <StatsCard
-            title="Gesamt Volumen"
-            value={`${(totalVolume / 1000).toFixed(1)}t`}
-            icon={<TrendingUp size={20} color={Colors.success} />}
+            title="Streak"
+            value={gamification.currentStreak}
+            subtitle={gamification.currentStreak === 1 ? 'Tag' : 'Tage'}
+            icon={<Flame size={20} color={Colors.warning} />}
+            color={Colors.warning}
+          />
+        </View>
+        <View style={styles.statsRow}>
+          <StatsCard
+            title="Diese Woche"
+            value={weekProgress}
+            subtitle={`Tag${weekProgress !== 1 ? 'e' : ''} trainiert`}
+            icon={<Calendar size={20} color={Colors.success} />}
             color={Colors.success}
+          />
+          <StatsCard
+            title="Volumen"
+            value={`${(totalVolume / 1000).toFixed(1)}t`}
+            subtitle="Gesamt"
+            icon={<TrendingUp size={20} color={Colors.accent} />}
+            color={Colors.accent}
           />
         </View>
 
+        {/* Start Workout Buttons */}
         {activeWorkout ? (
           <TouchableOpacity
             style={styles.continueButton}
@@ -109,55 +255,193 @@ export default function WorkoutScreen() {
         ) : (
           <TouchableOpacity
             style={styles.startButton}
-            onPress={handleQuickStart}
+            onPress={handleStartWorkout}
           >
             <Plus size={24} color={Colors.text} />
-            <Text style={styles.startButtonText}>Neues Workout starten</Text>
+            <Text style={styles.startButtonText}>Leeres Workout starten</Text>
           </TouchableOpacity>
         )}
 
-        {user?.role === 'trainer' && (
-          <View style={styles.trainerSection}>
-            <Text style={styles.sectionTitle}>Trainer Bereich</Text>
-            <TouchableOpacity
-              testID="open-trainer-center"
-              style={styles.trainerButton}
-              onPress={() => router.push('/trainer' as never)}
-            >
-              <Text style={styles.trainerButtonText}>Trainer Center</Text>
-            </TouchableOpacity>
+        {/* Today's Scheduled Plans */}
+        {todaysPlans.length > 0 && (
+          <View style={styles.todayPlansSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Heute geplant</Text>
+            </View>
+            {todaysPlans.map(plan => (
+              <TouchableOpacity
+                key={plan.id}
+                style={styles.todayPlanCard}
+                onPress={() => handleStartFromPlan(plan.id)}
+              >
+                <View style={styles.todayPlanIcon}>
+                  <ClipboardList size={20} color={Colors.accent} />
+                </View>
+                <View style={styles.todayPlanInfo}>
+                  <Text style={styles.todayPlanName}>{plan.name}</Text>
+                  <Text style={styles.todayPlanDetails}>
+                    {plan.exercises.length} Übungen
+                    {plan.schedule?.find(s => s.dayOfWeek === new Date().getDay())?.time
+                      ? ` - ${plan.schedule.find(s => s.dayOfWeek === new Date().getDay())?.time}`
+                      : ''}
+                  </Text>
+                </View>
+                <Play size={20} color={Colors.accent} />
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
-        <View style={styles.recentSection}>
-          <Text style={styles.sectionTitle}>Letzte Workouts</Text>
-          {userWorkouts.slice(-3).reverse().map((workout) => (
-            <TouchableOpacity
-              key={workout.id}
-              style={styles.recentWorkout}
-              onPress={() => Alert.alert('Workout Details', `${workout.name}\n${workout.exercises.length} Übungen`)}
-            >
-              <View>
-                <Text style={styles.recentWorkoutName}>{workout.name}</Text>
-                <Text style={styles.recentWorkoutDate}>
-                  {new Date(workout.date).toLocaleDateString('de-DE')}
-                </Text>
-              </View>
-              <Text style={styles.recentWorkoutExercises}>
-                {workout.exercises.length} Übungen
-              </Text>
+        {/* Assigned Plans Quick-Start */}
+        {myPlans.length > 0 && todaysPlans.length === 0 && !activeWorkout && (
+          <View style={styles.myPlansSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Meine Pläne</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.planScroller}>
+              {myPlans.slice(0, 5).map(plan => (
+                <TouchableOpacity
+                  key={plan.id}
+                  style={styles.planChip}
+                  onPress={() => handleStartFromPlan(plan.id)}
+                >
+                  <ClipboardList size={14} color={Colors.accent} />
+                  <Text style={styles.planChipText} numberOfLines={1}>{plan.name}</Text>
+                  <Play size={12} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Muscle Group Recovery */}
+        {topMuscleGroups.length > 0 && (
+          <View style={styles.muscleSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Muskelgruppen (7 Tage)</Text>
+            </View>
+            <View style={styles.muscleGrid}>
+              {topMuscleGroups.map(([group, sets]) => {
+                const maxSets = topMuscleGroups[0]?.[1] || 1;
+                const fillPercent = Math.min(100, Math.round((sets / maxSets) * 100));
+                return (
+                  <View key={group} style={styles.muscleItem}>
+                    <View style={styles.muscleBarContainer}>
+                      <View style={[styles.muscleBar, { width: `${fillPercent}%` }]} />
+                    </View>
+                    <Text style={styles.muscleLabel}>{group}</Text>
+                    <Text style={styles.muscleSets}>{sets}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Routines Section */}
+        <View style={styles.routinesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Meine Routinen</Text>
+            <TouchableOpacity onPress={() => router.push('/routines' as never)}>
+              <Text style={styles.seeAllText}>Alle</Text>
             </TouchableOpacity>
-          ))}
+          </View>
+
+          {routines.length > 0 ? (
+            routines.slice(0, 3).map((routine) => (
+              <TouchableOpacity
+                key={routine.id}
+                style={styles.routineCard}
+                onPress={() => handleStartFromRoutine(routine)}
+              >
+                <View style={styles.routineIcon}>
+                  <Repeat size={20} color={Colors.accent} />
+                </View>
+                <View style={styles.routineInfo}>
+                  <Text style={styles.routineName}>{routine.name}</Text>
+                  <Text style={styles.routineDetails}>
+                    {routine.exercises.length} Übungen
+                    {routine.timesUsed > 0 && ` - ${routine.timesUsed}x verwendet`}
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity
+              style={styles.createRoutineButton}
+              onPress={() => router.push('/routines' as never)}
+            >
+              <Plus size={18} color={Colors.accent} />
+              <Text style={styles.createRoutineText}>Routine erstellen</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* Recent Workouts */}
+        <View style={styles.recentSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Letzte Workouts</Text>
+            {userWorkouts.length > 3 && (
+              <TouchableOpacity onPress={() => router.push('/(tabs)/calendar' as never)}>
+                <Text style={styles.seeAllText}>Alle</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {userWorkouts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Dumbbell size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyStateText}>Noch keine Workouts</Text>
+              <Text style={styles.emptyStateSubtext}>Starte dein erstes Workout!</Text>
+            </View>
+          ) : (
+            userWorkouts.slice(-5).reverse().map((workout) => (
+              <TouchableOpacity
+                key={workout.id}
+                style={styles.recentWorkout}
+                onPress={() => router.push(`/workout-detail/${workout.id}` as never)}
+              >
+                <View style={styles.recentWorkoutLeft}>
+                  <Text style={styles.recentWorkoutName}>{workout.name}</Text>
+                  <Text style={styles.recentWorkoutDate}>
+                    {new Date(workout.date).toLocaleDateString('de-DE', {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                    {workout.duration && ` - ${formatDuration(workout.duration)}`}
+                  </Text>
+                  <Text style={styles.recentWorkoutExercises} numberOfLines={1}>
+                    {workout.exercises.map(e => getExerciseName(e.exerciseId)).join(', ')}
+                  </Text>
+                </View>
+                <ChevronRight size={18} color={Colors.textMuted} />
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+  },
+  loadingText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
   header: {
     padding: Spacing.lg,
@@ -219,36 +503,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.8,
   },
-  trainerSection: {
+  routinesSection: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: Spacing.md,
   },
-  trainerButton: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-  },
-  trainerButtonText: {
+  seeAllText: {
+    fontSize: 14,
     color: Colors.accent,
-    fontSize: 16,
     fontWeight: '500' as const,
-    textAlign: 'center',
   },
-  recentSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
-  },
-  recentWorkout: {
+  routineCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: Colors.surface,
     padding: Spacing.md,
@@ -257,18 +533,258 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  routineIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  routineInfo: {
+    flex: 1,
+  },
+  routineName: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  routineDetails: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  createRoutineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  createRoutineText: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    marginLeft: Spacing.sm,
+  },
+  recentSection: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
+  },
+  recentWorkout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  recentWorkoutLeft: {
+    flex: 1,
+  },
   recentWorkoutName: {
     fontSize: 16,
     fontWeight: '500' as const,
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   recentWorkoutDate: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
+    marginBottom: 2,
   },
   recentWorkoutExercises: {
+    fontSize: 12,
+    color: Colors.textMuted,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+  },
+  emptyStateSubtext: {
     fontSize: 14,
     color: Colors.textMuted,
+    marginTop: Spacing.xs,
+  },
+  todayPlansSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  todayPlanCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent + '15',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.accent + '40',
+  },
+  todayPlanIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.accent + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  todayPlanInfo: {
+    flex: 1,
+  },
+  todayPlanName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  todayPlanDetails: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  myPlansSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  planScroller: {
+    flexDirection: 'row',
+  },
+  planChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    marginRight: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    maxWidth: 180,
+  },
+  planChipText: {
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '500' as const,
+    flex: 1,
+  },
+  muscleSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  muscleGrid: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  muscleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  muscleBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: 4,
+    marginRight: Spacing.sm,
+    overflow: 'hidden',
+  },
+  muscleBar: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 4,
+  },
+  muscleLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    width: 80,
+    textAlign: 'right',
+    marginRight: Spacing.xs,
+    textTransform: 'capitalize',
+  },
+  muscleSets: {
+    fontSize: 12,
+    color: Colors.textMuted,
+    width: 24,
+    textAlign: 'right',
+  },
+  welcomeCard: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    position: 'relative' as const,
+  },
+  welcomeDismiss: {
+    position: 'absolute' as const,
+    top: Spacing.sm,
+    right: Spacing.sm,
+    zIndex: 1,
+    padding: 4,
+  },
+  welcomeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  welcomeTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+  },
+  welcomeStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  welcomeStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeStepNumberText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.background,
+  },
+  welcomeStepText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
   },
 });

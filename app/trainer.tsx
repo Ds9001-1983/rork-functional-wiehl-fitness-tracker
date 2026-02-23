@@ -1,17 +1,21 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Linking, PanResponder, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, Linking, PanResponder, Animated, Dimensions } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { UserPlus, Send, ClipboardList, Mail, User, Trash2, Phone, Users, Plus, X, Edit3, Calendar } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
 import type { WorkoutPlan, WorkoutExercise } from '@/types/workout';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function TrainerCenterScreen() {
   const { user } = useAuth();
   const { clients, addClient, removeClient } = useClients();
   const { createWorkoutPlan, assignPlanToUser, workoutPlans } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const [clientFirstName, setClientFirstName] = useState<string>('');
   const [clientLastName, setClientLastName] = useState<string>('');
@@ -28,14 +32,15 @@ export default function TrainerCenterScreen() {
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const swipeAnimations = useRef<Map<string, Animated.Value>>(new Map()).current;
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const screenWidth = Dimensions.get('window').width;
   const swipeThreshold = screenWidth * 0.3;
 
   const sampleExercises: WorkoutExercise[] = useMemo(() => ([
-    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false }] },
-    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false }] },
+    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false, type: 'normal' as const }] },
+    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false, type: 'normal' as const }] },
   ]), []);
 
   const generateStarterPassword = (): string => {
@@ -58,31 +63,25 @@ export default function TrainerCenterScreen() {
 
   const sendWelcomeEmail = async (email: string, name: string, password: string): Promise<boolean> => {
     try {
-      console.log(`📧 E-Mail wird gesendet an: ${email}`);
-      console.log(`👤 Kunde: ${name}`);
-      console.log(`🔑 Starter-Passwort für ${name}: ${password}`);
-      
       // E-Mail-Betreff und -Inhalt
-      const subject = 'Willkommen bei Functional Wiehl - Ihre Anmeldedaten';
+      const subject = 'Willkommen bei Functional Wiehl - Deine Anmeldedaten';
       const body = `Hallo ${name},
 
 willkommen bei Functional Wiehl!
 
-Ihr Trainer hat Ihnen einen Account erstellt.
+Dein Trainer hat dir einen Account erstellt.
 
-Ihre Anmeldedaten:
+Deine Anmeldedaten:
 E-Mail: ${email}
 Starter-Passwort: ${password}
 
-Bitte loggen Sie sich in der App ein und ändern Sie Ihr Passwort beim ersten Login.
+Bitte logge dich in der App ein und ändere dein Passwort beim ersten Login.
 
 Viel Erfolg beim Training!
-Ihr Functional Wiehl Team`;
+Dein Functional Wiehl Team`;
       
       // mailto: URL erstellen
       const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      
-      console.log('📧 Öffne E-Mail-Client für:', email);
       
       // E-Mail-Client öffnen
       const canOpen = await Linking.canOpenURL(mailtoUrl);
@@ -101,31 +100,29 @@ Ihr Functional Wiehl Team`;
 
   const handleCreateClient = async () => {
     if (!clientFirstName || !clientLastName) {
-      Alert.alert('Fehler', 'Bitte Vor- und Nachname eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte Vor- und Nachname eingeben' });
       return;
     }
-    
+
     if (!clientPhone) {
-      Alert.alert('Fehler', 'Bitte Handynummer eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte Handynummer eingeben' });
       return;
     }
-    
+
     if (!clientEmail) {
-      Alert.alert('Fehler', 'Bitte E-Mail-Adresse eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte E-Mail-Adresse eingeben' });
       return;
     }
-    
+
     // E-Mail-Format validieren
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(clientEmail)) {
-      Alert.alert('Fehler', 'Bitte gültige E-Mail-Adresse eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte gültige E-Mail-Adresse eingeben' });
       return;
     }
     
     const fullName = `${clientFirstName} ${clientLastName}`;
     const starterPassword = generateStarterPassword();
-    
-    console.log('[Trainer] Creating client with password:', starterPassword);
     
     try {
       // Kunde erstellen
@@ -145,31 +142,19 @@ Ihr Functional Wiehl Team`;
         }
       });
       
-      console.log('[Trainer] Client created successfully, sending welcome email');
-      
       // Willkommens-E-Mail senden
       const emailSent = await sendWelcomeEmail(clientEmail, fullName, starterPassword);
       
       if (emailSent) {
-        Alert.alert(
-          '✅ Kunde erfolgreich erstellt!',
-          `${fullName} wurde erfolgreich hinzugefügt.\n\n📧 Ihr E-Mail-Client wurde geöffnet, um die Willkommens-E-Mail zu versenden.\n\n💡 Bitte senden Sie die E-Mail ab, damit der Kunde seine Anmeldedaten erhält.\n\n🔑 Passwort: ${starterPassword}`,
-          [
-            { text: 'Verstanden', style: 'default' }
-          ]
-        );
+        setStatusMessage({
+          type: 'success',
+          text: `${fullName} wurde erfolgreich hinzugefügt. E-Mail-Client wurde geöffnet. Passwort: ${starterPassword}`,
+        });
       } else {
-        Alert.alert(
-          '⚠️ Kunde erstellt - E-Mail-Client nicht verfügbar',
-          `${fullName} wurde erfolgreich hinzugefügt.\n\n❌ Kein E-Mail-Client verfügbar.\n\n🔑 Starter-Passwort: ${starterPassword}\n\n📱 Bitte teilen Sie dem Kunden das Passwort manuell mit (z.B. per WhatsApp oder Anruf).`,
-          [
-            { text: 'Passwort kopieren', onPress: () => {
-              // Hier könnte Clipboard.setString(starterPassword) verwendet werden
-              console.log('Passwort zum Kopieren:', starterPassword);
-            }},
-            { text: 'OK', style: 'default' }
-          ]
-        );
+        setStatusMessage({
+          type: 'success',
+          text: `${fullName} wurde erstellt. Kein E-Mail-Client verfügbar. Starter-Passwort: ${starterPassword} - Bitte manuell mitteilen.`,
+        });
       }
       
       // Felder zurücksetzen
@@ -182,32 +167,25 @@ Ihr Functional Wiehl Team`;
       console.error('Fehler beim Erstellen des Kunden:', error);
       
       if (error.message === 'CLIENT_EMAIL_EXISTS') {
-        Alert.alert(
-          'Kunde bereits vorhanden', 
-          `Ein Kunde mit der E-Mail-Adresse "${clientEmail}" existiert bereits.\n\nBitte verwenden Sie eine andere E-Mail-Adresse oder suchen Sie den bestehenden Kunden in der Kundenverwaltung.`
-        );
+        setStatusMessage({ type: 'error', text: `Ein Kunde mit der E-Mail-Adresse "${clientEmail}" existiert bereits.` });
       } else if (error.message === 'CLIENT_PHONE_EXISTS') {
-        Alert.alert(
-          'Kunde bereits vorhanden', 
-          `Ein Kunde mit der Telefonnummer "${clientPhone}" existiert bereits.\n\nBitte verwenden Sie eine andere Telefonnummer oder suchen Sie den bestehenden Kunden in der Kundenverwaltung.`
-        );
+        setStatusMessage({ type: 'error', text: `Ein Kunde mit der Telefonnummer "${clientPhone}" existiert bereits.` });
       } else if (error.message === 'CLIENT_ALREADY_EXISTS') {
-        // Fallback für alte Fehlermeldung
-        Alert.alert('Fehler', 'Ein Kunde mit diesen Daten existiert bereits.');
+        setStatusMessage({ type: 'error', text: 'Ein Kunde mit diesen Daten existiert bereits.' });
       } else {
-        Alert.alert('Fehler', 'Kunde konnte nicht erstellt werden. Bitte versuchen Sie es erneut.');
+        setStatusMessage({ type: 'error', text: 'Kunde konnte nicht erstellt werden. Bitte versuche es erneut.' });
       }
     }
   };
 
   const handleCreatePlan = async () => {
     if (!isTrainer) {
-      Alert.alert('Keine Berechtigung', 'Nur Trainer können Pläne erstellen');
+      setStatusMessage({ type: 'error', text: 'Nur Trainer können Pläne erstellen' });
       return;
     }
-    
+
     if (!planName.trim()) {
-      Alert.alert('Fehler', 'Bitte Planname eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte Planname eingeben' });
       return;
     }
     
@@ -219,7 +197,7 @@ Ihr Functional Wiehl Team`;
       schedule: [{ dayOfWeek: 2, time: '18:00' }],
     };
     await createWorkoutPlan(plan);
-    Alert.alert('Erfolgreich', `Trainingsplan "${plan.name}" wurde erstellt`);
+    setStatusMessage({ type: 'success', text: `Trainingsplan "${plan.name}" wurde erstellt` });
     setPlanName('');
     setPlanDesc('');
     setShowCreatePlanModal(false);
@@ -227,14 +205,14 @@ Ihr Functional Wiehl Team`;
 
   const handleAssignPlan = async (planId: string) => {
     if (!selectedClientId) {
-      Alert.alert('Fehler', 'Bitte einen Kunden auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte einen Kunden auswählen' });
       return;
     }
-    
+
     await assignPlanToUser(planId, selectedClientId);
     const client = clients.find(c => c.id === selectedClientId);
     const plan = workoutPlans.find(p => p.id === planId);
-    Alert.alert('Erfolgreich', `Plan "${plan?.name}" wurde ${client?.name} zugewiesen`);
+    setStatusMessage({ type: 'success', text: `Plan "${plan?.name}" wurde ${client?.name} zugewiesen` });
     setSelectedClientId('');
     setShowAssignModal(false);
   };
@@ -312,7 +290,7 @@ Ihr Functional Wiehl Team`;
         const client = clients.find(c => c.id === clientId);
         if (client) {
           removeClient(clientId);
-          Alert.alert('Kunde gelöscht', `${client.name} wurde erfolgreich gelöscht.`);
+          setStatusMessage({ type: 'success', text: `${client.name} wurde erfolgreich gelöscht.` });
         }
       }
     }, 50);
@@ -361,6 +339,15 @@ Ihr Functional Wiehl Team`;
     <>
       <Stack.Screen options={{ title: 'Trainer Center' }} />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+        {statusMessage && (
+          <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg }}>
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          </View>
+        )}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Neuen Kunden anlegen</Text>
@@ -437,7 +424,7 @@ Ihr Functional Wiehl Team`;
             </TouchableOpacity>
           </View>
           <Text style={styles.cardDescription}>
-            Wählen Sie einen Kunden aus und erstellen Sie ein geplantes Training mit automatischer Kalender-Integration.
+            Wähle einen Kunden aus und erstelle ein geplantes Training mit automatischer Kalender-Integration.
           </Text>
         </View>
 
@@ -456,7 +443,7 @@ Ihr Functional Wiehl Team`;
             <View style={styles.emptyState}>
               <ClipboardList size={32} color={Colors.textMuted} />
               <Text style={styles.emptyText}>Noch keine Trainingspläne erstellt</Text>
-              <Text style={styles.emptySubtext}>Erstellen Sie Ihren ersten Plan</Text>
+              <Text style={styles.emptySubtext}>Erstelle deinen ersten Plan</Text>
             </View>
           ) : (
             <View style={styles.plansList}>
@@ -646,7 +633,7 @@ Ihr Functional Wiehl Team`;
                 <View style={styles.emptyState}>
                   <Users size={32} color={Colors.textMuted} />
                   <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-                  <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
+                  <Text style={styles.emptySubtext}>Lege zuerst einen Kunden an</Text>
                 </View>
               ) : (
                 <>
@@ -708,7 +695,7 @@ Ihr Functional Wiehl Team`;
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background },
   centeredText: { color: Colors.text, fontSize: 16 },

@@ -25,14 +25,14 @@
       "package": "app.rork.functional-wiehl-fitness-tracker"
     },
     "web": {
-      "bundler": "webpack",
+      "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://app.functional-wiehl.de"
         }
       ],
       "expo-font",

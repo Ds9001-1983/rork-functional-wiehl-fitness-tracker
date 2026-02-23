@@ -5,12 +5,16 @@
   "scripts": {
     "start": "bunx rork start -p u2isdzzpvkfpkfvw4dy7l --tunnel",
     "start-web": "bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel",
-    "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel"
+    "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel",
+    "server": "bun backend-server.ts",
+    "test": "bun test __tests__/",
+    "postinstall": "node scripts/patch-metro-exports.js",
+    "build-web": "node scripts/patch-metro-exports.js && bunx expo export --platform web",
+    "deploy": "bash deploy.sh"
   },
   "dependencies": {
-    "@expo/cli": "^54.0.1",
     "@expo/vector-icons": "^14.1.0",
-    "@expo/webpack-config": "^19.0.1",
+    "@expo/metro-runtime": "~5.0.4",
     "@hono/node-server": "1.19.1",
     "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
@@ -46,39 +50,34 @@
     "hono": "4.9.6",
     "jsonwebtoken": "^9.0.2",
     "lucide-react-native": "^0.475.0",
-    "metro": "^0.83.1",
     "nativewind": "^4.1.23",
     "nodemon": "^3.1.10",
     "pg": "^8.16.3",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.76.5",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.7",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "15.11.2",
-    "react-native-web": "0.19.13",
+    "react-native-web": "~0.19.13",
     "superjson": "^2.2.2",
     "ts-node": "10.9.2",
-    "webpack": "^5.101.3",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2",
-    "zod": "^4.0.17",
-    "zustand": "^5.0.2"
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@expo/ngrok": "^4.1.0",
-    "@types/react": "18.2.79",
+    "@types/react": "~19.0.0",
     "typescript": "~5.8.3",
     "undici": "6.21.0"
   },
   "private": true,
   "overrides": {
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.76.5",
-    "react-native-web": "0.19.13",
-    "@types/react": "18.2.79"
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.7",
+    "react-native-web": "~0.19.13",
+    "@types/react": "~19.0.0"
   }
 }

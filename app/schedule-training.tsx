@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Calendar, Clock, User, Users, CheckCircle, ArrowLeft, Plus, Repeat, ChevronDown, CheckSquare, Square, Dumbbell, Target } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -13,6 +14,8 @@ export default function ScheduleTrainingScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { createWorkout } = useWorkouts();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const params = useLocalSearchParams<{ clientId?: string }>();
   
   const [selectedClientId, setSelectedClientId] = useState<string>(params.clientId || '');
@@ -26,7 +29,9 @@ export default function ScheduleTrainingScreen() {
   const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [recurringEndDate, setRecurringEndDate] = useState<string>('');
   const [showWeekdaySelector, setShowWeekdaySelector] = useState<boolean>(false);
-  
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
   const weekdays = [
     { id: 1, name: 'Montag', short: 'Mo' },
     { id: 2, name: 'Dienstag', short: 'Di' },
@@ -98,56 +103,58 @@ export default function ScheduleTrainingScreen() {
   };
   
   const handleScheduleTraining = async () => {
+    setStatusMessage(null);
+
     if (!selectedClientId) {
-      Alert.alert('Fehler', 'Bitte einen Kunden auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte einen Kunden auswählen.' });
       return;
     }
-    
+
     if (!planName.trim()) {
-      Alert.alert('Fehler', 'Bitte einen Plannamen eingeben');
+      setStatusMessage({ type: 'error', text: 'Bitte einen Plannamen eingeben.' });
       return;
     }
-    
+
     if (selectedExercises.length === 0) {
-      Alert.alert('Fehler', 'Bitte mindestens eine Übung auswählen');
+      setStatusMessage({ type: 'error', text: 'Bitte mindestens eine Übung auswählen.' });
       return;
     }
-    
+
     if (isRecurring) {
       if (selectedWeekdays.length === 0) {
-        Alert.alert('Fehler', 'Bitte mindestens einen Wochentag auswählen');
+        setStatusMessage({ type: 'error', text: 'Bitte mindestens einen Wochentag auswählen.' });
         return;
       }
-      
+
       if (!recurringEndDate) {
-        Alert.alert('Fehler', 'Bitte ein Enddatum für die Wiederholung eingeben');
+        setStatusMessage({ type: 'error', text: 'Bitte ein Enddatum für die Wiederholung eingeben (Format: YYYY-MM-DD).' });
         return;
       }
     }
-    
+
+    setIsSaving(true);
+
     try {
       let trainingDates: Date[] = [];
-      
+
       if (isRecurring) {
-        // Wiederkehrende Termine generieren
         trainingDates = generateRecurringDates(
           selectedDate,
           recurringEndDate,
           selectedWeekdays
         );
       } else {
-        // Einzeltermin
         const trainingDate = new Date(selectedDate);
-        trainingDate.setHours(12, 0, 0, 0); // Set to noon as default
+        trainingDate.setHours(12, 0, 0, 0);
         trainingDates = [trainingDate];
       }
-      
+
       if (trainingDates.length === 0) {
-        Alert.alert('Fehler', 'Keine gültigen Trainingstermine gefunden');
+        setStatusMessage({ type: 'error', text: 'Keine gültigen Trainingstermine im gewählten Zeitraum gefunden.' });
+        setIsSaving(false);
         return;
       }
-      
-      // Erstelle Übungen basierend auf der Auswahl
+
       const workoutExercises = selectedExercises.map((exerciseId, index) => ({
         id: `ex_${Date.now()}_${index}`,
         exerciseId,
@@ -156,16 +163,15 @@ export default function ScheduleTrainingScreen() {
             id: `set_${Date.now()}_${index}_1`,
             reps: 10,
             weight: 20,
-            completed: false
+            completed: false,
+            type: 'normal' as const,
           }
         ],
         notes: ''
       }));
-      
-      // Automatischer Trainingsname basierend auf Plan und Kunde
+
       const autoTrainingName = `${planName} - ${selectedClient!.name}`;
-      
-      // Alle Trainings erstellen
+
       for (const trainingDate of trainingDates) {
         const workout: Omit<Workout, 'id'> = {
           name: autoTrainingName,
@@ -175,26 +181,16 @@ export default function ScheduleTrainingScreen() {
           userId: selectedClientId,
           createdBy: user?.id,
         };
-        
+
         await createWorkout(workout);
       }
-      
-      // Erfolgs-Nachricht
-      const message = isRecurring 
+
+      const message = isRecurring
         ? `${trainingDates.length} Trainingstermine wurden für ${selectedClient!.name} geplant.`
         : `Das Training wurde für ${selectedClient!.name} am ${new Date(selectedDate).toLocaleDateString('de-DE')} geplant.`;
-      
-      Alert.alert(
-        '✅ Training(s) geplant!',
-        message + `\n\n${selectedExercises.length} Übungen wurden hinzugefügt.`,
-        [
-          { 
-            text: 'Zurück zum Trainer Center', 
-            onPress: () => router.push('/trainer')
-          }
-        ]
-      );
-      
+
+      setStatusMessage({ type: 'success', text: message });
+
       // Felder zurücksetzen
       setSelectedClientId('');
       setPlanName('');
@@ -203,10 +199,17 @@ export default function ScheduleTrainingScreen() {
       setIsRecurring(false);
       setSelectedWeekdays([]);
       setRecurringEndDate('');
-      
+
+      // Nach 2 Sekunden zurück zum Trainer Center
+      setTimeout(() => {
+        router.push('/trainer');
+      }, 2000);
+
     } catch (error) {
       console.error('Fehler beim Planen des Trainings:', error);
-      Alert.alert('Fehler', 'Training konnte nicht geplant werden. Bitte versuchen Sie es erneut.');
+      setStatusMessage({ type: 'error', text: 'Training konnte nicht gespeichert werden. Bitte erneut versuchen.' });
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -248,7 +251,75 @@ export default function ScheduleTrainingScreen() {
         }} 
       />
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
-        
+
+        {/* Zurueck-Button */}
+        <TouchableOpacity
+          style={styles.backBar}
+          onPress={() => router.push('/trainer')}
+        >
+          <ArrowLeft size={20} color={Colors.text} />
+          <Text style={styles.backBarText}>Zurück zum Trainer Center</Text>
+        </TouchableOpacity>
+
+        {/* Step Indicator */}
+        {(() => {
+          const currentStep = !selectedClientId ? 1 : !planName.trim() ? 2 : selectedExercises.length === 0 ? 3 : 4;
+          const stepLabels = ['Kunde', 'Name', 'Übungen', 'Datum', 'Fertig'];
+
+          const handleStepPress = (stepNum: number) => {
+            if (stepNum >= currentStep) return; // Can only go back
+            if (stepNum <= 1) {
+              setSelectedClientId('');
+              setPlanName('');
+              setSelectedExercises([]);
+            } else if (stepNum <= 2) {
+              setPlanName('');
+              setSelectedExercises([]);
+            } else if (stepNum <= 3) {
+              setSelectedExercises([]);
+            }
+          };
+
+          return (
+            <View style={styles.stepIndicator}>
+              {stepLabels.map((label, index) => {
+                const stepNum = index + 1;
+                const isComplete = stepNum < currentStep;
+                const isActive = stepNum === currentStep;
+                const isClickable = isComplete;
+                return (
+                  <React.Fragment key={stepNum}>
+                    {index > 0 && (
+                      <View style={[styles.stepLine, isComplete && styles.stepLineComplete]} />
+                    )}
+                    <TouchableOpacity
+                      style={styles.stepItem}
+                      onPress={() => handleStepPress(stepNum)}
+                      disabled={!isClickable}
+                      activeOpacity={isClickable ? 0.6 : 1}
+                    >
+                      <View style={[
+                        styles.stepDot,
+                        isComplete && styles.stepDotComplete,
+                        isActive && styles.stepDotActive,
+                      ]}>
+                        <Text style={[
+                          styles.stepDotText,
+                          (isComplete || isActive) && styles.stepDotTextActive,
+                        ]}>{stepNum}</Text>
+                      </View>
+                      <Text style={[
+                        styles.stepLabel,
+                        (isComplete || isActive) && styles.stepLabelActive,
+                      ]}>{label}</Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          );
+        })()}
+
         {/* Kunde auswählen */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -260,7 +331,7 @@ export default function ScheduleTrainingScreen() {
             <View style={styles.emptyState}>
               <Users size={32} color={Colors.textMuted} />
               <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-              <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
+              <Text style={styles.emptySubtext}>Lege zuerst einen Kunden an</Text>
             </View>
           ) : (
             <View style={styles.clientSelector}>
@@ -446,7 +517,7 @@ export default function ScheduleTrainingScreen() {
               <View style={styles.recurringContainer}>
                 <View style={styles.fullWidth}>
                   <Text style={styles.label}>Wochentage</Text>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.weekdaySelector}
                     onPress={() => setShowWeekdaySelector(!showWeekdaySelector)}
                   >
@@ -456,16 +527,16 @@ export default function ScheduleTrainingScreen() {
                     ]}>
                       {getSelectedWeekdaysText()}
                     </Text>
-                    <ChevronDown 
-                      size={18} 
-                      color={Colors.textSecondary} 
+                    <ChevronDown
+                      size={18}
+                      color={Colors.textSecondary}
                       style={[
                         styles.weekdaySelectorIcon,
                         showWeekdaySelector && styles.weekdaySelectorIconRotated
                       ]}
                     />
                   </TouchableOpacity>
-                  
+
                   {showWeekdaySelector && (
                     <View style={styles.weekdayOptions}>
                       {weekdays.map((day) => (
@@ -490,6 +561,34 @@ export default function ScheduleTrainingScreen() {
                       ))}
                     </View>
                   )}
+                </View>
+
+                <View style={styles.fullWidth}>
+                  <Text style={styles.label}>Startdatum</Text>
+                  <View style={styles.row}>
+                    <Calendar size={18} color={Colors.textSecondary} />
+                    <TextInput
+                      value={selectedDate}
+                      onChangeText={setSelectedDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={Colors.textMuted}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.fullWidth}>
+                  <Text style={styles.label}>Enddatum</Text>
+                  <View style={styles.row}>
+                    <Calendar size={18} color={Colors.textSecondary} />
+                    <TextInput
+                      value={recurringEndDate}
+                      onChangeText={setRecurringEndDate}
+                      placeholder="YYYY-MM-DD (z.B. 2026-06-30)"
+                      placeholderTextColor={Colors.textMuted}
+                      style={styles.input}
+                    />
+                  </View>
                 </View>
               </View>
             )}
@@ -540,13 +639,25 @@ export default function ScheduleTrainingScreen() {
               )}
             </View>
             
-            <TouchableOpacity 
-              style={styles.scheduleButton} 
+            {statusMessage && (
+              <View style={[
+                styles.statusBanner,
+                statusMessage.type === 'error' ? styles.statusError : styles.statusSuccess
+              ]}>
+                <Text style={styles.statusText}>
+                  {statusMessage.type === 'success' ? '✅ ' : '⚠️ '}{statusMessage.text}
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.scheduleButton, isSaving && styles.disabledButton]}
               onPress={handleScheduleTraining}
+              disabled={isSaving}
             >
               <Calendar size={18} color={Colors.text} />
               <Text style={styles.scheduleButtonText}>
-                {isRecurring ? 'Wiederkehrende Trainings erstellen' : 'Trainingsplan erstellen'}
+                {isSaving ? 'Wird gespeichert...' : isRecurring ? 'Wiederkehrende Trainings erstellen' : 'Trainingsplan erstellen'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -556,7 +667,7 @@ export default function ScheduleTrainingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: Colors.background 
@@ -573,6 +684,76 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: Spacing.sm,
+  },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepDotActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  stepDotComplete: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  stepDotText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textMuted,
+  },
+  stepDotTextActive: {
+    color: Colors.background,
+  },
+  stepLabel: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
+  },
+  stepLabelActive: {
+    color: Colors.text,
+    fontWeight: '600' as const,
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: Colors.border,
+    marginHorizontal: 2,
+    marginBottom: 16,
+  },
+  stepLineComplete: {
+    backgroundColor: Colors.success,
+  },
+  backBarText: {
+    color: Colors.accent,
+    fontSize: 16,
+    fontWeight: '500' as const,
   },
   card: {
     backgroundColor: Colors.surface,
@@ -847,6 +1028,30 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
     fontWeight: '600' as const,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  statusBanner: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  statusError: {
+    backgroundColor: '#FF4444' + '30',
+    borderWidth: 1,
+    borderColor: '#FF4444',
+  },
+  statusSuccess: {
+    backgroundColor: '#44BB44' + '30',
+    borderWidth: 1,
+    borderColor: '#44BB44',
+  },
+  statusText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '500' as const,
+    textAlign: 'center',
   },
   recurringToggle: {
     flexDirection: 'row',

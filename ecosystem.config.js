@@ -1,18 +1,17 @@
 module.exports = {
   apps: [{
     name: 'fitness-api',
-    script: 'server.js',
+    script: 'backend-server.ts',
+    interpreter: '/root/.bun/bin/bun',
+    exec_mode: 'fork',
     instances: 1,
     autorestart: true,
     watch: false,
     max_memory_restart: '1G',
+    env_file: '.env',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000,
-      DATABASE_URL: 'postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app',
-      JWT_SECRET: 'aN8hS3kZrPq!xY9mWt7sKuF2LgJeD4b',
-      CORS_ORIGIN: 'https://app.functional-wiehl.de',
-      API_BASE_URL: 'https://app.functional-wiehl.de/api'
+      BACKEND_PORT: 3000,
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

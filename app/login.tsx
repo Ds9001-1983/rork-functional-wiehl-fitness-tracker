@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,39 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Image,
-  Switch,
   Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Lock, MessageCircle } from 'lucide-react-native';
-import { Colors, Spacing, BorderRadius, Brand } from '@/constants/colors';
+import { Mail, Lock, MessageCircle, Eye, EyeOff } from 'lucide-react-native';
+import { Spacing, BorderRadius, Brand } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
+import { trpcClient } from '@/lib/trpc';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import StatusBanner from '@/components/StatusBanner';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, resetPassword, isAuthenticated, clearStorage, user } = useAuth();
+  const { login, resetPassword, isAuthenticated, user } = useAuth();
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [rememberPassword, setRememberPassword] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{type: 'error' | 'success'; text: string} | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showNotInvitedConfirm, setShowNotInvitedConfirm] = useState(false);
+  const [lastErrorType, setLastErrorType] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (user?.role === 'trainer' || user?.role === 'admin') {
-      router.replace('/trainer');
+    if (user?.role === 'admin') {
+      router.replace('/(admin-tabs)');
+    } else if (user?.role === 'trainer') {
+      router.replace('/(trainer-tabs)');
     } else {
       router.replace('/(tabs)');
     }
@@ -43,13 +52,7 @@ export default function LoginScreen() {
   const loadSavedCredentials = async () => {
     try {
       const savedEmail = await AsyncStorage.getItem('savedEmail');
-      const savedPassword = await AsyncStorage.getItem('savedPassword');
-      const rememberSetting = await AsyncStorage.getItem('rememberPassword');
       if (savedEmail) setEmail(savedEmail);
-      if (savedPassword && rememberSetting === 'true') {
-        setPassword(savedPassword);
-        setRememberPassword(true);
-      }
     } catch (error) {
       console.error('Fehler beim Laden der gespeicherten Anmeldedaten:', error);
     }
@@ -57,26 +60,23 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Fehler', 'Bitte E-Mail und Passwort eingeben.');
+      setStatusMessage({ type: 'error', text: 'Bitte E-Mail und Passwort eingeben.' });
       return;
     }
     setIsLoading(true);
+    setLastErrorType(null);
     try {
       const user = await login(email, password);
-      if (rememberPassword) {
-        await AsyncStorage.setItem('savedEmail', email);
-        await AsyncStorage.setItem('savedPassword', password);
-        await AsyncStorage.setItem('rememberPassword', 'true');
-      } else {
-        await AsyncStorage.removeItem('savedPassword');
-        await AsyncStorage.setItem('rememberPassword', 'false');
-        await AsyncStorage.setItem('savedEmail', email);
-      }
+      await AsyncStorage.setItem('savedEmail', email);
       if (!user) {
         return;
       }
-      if (user.role === 'trainer' || user.role === 'admin') {
-        router.replace('/trainer');
+      if (user.role === 'admin') {
+        router.replace('/(admin-tabs)');
+        return;
+      }
+      if (user.role === 'trainer') {
+        router.replace('/(trainer-tabs)');
         return;
       }
       if (user.role === 'client' && user.passwordChanged === false) {
@@ -85,64 +85,51 @@ export default function LoginScreen() {
         router.replace('/(tabs)');
       }
     } catch (e) {
-      console.log('🚨 Login Fehler:', e);
       if (e instanceof Error && e.message === 'CONNECTION_FAILED') {
-        Alert.alert('Verbindungsfehler', 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung und versuche es erneut.');
+        setLastErrorType('CONNECTION_FAILED');
+        setStatusMessage({ type: 'error', text: 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung.' });
       } else if (e instanceof Error && e.message === 'USER_NOT_INVITED') {
-        showNotInvitedAlert();
+        setShowNotInvitedConfirm(true);
       } else if (e instanceof Error && e.message === 'INVALID_PASSWORD') {
-        Alert.alert('Fehler', 'Falsches Passwort. Bitte verwende das Einmalpasswort, das dir der Trainer gegeben hat.');
+        setStatusMessage({ type: 'error', text: 'Falsches Passwort. Bitte verwende das Einmalpasswort, das dir der Trainer gegeben hat.' });
       } else {
-        Alert.alert('Fehler', 'Ungültige Anmeldedaten. Überprüfe E-Mail und Passwort.');
+        setStatusMessage({ type: 'error', text: 'Ungültige Anmeldedaten. Überprüfe E-Mail und Passwort.' });
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const showNotInvitedAlert = () => {
-    Alert.alert(
-      'Zugang nicht berechtigt',
-      'Um die App zu verwenden, muss dich ein Trainer einladen.',
-      [
-        {
-          text: 'Abbrechen',
-          style: 'cancel',
-        },
-        {
-          text: 'Trainer kontaktieren',
-          onPress: handleContactTrainer,
-        },
-      ]
-    );
-  };
-
   const handleContactTrainer = () => {
     const whatsappUrl = 'https://api.whatsapp.com/send/?phone=492262752717&text=Hallo%2C+ich+m%C3%B6chte+in+die+Trainingsplan+App.&type=phone_number&app_absent=0';
     Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Fehler', 'WhatsApp konnte nicht geöffnet werden.');
+      setStatusMessage({ type: 'error', text: 'WhatsApp konnte nicht geöffnet werden.' });
     });
   };
 
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+
   const handleForgotPassword = async () => {
-    if (!email) {
-      Alert.alert('E-Mail erforderlich', 'Bitte E-Mail-Adresse eingeben.');
+    const targetEmail = resetEmail || email;
+    if (!targetEmail) {
+      setStatusMessage({ type: 'error', text: 'Bitte gib zuerst deine E-Mail-Adresse ein.' });
       return;
     }
+    setResetLoading(true);
     try {
-      await resetPassword(email);
-      Alert.alert('Passwort zurücksetzen', `Wir haben eine E-Mail an ${email} gesendet.`);
+      await trpcClient.auth.requestReset.mutate({ email: targetEmail });
+      setStatusMessage({
+        type: 'success',
+        text: 'Falls ein Konto mit dieser E-Mail existiert, wurde ein Reset-Link gesendet.',
+      });
     } catch {
-      Alert.alert('Fehler', 'Passwort-Reset konnte nicht gestartet werden.');
-    }
-  };
-
-  const handleClearStorage = async () => {
-    try {
-      await clearStorage();
-      Alert.alert('Storage gelöscht', 'Alle gespeicherten Daten wurden entfernt.');
-    } catch {
-      Alert.alert('Fehler', 'Storage konnte nicht gelöscht werden.');
+      setStatusMessage({
+        type: 'success',
+        text: 'Falls ein Konto mit dieser E-Mail existiert, wurde ein Reset-Link gesendet.',
+      });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -165,6 +152,26 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {statusMessage && (
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => { setStatusMessage(null); setLastErrorType(null); }}
+            />
+          )}
+
+          {lastErrorType === 'CONNECTION_FAILED' && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={handleLogin}
+              disabled={isLoading}
+            >
+              <Text style={styles.retryButtonText}>
+                {isLoading ? 'Verbinde...' : 'Erneut versuchen'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <View style={styles.inputContainer}>
             <Mail size={20} color={Colors.textMuted} style={styles.inputIcon} />
             <TextInput
@@ -189,21 +196,20 @@ export default function LoginScreen() {
               placeholderTextColor={Colors.textMuted}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              secureTextEntry={!showPassword}
               returnKeyType="go"
               onSubmitEditing={handleLogin}
             />
-          </View>
-
-          <View style={styles.rememberContainer}>
-            <Switch
-              testID="remember-password"
-              value={rememberPassword}
-              onValueChange={setRememberPassword}
-              trackColor={{ false: Colors.border, true: Colors.accent }}
-              thumbColor={rememberPassword ? Colors.background : Colors.textMuted}
-            />
-            <Text style={styles.rememberText}>Passwort speichern</Text>
+            <TouchableOpacity
+              style={styles.passwordToggle}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff size={20} color={Colors.textMuted} />
+              ) : (
+                <Eye size={20} color={Colors.textMuted} />
+              )}
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -225,14 +231,6 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Passwort vergessen?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            testID="clear-storage"
-            style={styles.debugButton}
-            onPress={handleClearStorage}
-          >
-            <Text style={styles.debugButtonText}>🗑️ Storage löschen (Debug)</Text>
-          </TouchableOpacity>
-
           <View style={styles.inviteSection}>
             <Text style={styles.inviteText}>
               Noch kein Zugang? Ein Trainer muss dich einladen.
@@ -250,11 +248,24 @@ export default function LoginScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={showNotInvitedConfirm}
+        title="Zugang nicht berechtigt"
+        message="Um die App zu verwenden, muss dich ein Trainer einladen."
+        confirmText="Trainer kontaktieren"
+        cancelText="Abbrechen"
+        onConfirm={() => {
+          setShowNotInvitedConfirm(false);
+          handleContactTrainer();
+        }}
+        onCancel={() => setShowNotInvitedConfirm(false)}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -303,6 +314,10 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 16,
   },
+  passwordToggle: {
+    padding: Spacing.sm,
+    marginRight: Spacing.xs,
+  },
   loginButton: {
     backgroundColor: Colors.accent,
     height: 50,
@@ -319,16 +334,19 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
-  rememberContainer: {
-    flexDirection: 'row',
+  retryButton: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  rememberText: {
-    marginLeft: Spacing.sm,
-    color: Colors.textSecondary,
+  retryButtonText: {
+    color: Colors.accent,
     fontSize: 14,
+    fontWeight: '600' as const,
   },
   forgotPasswordButton: {
     alignItems: 'center',
@@ -367,17 +385,5 @@ const styles = StyleSheet.create({
     color: Colors.background,
     fontSize: 14,
     fontWeight: '600' as const,
-  },
-  debugButton: {
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-    padding: Spacing.sm,
-    backgroundColor: Colors.error,
-    borderRadius: BorderRadius.sm,
-  },
-  debugButtonText: {
-    color: Colors.background,
-    fontSize: 12,
-    fontWeight: '500' as const,
   },
 });

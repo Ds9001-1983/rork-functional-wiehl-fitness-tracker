@@ -3,6 +3,7 @@ import { serveStatic } from 'hono/bun';
 import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import apiApp from './backend/hono';
+import { appRouter } from './backend/trpc/app-router';
 
 // Load environment variables
 const port = parseInt(process.env.BACKEND_PORT || '3000');
@@ -21,11 +22,20 @@ app.get('/health', (c) => {
   });
 });
 
+// Debug: list all registered tRPC procedures (before sub-app mount)
+app.get('/api/debug/routes', (c) => {
+  const procedures = Object.keys(appRouter._def.procedures);
+  return c.json({
+    totalRoutes: procedures.length,
+    procedures,
+  });
+});
+
 // Mount the API app at /api
 app.route('/api', apiApp);
 
-// Serve static files from web-build directory (Expo web build)
-const webBuildPath = join(process.cwd(), 'web-build');
+// Serve static files from dist directory (Expo web build)
+const webBuildPath = join(process.cwd(), 'dist');
 if (existsSync(webBuildPath)) {
   // Serve static files for all non-API routes (exclude /api and /health)
   app.use('/*', (c, next) => {
@@ -34,11 +44,11 @@ if (existsSync(webBuildPath)) {
     if (path.startsWith('/api') || path === '/health') {
       return next();
     }
-    return serveStatic({ 
-      root: './web-build'
+    return serveStatic({
+      root: './dist'
     })(c, next);
   });
-  console.log('📁 Serving web build from web-build/');
+  console.log('📁 Serving web build from dist/');
 } else {
   console.log('⚠️  No web build found. Run "bunx expo export --platform web" to build for web.');
 }
@@ -55,7 +65,7 @@ app.get('*', (c) => {
     });
   }
   
-  const indexPath = join(process.cwd(), 'web-build', 'index.html');
+  const indexPath = join(process.cwd(), 'dist', 'index.html');
   if (existsSync(indexPath)) {
     const html = readFileSync(indexPath, 'utf8');
     return c.html(html);
@@ -72,12 +82,17 @@ console.log(`🚀 Server starting on port ${port}`);
 console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN}`);
 console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
-console.log(`✅ Server is running on http://localhost:${port}`);
-console.log(`🌐 API available at http://localhost:${port}/api`);
-console.log(`🔧 tRPC endpoint: http://localhost:${port}/api/trpc`);
-console.log(`🏥 Health check: http://localhost:${port}/health`);
 
-export default {
+// Start HTTP server explicitly with Bun.serve()
+// NOTE: "export default { port, fetch }" only works when running "bun file.ts" directly.
+// PM2 loads via require(), which does NOT trigger Bun's automatic server start.
+// Bun.serve() works in BOTH cases.
+const server = Bun.serve({
   port,
-  fetch: app.fetch
-};
+  fetch: app.fetch,
+});
+
+console.log(`✅ Server is running on http://localhost:${server.port}`);
+console.log(`🌐 API available at http://localhost:${server.port}/api`);
+console.log(`🔧 tRPC endpoint: http://localhost:${server.port}/api/trpc`);
+console.log(`🏥 Health check: http://localhost:${server.port}/health`);

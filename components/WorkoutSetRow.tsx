@@ -1,173 +1,141 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { Check, X, ChevronUp, ChevronDown } from 'lucide-react-native';
-import { WorkoutSet } from '@/types/workout';
-import { Colors, Spacing, BorderRadius } from '@/constants/colors';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import { Check, X, TrendingUp } from 'lucide-react-native';
+import { WorkoutSet, SetType } from '@/types/workout';
+import { Spacing, BorderRadius } from '@/constants/colors';
+import { useColors } from '@/hooks/use-colors';
 
 interface WorkoutSetRowProps {
   set: WorkoutSet;
   setNumber: number;
   onUpdate: (set: Partial<WorkoutSet>) => void;
   onRemove: () => void;
+  previousWeight?: number;
+  previousReps?: number;
+  previousCompleted?: boolean; // was previous set at this index completed?
 }
-
-const NumberPicker: React.FC<{
-  value: number;
-  onValueChange: (value: number) => void;
-  min: number;
-  max: number;
-  step: number;
-  suffix?: string;
-  visible: boolean;
-  onClose: () => void;
-}> = ({ value, onValueChange, min, max, step, suffix = '', visible, onClose }) => {
-  const [selectedValue, setSelectedValue] = useState(value);
-  
-  const values: number[] = [];
-  for (let i = min; i <= max; i += step) {
-    values.push(i);
-  }
-  
-  const handleConfirm = () => {
-    onValueChange(selectedValue);
-    onClose();
-  };
-  
-  const increment = () => {
-    const currentIndex = values.indexOf(selectedValue);
-    if (currentIndex < values.length - 1) {
-      setSelectedValue(values[currentIndex + 1]);
-    }
-  };
-  
-  const decrement = () => {
-    const currentIndex = values.indexOf(selectedValue);
-    if (currentIndex > 0) {
-      setSelectedValue(values[currentIndex - 1]);
-    }
-  };
-  
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.modalButton}>Abbrechen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleConfirm}>
-              <Text style={[styles.modalButton, styles.confirmButton]}>Bestätigen</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity style={styles.pickerButton} onPress={increment}>
-              <ChevronUp size={24} color={Colors.text} />
-            </TouchableOpacity>
-            
-            <View style={styles.valueContainer}>
-              <Text style={styles.valueText}>{selectedValue}{suffix}</Text>
-            </View>
-            
-            <TouchableOpacity style={styles.pickerButton} onPress={decrement}>
-              <ChevronDown size={24} color={Colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            style={styles.valuesList}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.valuesListContent}
-          >
-            {values.map((val) => (
-              <TouchableOpacity
-                key={val}
-                style={[
-                  styles.valueItem,
-                  selectedValue === val && styles.selectedValueItem
-                ]}
-                onPress={() => setSelectedValue(val)}
-              >
-                <Text style={[
-                  styles.valueItemText,
-                  selectedValue === val && styles.selectedValueItemText
-                ]}>
-                  {val}{suffix}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-};
 
 export const WorkoutSetRow: React.FC<WorkoutSetRowProps> = ({
   set,
   setNumber,
   onUpdate,
   onRemove,
+  previousWeight,
+  previousReps,
+  previousCompleted,
 }) => {
-  const [showWeightPicker, setShowWeightPicker] = useState(false);
-  const [showRepsPicker, setShowRepsPicker] = useState(false);
-  
+  const Colors = useColors();
+  const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const SET_TYPE_LABELS: Record<SetType, { label: string; short: string; color: string }> = useMemo(() => ({
+    normal: { label: 'Normal', short: '', color: Colors.textMuted },
+    warmup: { label: 'Aufwärmen', short: 'W', color: Colors.warning },
+    dropset: { label: 'Drop Set', short: 'D', color: Colors.error },
+    failure: { label: 'Bis Versagen', short: 'F', color: '#E040FB' },
+  }), [Colors]);
+  const [weightText, setWeightText] = useState(set.weight > 0 ? set.weight.toString() : '');
+  const [repsText, setRepsText] = useState(set.reps > 0 ? set.reps.toString() : '');
+
+  useEffect(() => {
+    setWeightText(set.weight > 0 ? set.weight.toString() : '');
+  }, [set.weight]);
+
+  useEffect(() => {
+    setRepsText(set.reps > 0 ? set.reps.toString() : '');
+  }, [set.reps]);
+
+  const setTypeInfo = SET_TYPE_LABELS[set.type || 'normal'];
+  const hasPrevious = previousWeight !== undefined && previousReps !== undefined;
+
+  const cycleSetType = () => {
+    const types: SetType[] = ['normal', 'warmup', 'dropset', 'failure'];
+    const currentIndex = types.indexOf(set.type || 'normal');
+    const nextType = types[(currentIndex + 1) % types.length];
+    onUpdate({ type: nextType });
+  };
+
+  const commitWeight = () => {
+    const parsed = parseFloat(weightText);
+    const value = isNaN(parsed) ? 0 : parsed;
+    onUpdate({ weight: value });
+    if (value === 0) setWeightText('');
+  };
+
+  const commitReps = () => {
+    const parsed = parseInt(repsText, 10);
+    const value = isNaN(parsed) ? 0 : parsed;
+    onUpdate({ reps: value });
+    if (value === 0) setRepsText('');
+  };
+
+  const fillFromPrevious = () => {
+    if (previousWeight !== undefined && previousReps !== undefined) {
+      onUpdate({ weight: previousWeight, reps: previousReps });
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.setNumber}>{setNumber}</Text>
-      
-      <TouchableOpacity
-        style={styles.input}
-        onPress={() => setShowWeightPicker(true)}
-      >
-        <Text style={styles.inputText}>{set.weight || '0'} kg</Text>
+    <View style={[styles.container, set.type === 'warmup' && styles.warmupRow, set.completed && styles.completedRow]}>
+      {/* Set number / type indicator */}
+      <TouchableOpacity onPress={cycleSetType} style={styles.setNumberContainer}>
+        {setTypeInfo.short ? (
+          <Text style={[styles.setTypeLabel, { color: setTypeInfo.color }]}>{setTypeInfo.short}</Text>
+        ) : (
+          <Text style={styles.setNumber}>{setNumber}</Text>
+        )}
       </TouchableOpacity>
-      
-      <Text style={styles.separator}>×</Text>
-      
-      <TouchableOpacity
+
+      {/* Previous performance hint - tap to fill */}
+      {hasPrevious && (
+        <TouchableOpacity onPress={fillFromPrevious} style={styles.previousHintContainer}>
+          <Text style={styles.previousHint}>{previousWeight}x{previousReps}</Text>
+          {previousCompleted && (
+            <TrendingUp size={10} color={Colors.success} style={{ marginLeft: 1 }} />
+          )}
+        </TouchableOpacity>
+      )}
+
+      <TextInput
         style={styles.input}
-        onPress={() => setShowRepsPicker(true)}
-      >
-        <Text style={styles.inputText}>{set.reps || '0'}</Text>
-      </TouchableOpacity>
-      
+        value={weightText}
+        onChangeText={setWeightText}
+        onEndEditing={commitWeight}
+        onBlur={commitWeight}
+        keyboardType="decimal-pad"
+        placeholder="0"
+        placeholderTextColor={Colors.textMuted}
+        selectTextOnFocus
+      />
+
+      <Text style={styles.unitLabel}>kg</Text>
+      <Text style={styles.separator}>x</Text>
+
+      <TextInput
+        style={styles.input}
+        value={repsText}
+        onChangeText={setRepsText}
+        onEndEditing={commitReps}
+        onBlur={commitReps}
+        keyboardType="number-pad"
+        placeholder="0"
+        placeholderTextColor={Colors.textMuted}
+        selectTextOnFocus
+      />
+
       <TouchableOpacity
         style={[styles.completeButton, set.completed && styles.completedButton]}
         onPress={() => onUpdate({ completed: !set.completed })}
       >
         <Check size={16} color={set.completed ? Colors.background : Colors.textMuted} />
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
         <X size={16} color={Colors.error} />
       </TouchableOpacity>
-      
-      <NumberPicker
-        value={set.weight}
-        onValueChange={(weight) => onUpdate({ weight })}
-        min={0}
-        max={300}
-        step={0.5}
-        suffix=" kg"
-        visible={showWeightPicker}
-        onClose={() => setShowWeightPicker(false)}
-      />
-      
-      <NumberPicker
-        value={set.reps}
-        onValueChange={(reps) => onUpdate({ reps })}
-        min={0}
-        max={100}
-        step={1}
-        visible={showRepsPicker}
-        onClose={() => setShowRepsPicker(false)}
-      />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (Colors: any) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -177,11 +145,36 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     marginBottom: Spacing.xs,
   },
-  setNumber: {
+  warmupRow: {
+    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+  },
+  completedRow: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  setNumberContainer: {
     width: 30,
+    alignItems: 'center',
+  },
+  setNumber: {
     fontSize: 14,
     color: Colors.textMuted,
     fontWeight: '600' as const,
+  },
+  setTypeLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  previousHintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 52,
+    justifyContent: 'center',
+  },
+  previousHint: {
+    fontSize: 11,
+    color: Colors.accent,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   input: {
     flex: 1,
@@ -192,13 +185,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: Colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inputText: {
     color: Colors.text,
-    fontSize: 16,
     textAlign: 'center',
+  },
+  unitLabel: {
+    fontSize: 13,
+    color: Colors.textMuted,
+    marginLeft: 4,
   },
   separator: {
     marginHorizontal: Spacing.sm,
@@ -226,85 +219,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: Spacing.xs,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: BorderRadius.lg,
-    borderTopRightRadius: BorderRadius.lg,
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  modalButton: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
-  confirmButton: {
-    color: Colors.accent,
-    fontWeight: '600' as const,
-  },
-  pickerContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-  },
-  pickerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  valueContainer: {
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.accent,
-    borderRadius: BorderRadius.md,
-    marginVertical: Spacing.md,
-  },
-  valueText: {
-    fontSize: 24,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  valuesList: {
-    maxHeight: 150,
-    marginHorizontal: Spacing.lg,
-  },
-  valuesListContent: {
-    paddingVertical: Spacing.sm,
-  },
-  valueItem: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: BorderRadius.sm,
-    marginVertical: 2,
-  },
-  selectedValueItem: {
-    backgroundColor: Colors.accent,
-  },
-  valueItemText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  selectedValueItemText: {
-    color: Colors.text,
-    fontWeight: '600' as const,
   },
 });
