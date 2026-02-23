@@ -11,6 +11,7 @@ import { exercises as exerciseDb } from '@/data/exercises';
 import type { WorkoutExercise, WorkoutPlan } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { PlanPdfExport } from '@/components/PlanPdfExport';
 
 export default function TrainerPlansScreen() {
   const { user } = useAuth();
@@ -462,6 +463,7 @@ export default function TrainerPlansScreen() {
                     )}
                   </TouchableOpacity>
                   <View style={styles.planActions}>
+                    <PlanPdfExport plan={plan} clientName={assignedUserName || undefined} />
                     <View {...{title: 'Bearbeiten'} as any}>
                       <TouchableOpacity style={styles.actionIcon} onPress={() => openEditModal(plan)} accessibilityLabel="Bearbeiten">
                         <Edit3 size={16} color={Colors.textSecondary} />

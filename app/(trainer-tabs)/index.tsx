@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder, Linking } from 'react-native';
 import { router } from 'expo-router';
-import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp, MessageSquare, BarChart3 } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -323,6 +323,22 @@ export default function TrainerClientsScreen() {
                         );
                       })()}
                     </View>
+                    <View style={styles.clientActions}>
+                      <TouchableOpacity
+                        style={styles.clientActionButton}
+                        onPress={() => router.push(`/(trainer-tabs)/client-progress/${c.id}` as any)}
+                      >
+                        <BarChart3 size={18} color={Colors.accent} />
+                      </TouchableOpacity>
+                      {c.userId && (
+                        <TouchableOpacity
+                          style={styles.clientActionButton}
+                          onPress={() => router.push(`/chat/${c.userId}` as any)}
+                        >
+                          <MessageSquare size={18} color={Colors.accent} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </TouchableOpacity>
                 </Animated.View>
                 <View style={styles.deleteButtonContainer}>
@@ -372,7 +388,9 @@ const createStyles = (Colors: any) => StyleSheet.create({
   muted: { color: Colors.textMuted, fontSize: 14, textAlign: 'center', paddingVertical: Spacing.lg },
   clientCardContainer: { position: 'relative', marginBottom: Spacing.sm, overflow: 'hidden', borderRadius: BorderRadius.md },
   clientCard: { backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, zIndex: 1 },
-  clientCardContent: { padding: Spacing.md },
+  clientCardContent: { padding: Spacing.md, flexDirection: 'row', alignItems: 'center' },
+  clientActions: { flexDirection: 'column', gap: Spacing.xs },
+  clientActionButton: { padding: Spacing.sm, borderRadius: BorderRadius.sm, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.accent },
   clientInfo: { flex: 1 },
   clientName: { fontSize: 16, fontWeight: '600', color: Colors.text, marginBottom: 2 },
   clientDetails: { fontSize: 13, color: Colors.textSecondary, marginBottom: 1 },

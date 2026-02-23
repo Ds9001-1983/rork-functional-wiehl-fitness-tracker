@@ -51,6 +51,11 @@ import privacyExportData from "./routes/privacy/export-data";
 import privacyDeleteAccount from "./routes/privacy/delete-account";
 import subscribePush from "./routes/notifications/subscribe-push";
 import unsubscribePush from "./routes/notifications/unsubscribe-push";
+import chatSend from "./routes/chat/send";
+import chatList from "./routes/chat/list";
+import chatUnreadCount from "./routes/chat/unread-count";
+import clientProgress from "./routes/clients/progress";
+import { createMesocycle, listMesocycles, updateMesocycle, deleteMesocycle } from "./routes/plans/mesocycles";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -67,6 +72,7 @@ export const appRouter = createTRPCRouter({
     list: listClients,
     delete: deleteClient,
     update: updateClient,
+    progress: clientProgress,
   }),
   invitations: createTRPCRouter({
     create: createInvitation,
@@ -85,6 +91,12 @@ export const appRouter = createTRPCRouter({
     delete: deletePlan,
     assign: assignPlan,
     instantiate: instantiatePlan,
+  }),
+  mesocycles: createTRPCRouter({
+    create: createMesocycle,
+    list: listMesocycles,
+    update: updateMesocycle,
+    delete: deleteMesocycle,
   }),
   profile: createTRPCRouter({
     update: updateProfile,
@@ -129,6 +141,11 @@ export const appRouter = createTRPCRouter({
     list: listStudios,
     create: createStudio,
     stats: studioStats,
+  }),
+  chat: createTRPCRouter({
+    send: chatSend,
+    list: chatList,
+    unreadCount: chatUnreadCount,
   }),
   privacy: createTRPCRouter({
     consent: privacyConsent,

@@ -9,7 +9,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff } from 'lucide-react-native';
+import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff, MessageSquare } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -363,6 +363,20 @@ export default function ProfileScreen() {
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
+
+          {user?.role === 'client' && (() => {
+            const trainer = clients.find((c: any) => c.role === 'trainer');
+            if (!trainer?.userId) return null;
+            return (
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push(`/chat/${trainer.userId}` as any)}>
+                <View style={styles.menuItemLeft}>
+                  <MessageSquare size={20} color={Colors.accent} />
+                  <Text style={styles.menuItemText}>Nachricht an Trainer</Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            );
+          })()}
 
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemLeft}>
