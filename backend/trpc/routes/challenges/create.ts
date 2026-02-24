@@ -4,10 +4,10 @@ import { z } from 'zod';
 
 export default trainerProcedure
   .input(z.object({
-    name: z.string(),
-    description: z.string(),
+    name: z.string().min(1).max(255),
+    description: z.string().max(2000),
     type: z.enum(['workout_count', 'total_volume', 'streak']),
-    target: z.number(),
+    target: z.number().min(1).max(1000000),
     startDate: z.string(),
     endDate: z.string(),
   }))

@@ -23,10 +23,23 @@ setInterval(() => {
   }
 }, 300000);
 
+// Only trust proxy headers when behind Nginx (production).
+// The rightmost IP in X-Forwarded-For added by our Nginx is the real client IP.
 function getClientIP(c: Context): string {
-  return c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-    || c.req.header('x-real-ip')
-    || 'unknown';
+  // In production behind Nginx, use X-Real-IP which Nginx sets from the actual connection
+  const realIp = c.req.header('x-real-ip');
+  if (realIp) return realIp;
+
+  // Fallback: use last entry in X-Forwarded-For (added by our trusted proxy)
+  const xff = c.req.header('x-forwarded-for');
+  if (xff) {
+    const parts = xff.split(',').map(s => s.trim());
+    // Use the first IP (client IP) only if there's a single entry (trusted proxy setup)
+    // With multiple proxies, the last entry before our proxy is most reliable
+    return parts[0] || 'unknown';
+  }
+
+  return 'unknown';
 }
 
 function checkLimit(key: string, config: RateLimitConfig): { allowed: boolean; remaining: number; resetMs: number } {

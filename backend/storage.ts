@@ -11,6 +11,8 @@ export interface StoredUser {
   role: 'client' | 'trainer' | 'admin';
   passwordChanged: boolean;
   createdAt: string;
+  consentedAt?: string;
+  privacyVersion?: string;
 }
 
 export interface StoredClient {
@@ -46,7 +48,7 @@ export interface StoredWorkout {
   name: string;
   date: string;
   duration?: number;
-  exercises: any[];
+  exercises: WorkoutExercise[];
   completed: boolean;
   createdBy?: string;
 }
@@ -55,10 +57,10 @@ export interface StoredWorkoutPlan {
   id: string;
   name: string;
   description?: string;
-  exercises: any[];
+  exercises: WorkoutExercise[];
   createdBy: string;
   assignedTo: string[];
-  schedule?: any[];
+  schedule?: { dayOfWeek: number; time?: string }[];
   // Template-Instance system
   templateId?: string;
   isInstance?: boolean;
@@ -78,16 +80,87 @@ export interface StoredStudio {
   createdAt: string;
 }
 
+export interface WorkoutSet {
+  id: string;
+  reps: number;
+  weight: number;
+  completed: boolean;
+  restTime?: number;
+  type?: string;
+}
+
+export interface WorkoutExercise {
+  id: string;
+  exerciseId: string;
+  sets: WorkoutSet[];
+  notes?: string;
+}
+
+export interface StoredGamification {
+  userId: string;
+  xp: number;
+  level: number;
+  badges: { id: string; unlockedAt?: string }[];
+  currentStreak: number;
+  longestStreak: number;
+  streakFreezes: number;
+  streakFreezesUsed: string[];
+  lastActiveDate: string;
+  coachingTone: string;
+}
+
+export interface StoredRoutine {
+  id: string;
+  userId: string;
+  name: string;
+  exercises: WorkoutExercise[];
+  timesUsed: number;
+  lastUsed: string | null;
+  createdAt: string;
+}
+
+export interface StoredChallenge {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  target: number;
+  startDate: string;
+  endDate: string;
+  createdBy: string;
+}
+
+export interface StoredChallengeProgress {
+  challengeId: string;
+  userId: string;
+  currentValue: number;
+  updatedAt: string;
+}
+
+export interface StoredNotification {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  read: boolean;
+  data: Record<string, unknown>;
+  createdAt: string;
+}
+
 // Database connection
 let pool: Pool | null = null;
 let useDatabase = false;
 
-// In-memory fallback storage
+// In-memory fallback storage (dev only - no hardcoded credentials)
+// In production, DATABASE_URL is required
+const devAdminPw = process.env.DEV_ADMIN_PASSWORD || 'dev-' + Math.random().toString(36).slice(2, 10);
+const devTrainerPw = process.env.DEV_TRAINER_PASSWORD || 'dev-' + Math.random().toString(36).slice(2, 10);
 let users: StoredUser[] = [
   {
     id: 'admin-1',
     email: 'admin@functional-wiehl.de',
-    password: bcrypt.hashSync('admin123', 10),
+    password: bcrypt.hashSync(devAdminPw, 10),
     role: 'admin',
     passwordChanged: true,
     createdAt: new Date().toISOString(),
@@ -95,7 +168,7 @@ let users: StoredUser[] = [
   {
     id: 'trainer-1',
     email: 'trainer@functional-wiehl.de',
-    password: bcrypt.hashSync('trainer123', 10),
+    password: bcrypt.hashSync(devTrainerPw, 10),
     role: 'trainer',
     passwordChanged: true,
     createdAt: new Date().toISOString(),
@@ -110,7 +183,6 @@ let clients: StoredClient[] = [
     email: 'app@functional-wiehl.de',
     role: 'trainer',
     joinDate: new Date().toISOString(),
-    starterPassword: 'trainer123',
     passwordChanged: true,
     stats: {
       totalWorkouts: 0,
@@ -127,11 +199,11 @@ let workouts: StoredWorkout[] = [];
 let workoutPlans: StoredWorkoutPlan[] = [];
 let passwordResetTokens: { token: string; userId: string; expiresAt: string; used: boolean }[] = [];
 let bodyMeasurements: { id: string; userId: string; date: string; measurements: Record<string, number> }[] = [];
-let gamificationData: { userId: string; xp: number; level: number; badges: any[]; currentStreak: number; longestStreak: number; streakFreezes: number; streakFreezesUsed: string[]; lastActiveDate: string; coachingTone: string }[] = [];
-let routinesData: { id: string; userId: string; name: string; exercises: any[]; timesUsed: number; lastUsed: string | null; createdAt: string }[] = [];
-let challengesData: { id: string; name: string; description: string; type: string; target: number; startDate: string; endDate: string; createdBy: string }[] = [];
-let challengeProgressData: { challengeId: string; userId: string; currentValue: number; updatedAt: string }[] = [];
-let notificationsData: { id: string; userId: string; title: string; body: string; type: string; read: boolean; data: any; createdAt: string }[] = [];
+let gamificationData: StoredGamification[] = [];
+let routinesData: StoredRoutine[] = [];
+let challengesData: StoredChallenge[] = [];
+let challengeProgressData: StoredChallengeProgress[] = [];
+let notificationsData: StoredNotification[] = [];
 let studiosData: StoredStudio[] = [
   { id: '1', name: 'Functional Wiehl', slug: 'functional-wiehl', logoUrl: null, primaryColor: '#000000', accentColor: '#FF6B35', ownerEmail: 'admin@functional-wiehl.de', maxUsers: 50, createdAt: new Date().toISOString() },
 ];
@@ -156,17 +228,30 @@ if (process.env.DATABASE_URL) {
       useDatabase = true;
       initializeTables();
     }).catch(err => {
-      console.log('[Storage] PostgreSQL connection failed:', err.message);
-      console.log('[Storage] Falling back to in-memory storage');
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Storage] FATAL: PostgreSQL connection failed in production:', err.message);
+        process.exit(1);
+      }
+      console.warn('[Storage] PostgreSQL connection failed:', err.message);
+      console.warn('[Storage] WARNING: Falling back to in-memory storage - data will be lost on restart!');
       useDatabase = false;
     });
   } catch (err) {
-    console.log('[Storage] PostgreSQL setup failed:', err);
-    console.log('[Storage] Using in-memory storage');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[Storage] FATAL: PostgreSQL setup failed in production:', err);
+      process.exit(1);
+    }
+    console.warn('[Storage] PostgreSQL setup failed:', err);
+    console.warn('[Storage] WARNING: Using in-memory storage - data will be lost on restart!');
     useDatabase = false;
   }
 } else {
-  console.log('[Storage] No DATABASE_URL provided, using in-memory storage');
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[Storage] FATAL: DATABASE_URL must be set in production');
+    process.exit(1);
+  }
+  console.warn('[Storage] No DATABASE_URL provided - using in-memory storage (dev only)');
+  console.warn('[Storage] Dev credentials: admin=' + devAdminPw + ', trainer=' + devTrainerPw);
 }
 
 // Initialize database tables
@@ -364,11 +449,18 @@ async function initializeTables() {
     await createIndexIfNotExists('idx_users_email', 'users (email)');
     await createIndexIfNotExists('idx_workouts_user_id', 'workouts (user_id)');
     await createIndexIfNotExists('idx_workouts_date', 'workouts (date)');
+    await createIndexIfNotExists('idx_workouts_completed', 'workouts (user_id, completed)');
     await createIndexIfNotExists('idx_notifications_user_id', 'notifications (user_id)');
     await createIndexIfNotExists('idx_notifications_read', 'notifications (user_id, read)');
     await createIndexIfNotExists('idx_body_measurements_user_id', 'body_measurements (user_id)');
     await createIndexIfNotExists('idx_routines_user_id', 'routines (user_id)');
     await createIndexIfNotExists('idx_clients_user_id', 'clients (user_id)');
+    await createIndexIfNotExists('idx_plans_created_by', 'workout_plans (created_by)');
+    await createIndexIfNotExists('idx_plans_template_id', 'workout_plans (template_id)');
+    await createIndexIfNotExists('idx_plans_assigned_user_id', 'workout_plans (assigned_user_id)');
+    await createIndexIfNotExists('idx_gamification_xp', 'gamification (xp DESC)');
+    await createIndexIfNotExists('idx_challenges_end_date', 'challenges (end_date)');
+    await createIndexIfNotExists('idx_challenge_progress_challenge', 'challenge_progress (challenge_id)');
 
     // Push subscriptions for Web Push notifications
     await pool!.query(`
@@ -667,9 +759,9 @@ export const storage = {
           };
           console.log('[Storage] Created client in DB with user_id:', userId);
           return newClient;
-        } catch (err: any) {
-          console.log('[Storage] DB insert failed for client:', err.message);
-          if (err.message?.includes('duplicate key') || err.code === '23505') {
+        } catch (err: unknown) {
+          console.log('[Storage] DB insert failed for client:', (err as Error).message);
+          if ((err as Error).message?.includes('duplicate key') || (err as { code?: string }).code === '23505') {
             throw new Error('CLIENT_EMAIL_EXISTS');
           }
         }
@@ -714,7 +806,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const updates: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
 
           if (stats.totalWorkouts !== undefined) { updates.push(`total_workouts = $${idx++}`); values.push(stats.totalWorkouts); }
@@ -748,7 +840,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
 
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
@@ -826,6 +918,22 @@ export const storage = {
   },
 
   workouts: {
+    getById: async (id: string): Promise<StoredWorkout | null> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, user_id as "userId", name, date, duration, exercises, completed, created_by as "createdBy"
+             FROM workouts WHERE id = $1`,
+            [id]
+          );
+          return result.rows[0] || null;
+        } catch (err) {
+          console.error('[Storage] DB query failed for workout getById:', err);
+        }
+      }
+      return workouts.find(w => w.id === id) || null;
+    },
+
     getByUserId: async (userId: string): Promise<StoredWorkout[]> => {
       if (useDatabase && pool) {
         try {
@@ -882,7 +990,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
 
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
@@ -926,6 +1034,24 @@ export const storage = {
   },
 
   workoutPlans: {
+    getById: async (id: string): Promise<StoredWorkoutPlan | null> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT id::text, name, description, exercises, created_by as "createdBy", assigned_to as "assignedTo", schedule,
+             template_id::text as "templateId", COALESCE(is_instance, false) as "isInstance",
+             customized_fields as "customizedFields", assigned_user_id as "assignedUserId"
+             FROM workout_plans WHERE id = $1`,
+            [id]
+          );
+          return result.rows[0] || null;
+        } catch (err) {
+          console.error('[Storage] DB query failed for plan getById:', err);
+        }
+      }
+      return workoutPlans.find(p => p.id === id) || null;
+    },
+
     getAll: async (): Promise<StoredWorkoutPlan[]> => {
       if (useDatabase && pool) {
         try {
@@ -991,7 +1117,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
 
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
@@ -1221,7 +1347,7 @@ export const storage = {
   },
 
   gamification: {
-    get: async (userId: string): Promise<any | null> => {
+    get: async (userId: string): Promise<StoredGamification | null> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1240,7 +1366,7 @@ export const storage = {
       return gamificationData.find(g => g.userId === userId) || null;
     },
 
-    sync: async (userId: string, data: any): Promise<void> => {
+    sync: async (userId: string, data: Omit<StoredGamification, 'userId'>): Promise<void> => {
       if (useDatabase && pool) {
         try {
           await pool.query(
@@ -1265,7 +1391,7 @@ export const storage = {
       else gamificationData.push(entry);
     },
 
-    leaderboard: async (limit: number = 20): Promise<any[]> => {
+    leaderboard: async (limit: number = 20): Promise<{ userId: string; xp: number; level: number; currentStreak: number; badges: { id: string; unlockedAt?: string }[]; name?: string }[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1289,7 +1415,7 @@ export const storage = {
   },
 
   routines: {
-    getByUserId: async (userId: string): Promise<any[]> => {
+    getByUserId: async (userId: string): Promise<StoredRoutine[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1306,7 +1432,7 @@ export const storage = {
       return routinesData.filter(r => r.userId === userId);
     },
 
-    create: async (data: { userId: string; name: string; exercises: any[] }): Promise<{ id: string }> => {
+    create: async (data: { userId: string; name: string; exercises: WorkoutExercise[] }): Promise<{ id: string }> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1323,11 +1449,11 @@ export const storage = {
       return { id };
     },
 
-    update: async (id: string, updates: { name?: string; exercises?: any[]; timesUsed?: number; lastUsed?: string }): Promise<boolean> => {
+    update: async (id: string, updates: { name?: string; exercises?: WorkoutExercise[]; timesUsed?: number; lastUsed?: string }): Promise<boolean> => {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
           if (updates.exercises !== undefined) { setClauses.push(`exercises = $${idx++}`); values.push(JSON.stringify(updates.exercises)); }
@@ -1381,7 +1507,7 @@ export const storage = {
       return { id };
     },
 
-    getActive: async (): Promise<any[]> => {
+    getActive: async (): Promise<StoredChallenge[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1433,7 +1559,7 @@ export const storage = {
       if (entry) { entry.currentValue = value; entry.updatedAt = new Date().toISOString(); }
     },
 
-    getProgress: async (challengeId: string): Promise<any[]> => {
+    getProgress: async (challengeId: string): Promise<{ userId: string; currentValue: number; name?: string }[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1453,7 +1579,7 @@ export const storage = {
   },
 
   notifications: {
-    create: async (data: { userId: string; title: string; body: string; type: string; data?: any }): Promise<{ id: string }> => {
+    create: async (data: { userId: string; title: string; body: string; type: string; data?: Record<string, unknown> }): Promise<{ id: string }> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1470,7 +1596,7 @@ export const storage = {
       return { id };
     },
 
-    getByUserId: async (userId: string, limit: number = 50): Promise<any[]> => {
+    getByUserId: async (userId: string, limit: number = 50): Promise<StoredNotification[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
@@ -1553,7 +1679,7 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
           if (updates.slug !== undefined) { setClauses.push(`slug = $${idx++}`); values.push(updates.slug); }
@@ -1601,8 +1727,8 @@ export const storage = {
       // In-memory: track consent on user object
       const user = users.find(u => u.id === userId);
       if (user) {
-        (user as any).consentedAt = new Date().toISOString();
-        (user as any).privacyVersion = version;
+        user.consentedAt = new Date().toISOString();
+        user.privacyVersion = version;
         return true;
       }
       return false;
@@ -1621,10 +1747,18 @@ export const storage = {
         }
       }
       const user = users.find(u => u.id === userId);
-      return !!(user as any)?.consentedAt;
+      return !!user?.consentedAt;
     },
 
-    exportUserData: async (userId: string): Promise<any> => {
+    exportUserData: async (userId: string): Promise<{
+      exportedAt: string;
+      privacyVersion: string;
+      profile: { id: string; email: string; name?: string; phone?: string; role: string; createdAt: string } | null;
+      workouts: StoredWorkout[];
+      bodyMeasurements: { id: string; userId: string; date: string; measurements: Record<string, number> }[];
+      gamification: StoredGamification | null;
+      routines: StoredRoutine[];
+    }> => {
       const user = await storage.users.findByEmail(''); // we'll fetch by id below
       // Collect all user data from each table
       const userWorkouts = await storage.workouts.getByUserId(userId);
@@ -1804,7 +1938,7 @@ export const storage = {
 
   // Mesocycles
   mesocycles: {
-    async create(clientId: string | null, name: string, startDate: string, endDate: string, phases: any, createdBy: string) {
+    async create(clientId: string | null, name: string, startDate: string, endDate: string, phases: Record<string, unknown>[], createdBy: string) {
       if (pool) {
         try {
           const result = await pool.query(
@@ -1831,15 +1965,15 @@ export const storage = {
       return [];
     },
 
-    async update(id: string, updates: any) {
+    async update(id: string, updates: Record<string, unknown>) {
       if (pool) {
         try {
           const fields: string[] = [];
-          const values: any[] = [];
+          const values: (string | number | boolean | null)[] = [];
           let idx = 1;
           for (const [key, val] of Object.entries(updates)) {
             fields.push(`${key} = $${idx}`);
-            values.push(key === 'phases' ? JSON.stringify(val) : val);
+            values.push(key === 'phases' ? JSON.stringify(val) : val as string | number | boolean | null);
             idx++;
           }
           values.push(id);

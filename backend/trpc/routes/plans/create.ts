@@ -4,30 +4,30 @@ import { storage } from '../../../storage';
 
 const workoutSetSchema = z.object({
   id: z.string(),
-  reps: z.number(),
-  weight: z.number(),
+  reps: z.number().min(0).max(9999),
+  weight: z.number().min(0).max(9999),
   completed: z.boolean(),
-  restTime: z.number().optional(),
+  restTime: z.number().min(0).max(600).optional(),
 });
 
 const workoutExerciseSchema = z.object({
   id: z.string(),
   exerciseId: z.string(),
-  sets: z.array(workoutSetSchema),
-  notes: z.string().optional(),
+  sets: z.array(workoutSetSchema).max(50),
+  notes: z.string().max(500).optional(),
 });
 
 export default trainerProcedure
   .input(z.object({
-    name: z.string(),
-    description: z.string().optional(),
-    exercises: z.array(workoutExerciseSchema),
+    name: z.string().min(1).max(255),
+    description: z.string().max(2000).optional(),
+    exercises: z.array(workoutExerciseSchema).max(50),
     createdBy: z.string(),
-    assignedTo: z.array(z.string()).optional(),
+    assignedTo: z.array(z.string()).max(100).optional(),
     schedule: z.array(z.object({
-      dayOfWeek: z.number(),
-      time: z.string().optional(),
-    })).optional(),
+      dayOfWeek: z.number().min(0).max(6),
+      time: z.string().max(10).optional(),
+    })).max(7).optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     const plan = await storage.workoutPlans.create({

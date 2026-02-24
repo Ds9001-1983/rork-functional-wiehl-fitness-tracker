@@ -4,27 +4,27 @@ import { storage } from '../../../storage';
 
 const workoutSetSchema = z.object({
   id: z.string(),
-  reps: z.number(),
-  weight: z.number(),
+  reps: z.number().min(0).max(9999),
+  weight: z.number().min(0).max(9999),
   completed: z.boolean(),
-  restTime: z.number().optional(),
-  type: z.string().optional(),
+  restTime: z.number().min(0).max(600).optional(),
+  type: z.string().max(20).optional(),
 });
 
 const workoutExerciseSchema = z.object({
   id: z.string(),
   exerciseId: z.string(),
-  sets: z.array(workoutSetSchema),
-  notes: z.string().optional(),
+  sets: z.array(workoutSetSchema).max(50),
+  notes: z.string().max(500).optional(),
 });
 
 export default protectedProcedure
   .input(z.object({
     userId: z.string(),
-    name: z.string(),
+    name: z.string().max(255),
     date: z.string(),
-    duration: z.number().optional(),
-    exercises: z.array(workoutExerciseSchema),
+    duration: z.number().min(0).max(86400000).optional(),
+    exercises: z.array(workoutExerciseSchema).max(50),
     completed: z.boolean(),
     createdBy: z.string().optional(),
   }))

@@ -5,10 +5,10 @@ import { storage } from "../../../storage";
 
 export default trainerProcedure
   .input(z.object({
-    name: z.string(),
-    email: z.string().email(),
-    phone: z.string().optional(),
-    starterPassword: z.string().optional(),
+    name: z.string().min(1).max(255),
+    email: z.string().email().max(255),
+    phone: z.string().max(50).optional(),
+    starterPassword: z.string().min(6).max(100).optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     // Check if client with this email or phone already exists

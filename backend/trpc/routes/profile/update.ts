@@ -6,9 +6,9 @@ import { storage } from '../../../storage';
 export default protectedProcedure
   .input(z.object({
     userId: z.string(),
-    name: z.string().optional(),
-    phone: z.string().optional(),
-    avatar: z.string().optional(),
+    name: z.string().min(1).max(255).optional(),
+    phone: z.string().max(50).optional(),
+    avatar: z.string().max(500000).optional(),
   }))
   .mutation(async ({ input }) => {
     const { userId, ...updates } = input;

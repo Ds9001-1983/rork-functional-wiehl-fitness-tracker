@@ -10,7 +10,7 @@ export default protectedProcedure
     // Confirm join notification
     try {
       const challenges = await storage.challenges.getActive();
-      const challenge = challenges.find((c: any) => c.id === input.challengeId);
+      const challenge = challenges.find((c: { id: string; name: string }) => c.id === input.challengeId);
       if (challenge) {
         await storage.notifications.create({
           userId: ctx.user.userId,

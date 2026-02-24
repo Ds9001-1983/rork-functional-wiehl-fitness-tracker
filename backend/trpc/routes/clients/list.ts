@@ -7,8 +7,8 @@ export default protectedProcedure
     try {
       const clients = await storage.clients.getAll();
       return clients;
-    } catch (error: any) {
-      console.error('[Server] Error fetching clients:', error.message);
+    } catch (error: unknown) {
+      console.error('[Server] Error fetching clients:', error instanceof Error ? error.message : error);
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to fetch clients',

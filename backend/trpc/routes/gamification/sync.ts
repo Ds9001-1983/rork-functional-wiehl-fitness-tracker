@@ -5,18 +5,18 @@ import { z } from 'zod';
 export default protectedProcedure
   .input(z.object({
     userId: z.string(),
-    xp: z.number(),
-    level: z.number(),
+    xp: z.number().min(0).max(10000000),
+    level: z.number().min(1).max(1000),
     badges: z.array(z.object({
-      id: z.string(),
+      id: z.string().max(100),
       unlockedAt: z.string().optional(),
-    })),
-    currentStreak: z.number(),
-    longestStreak: z.number(),
-    streakFreezes: z.number(),
-    streakFreezesUsed: z.array(z.string()),
+    })).max(100),
+    currentStreak: z.number().min(0).max(99999),
+    longestStreak: z.number().min(0).max(99999),
+    streakFreezes: z.number().min(0).max(100),
+    streakFreezesUsed: z.array(z.string()).max(100),
     lastActiveDate: z.string(),
-    coachingTone: z.string().optional(),
+    coachingTone: z.string().max(50).optional(),
   }))
   .mutation(async ({ input }) => {
     // Check existing data for badge/level changes before sync

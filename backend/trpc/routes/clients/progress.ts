@@ -1,14 +1,15 @@
 import { trainerProcedure } from '../../create-context';
 import { storage } from '../../../storage';
+import type { StoredWorkout, StoredWorkoutPlan } from '../../../storage';
 import { z } from 'zod';
 
 export default trainerProcedure
   .input(z.object({ clientId: z.string() }))
-  .query(async ({ input, ctx }) => {
-    // Get client's workouts
-    const allWorkouts = await storage.workouts.getAll();
-    const clientWorkouts = (allWorkouts as any[]).filter(
-      (w: any) => w.userId === input.clientId && w.completed
+  .query(async ({ input }) => {
+    // Use getByUserId instead of getAll to avoid N+1 query
+    const allClientWorkouts = await storage.workouts.getByUserId(input.clientId);
+    const clientWorkouts = allClientWorkouts.filter(
+      (w: StoredWorkout) => w.completed
     );
 
     // Last 4 weeks
@@ -17,7 +18,7 @@ export default trainerProcedure
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
     const recentWorkouts = clientWorkouts.filter(
-      (w: any) => new Date(w.date) >= fourWeeksAgo
+      (w: StoredWorkout) => new Date(w.date) >= fourWeeksAgo
     );
 
     // Weekly breakdown
@@ -27,14 +28,14 @@ export default trainerProcedure
       const weekEnd = new Date(now);
       weekEnd.setDate(weekEnd.getDate() - weeksAgo * 7);
 
-      const weekWorkouts = clientWorkouts.filter((w: any) => {
+      const weekWorkouts = clientWorkouts.filter((w: StoredWorkout) => {
         const d = new Date(w.date);
         return d >= weekStart && d < weekEnd;
       });
 
-      const volume = weekWorkouts.reduce((total: number, w: any) => {
-        return total + (w.exercises || []).reduce((eTotal: number, ex: any) => {
-          return eTotal + (ex.sets || []).reduce((sTotal: number, s: any) => {
+      const volume = weekWorkouts.reduce((total: number, w: StoredWorkout) => {
+        return total + (w.exercises || []).reduce((eTotal: number, ex: { sets?: { weight?: number; reps?: number }[] }) => {
+          return eTotal + (ex.sets || []).reduce((sTotal: number, s: { weight?: number; reps?: number }) => {
             return sTotal + (s.weight || 0) * (s.reps || 0);
           }, 0);
         }, 0);
@@ -47,12 +48,9 @@ export default trainerProcedure
       };
     }).reverse();
 
-    // Compliance: planned vs actual
-    const plans = await storage.workoutPlans.getAll();
-    const clientPlans = (plans as any[]).filter(
-      (p: any) => p.assignedTo?.includes(input.clientId)
-    );
-    const scheduledDaysPerWeek = clientPlans.reduce((total: number, p: any) => {
+    // Compliance: planned vs actual - use getByUserId for plans too
+    const clientPlans = await storage.workoutPlans.getByUserId(input.clientId);
+    const scheduledDaysPerWeek = clientPlans.reduce((total: number, p: StoredWorkoutPlan) => {
       return total + (p.schedule?.length || 0);
     }, 0) || 3; // default 3 if no schedule
 
@@ -63,7 +61,7 @@ export default trainerProcedure
 
     // Last activity
     const lastWorkout = clientWorkouts.length > 0
-      ? clientWorkouts.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+      ? clientWorkouts.sort((a: StoredWorkout, b: StoredWorkout) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
       : null;
 
     // Streak
@@ -75,7 +73,7 @@ export default trainerProcedure
       complianceRate,
       weeklyData,
       lastWorkoutDate: lastWorkout?.date || null,
-      currentStreak: (gamificationData as any)?.currentStreak || 0,
+      currentStreak: gamificationData?.currentStreak || 0,
       assignedPlans: clientPlans.length,
     };
   });
