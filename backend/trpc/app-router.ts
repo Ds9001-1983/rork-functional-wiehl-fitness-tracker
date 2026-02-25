@@ -51,6 +51,7 @@ import unsubscribePush from "./routes/notifications/unsubscribe-push";
 import chatSend from "./routes/chat/send";
 import chatList from "./routes/chat/list";
 import chatUnreadCount from "./routes/chat/unread-count";
+import chatConversations from "./routes/chat/conversations";
 import clientProgress from "./routes/clients/progress";
 import { createMesocycle, listMesocycles, updateMesocycle, deleteMesocycle } from "./routes/plans/mesocycles";
 import photoUpload from "./routes/photos/upload";
@@ -145,6 +146,7 @@ export const appRouter = createTRPCRouter({
     send: chatSend,
     list: chatList,
     unreadCount: chatUnreadCount,
+    conversations: chatConversations,
   }),
   photos: createTRPCRouter({
     upload: photoUpload,
