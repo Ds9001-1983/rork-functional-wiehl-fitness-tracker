@@ -43,9 +43,6 @@ import markAllReadNotifications from "./routes/notifications/mark-all-read";
 import unreadCountNotifications from "./routes/notifications/unread-count";
 import getStudio from "./routes/studios/get";
 import updateStudio from "./routes/studios/update";
-import listStudios from "./routes/studios/list";
-import createStudio from "./routes/studios/create";
-import studioStats from "./routes/studios/stats";
 import privacyConsent from "./routes/privacy/consent";
 import privacyExportData from "./routes/privacy/export-data";
 import privacyDeleteAccount from "./routes/privacy/delete-account";
@@ -143,9 +140,6 @@ export const appRouter = createTRPCRouter({
   studios: createTRPCRouter({
     get: getStudio,
     update: updateStudio,
-    list: listStudios,
-    create: createStudio,
-    stats: studioStats,
   }),
   chat: createTRPCRouter({
     send: chatSend,

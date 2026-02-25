@@ -59,7 +59,9 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
           currentUserId
             ? trpcClient.workouts.list.query({ userId: currentUserId })
             : trpcClient.workouts.list.query(),
-          trpcClient.plans.list.query(),
+          currentUserId
+            ? trpcClient.plans.list.query({ userId: currentUserId })
+            : trpcClient.plans.list.query(),
           currentUserId
             ? trpcClient.routines.list.query({ userId: currentUserId })
             : Promise.resolve(null),

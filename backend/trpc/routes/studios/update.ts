@@ -10,6 +10,6 @@ export default adminProcedure
     accentColor: z.string().optional(),
   }))
   .mutation(async ({ input, ctx }) => {
-    const studio = await storage.studios.update(ctx.user.studioId, input);
+    const studio = await storage.studios.update('1', input);
     return studio;
   });

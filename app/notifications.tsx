@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Stack } from 'expo-router';
-import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -13,6 +13,7 @@ function getNotificationIcon(type: string, Colors: any) {
     case 'challenge': return <Target size={20} color={Colors.success} />;
     case 'level': return <Star size={20} color={Colors.warning} />;
     case 'workout_reminder': return <Dumbbell size={20} color={Colors.accent} />;
+    case 'system': return <ClipboardList size={20} color={Colors.accent} />;
     default: return <Info size={20} color={Colors.textSecondary} />;
   }
 }
@@ -33,6 +34,14 @@ export default function NotificationsScreen() {
   const { notifications, unreadCount, isLoading, markRead, markAllRead } = useNotifications();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const router = useRouter();
+
+  const handleNotificationPress = (item: any) => {
+    if (!item.read) markRead(item.id);
+    if (item.data?.type === 'plan_assigned') {
+      router.push('/(tabs)');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -69,7 +78,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.notifUnread]}
-              onPress={() => { if (!item.read) markRead(item.id); }}
+              onPress={() => handleNotificationPress(item)}
               activeOpacity={0.7}
             >
               <View style={styles.notifIcon}>

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, Zap, X } from 'lucide-react-native';
@@ -28,6 +29,7 @@ export default function WorkoutScreen() {
     workoutPlans,
     startWorkout,
     startWorkoutFromRoutine,
+    endWorkout,
     setCurrentUserId,
     getWorkoutHistory,
     getMuscleGroupVolume,
@@ -109,8 +111,7 @@ export default function WorkoutScreen() {
   const myPlans = useMemo(() => {
     if (!user?.id) return [];
     return workoutPlans.filter(p =>
-      (p.isInstance && p.assignedTo?.includes(user.id)) ||
-      (!p.isInstance && p.assignedTo?.includes(user.id))
+      p.assignedTo?.includes(user.id) || p.assignedUserId === user.id
     );
   }, [workoutPlans, user?.id]);
 
@@ -142,6 +143,29 @@ export default function WorkoutScreen() {
   };
 
   const handleStartFromPlan = (planId: string) => {
+    if (activeWorkout) {
+      Alert.alert(
+        'Aktives Workout',
+        'Du hast bereits ein laufendes Workout. Möchtest du es verwerfen und den Plan starten?',
+        [
+          { text: 'Abbrechen', style: 'cancel' },
+          {
+            text: 'Fortsetzen',
+            onPress: () => router.push('/active-workout'),
+          },
+          {
+            text: 'Neues Workout',
+            style: 'destructive',
+            onPress: () => {
+              endWorkout();
+              startWorkout(planId);
+              router.push('/active-workout');
+            },
+          },
+        ],
+      );
+      return;
+    }
     startWorkout(planId);
     router.push('/active-workout');
   };
@@ -292,25 +316,33 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {/* Assigned Plans Quick-Start */}
-        {myPlans.length > 0 && todaysPlans.length === 0 && !activeWorkout && (
+        {/* Assigned Plans - Always visible */}
+        {myPlans.length > 0 && todaysPlans.length === 0 && (
           <View style={styles.myPlansSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Meine Pläne</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.planScroller}>
-              {myPlans.slice(0, 5).map(plan => (
-                <TouchableOpacity
-                  key={plan.id}
-                  style={styles.planChip}
-                  onPress={() => handleStartFromPlan(plan.id)}
-                >
-                  <ClipboardList size={14} color={Colors.accent} />
-                  <Text style={styles.planChipText} numberOfLines={1}>{plan.name}</Text>
-                  <Play size={12} color={Colors.textMuted} />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {myPlans.map(plan => (
+              <TouchableOpacity
+                key={plan.id}
+                style={styles.planCard}
+                onPress={() => handleStartFromPlan(plan.id)}
+              >
+                <View style={styles.planCardIcon}>
+                  <ClipboardList size={20} color={Colors.accent} />
+                </View>
+                <View style={styles.planCardInfo}>
+                  <Text style={styles.planCardName}>{plan.name}</Text>
+                  <Text style={styles.planCardDetails}>
+                    {plan.exercises.length} Übungen
+                  </Text>
+                </View>
+                <View style={styles.planStartButton}>
+                  <Play size={16} color={Colors.text} />
+                  <Text style={styles.planStartText}>Starten</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
@@ -338,10 +370,10 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {/* Routines Section */}
+        {/* Training Plans & Routines Section */}
         <View style={styles.routinesSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Meine Routinen</Text>
+            <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
             <TouchableOpacity onPress={() => router.push('/routines' as never)}>
               <Text style={styles.seeAllText}>Alle</Text>
             </TouchableOpacity>
@@ -663,27 +695,51 @@ const createStyles = (Colors: any) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
   },
-  planScroller: {
-    flexDirection: 'row',
-  },
-  planChip: {
+  planCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
     backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    padding: Spacing.md,
     borderRadius: BorderRadius.md,
-    marginRight: Spacing.sm,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
-    maxWidth: 180,
   },
-  planChipText: {
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: '500' as const,
+  planCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  planCardInfo: {
     flex: 1,
+  },
+  planCardName: {
+    fontSize: 16,
+    fontWeight: '500' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  planCardDetails: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  planStartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    gap: Spacing.xs,
+  },
+  planStartText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
   },
   muscleSection: {
     paddingHorizontal: Spacing.lg,

@@ -13,7 +13,6 @@ export default protectedProcedure
   .mutation(async ({ input, ctx }) => {
     const result = await storage.pushSubscriptions.subscribe(
       ctx.user.userId,
-      ctx.user.studioId,
       input.endpoint,
       input.keys.p256dh,
       input.keys.auth

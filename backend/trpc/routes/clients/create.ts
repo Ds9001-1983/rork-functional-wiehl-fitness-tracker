@@ -5,19 +5,18 @@ import { storage } from "../../../storage";
 
 export default trainerProcedure
   .input(z.object({
-    name: z.string(),
-    email: z.string().email(),
-    phone: z.string().optional(),
-    starterPassword: z.string().optional(),
+    name: z.string().min(1).max(255),
+    email: z.string().email().max(255),
+    phone: z.string().max(50).optional(),
+    starterPassword: z.string().min(6).max(100).optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     // Check if client with this email or phone already exists
-    const existingClients = await storage.clients.getAll(ctx.user.studioId);
+    const existingClients = await storage.clients.getAll();
 
     // Check for duplicate email
     const existingClientByEmail = existingClients.find(client => client.email === input.email);
     if (existingClientByEmail) {
-      console.log('[Server] Client with email already exists:', input.email);
       throw new TRPCError({ code: 'CONFLICT', message: 'EMAIL_EXISTS' });
     }
 
@@ -25,13 +24,11 @@ export default trainerProcedure
     if (input.phone && input.phone.trim()) {
       const existingClientByPhone = existingClients.find(client => client.phone === input.phone);
       if (existingClientByPhone) {
-        console.log('[Server] Client with phone already exists:', input.phone);
         throw new TRPCError({ code: 'CONFLICT', message: 'PHONE_EXISTS' });
       }
     }
 
-    const starterPassword = input.starterPassword || 'TEMP123'; // Fallback password
-    console.log('[Server] Creating client with password:', starterPassword);
+    const starterPassword = input.starterPassword || 'TEMP123';
 
     const newClient = await storage.clients.create({
       name: input.name,
@@ -49,13 +46,6 @@ export default trainerProcedure
         personalRecords: {},
       },
     });
-
-    console.log('[Server] Created client:', newClient.id, 'studio:', ctx.user.studioId);
-
-    // Add new user as studio member
-    try {
-      await storage.studioMembers.add(ctx.user.studioId, newClient.id || newClient.userId || '', 'client');
-    } catch { /* non-critical */ }
 
     return newClient;
   });

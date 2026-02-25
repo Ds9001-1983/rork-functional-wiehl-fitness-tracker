@@ -8,15 +8,13 @@ export default trainerProcedure
     email: z.string().email().optional(),
   }))
   .mutation(async ({ input, ctx }) => {
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const code = crypto.randomUUID().slice(0, 8).toUpperCase();
     const invitation = await storage.invitations.create({
       code,
       name: input.name,
       email: input.email,
       createdAt: new Date().toISOString(),
     });
-    
-    console.log('[Server] Created invitation:', code);
     
     return invitation;
   });

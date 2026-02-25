@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
 // Load jsonwebtoken - require() works in both Bun and Node.js
-let jwtModule: any = null;
+let jwtModule: typeof import('jsonwebtoken') | null = null;
 try {
   jwtModule = require('jsonwebtoken');
   console.log('[Auth] jsonwebtoken loaded successfully');
@@ -10,16 +10,22 @@ try {
   console.warn('[Auth] jsonwebtoken not available - JWT auth disabled');
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'functional-wiehl-beta-secret-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[Auth] FATAL: JWT_SECRET must be set in production');
+  }
+  console.warn('[Auth] WARNING: JWT_SECRET not set - using insecure default (dev only)');
+}
+const jwtSecret = JWT_SECRET || 'dev-only-insecure-secret-' + Math.random().toString(36);
 
 export interface AuthUser {
   userId: string;
   email: string;
-  role: 'client' | 'trainer' | 'admin' | 'superadmin';
-  studioId: string;
+  role: 'client' | 'trainer' | 'admin';
 }
 
-export const createContext = async (opts?: any) => {
+export const createContext = async (opts?: { req?: { headers?: { get?: (name: string) => string | null; authorization?: string } } }) => {
   let user: AuthUser | null = null;
 
   if (jwtModule) {
@@ -28,24 +34,15 @@ export const createContext = async (opts?: any) => {
 
     if (token) {
       try {
-        const decoded = jwtModule.verify(token, JWT_SECRET) as AuthUser;
+        const decoded = jwtModule.verify(token, jwtSecret) as AuthUser;
         user = {
           userId: decoded.userId,
           email: decoded.email,
           role: decoded.role,
-          studioId: decoded.studioId || '1',
         };
       } catch {
         // Invalid token
       }
-    }
-  }
-
-  // Allow X-Studio-Id header override for superadmin
-  if (user && user.role === 'superadmin') {
-    const studioHeader = opts?.req?.headers?.get?.('x-studio-id') || opts?.req?.headers?.['x-studio-id'];
-    if (studioHeader) {
-      user.studioId = studioHeader;
     }
   }
 
@@ -74,7 +71,7 @@ export const trainerProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
-  if (ctx.user.role !== 'trainer' && ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
+  if (ctx.user.role !== 'trainer' && ctx.user.role !== 'admin') {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Trainer' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
@@ -85,19 +82,8 @@ export const adminProcedure = t.procedure.use(async ({ ctx, next }) => {
   if (!ctx.user) {
     throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
   }
-  if (ctx.user.role !== 'admin' && ctx.user.role !== 'superadmin') {
+  if (ctx.user.role !== 'admin') {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für Administratoren' });
-  }
-  return next({ ctx: { ...ctx, user: ctx.user } });
-});
-
-// Requires superadmin role (SUPERBAND cross-studio access)
-export const superadminProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.user) {
-    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Nicht angemeldet' });
-  }
-  if (ctx.user.role !== 'superadmin') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur für SUPERBAND Administratoren' });
   }
   return next({ ctx: { ...ctx, user: ctx.user } });
 });
@@ -107,5 +93,5 @@ export function signJWT(payload: AuthUser): string {
     // Fallback: base64 encoded payload (not secure, for beta only)
     return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
-  return jwtModule.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwtModule.sign(payload, jwtSecret, { expiresIn: '7d' });
 }

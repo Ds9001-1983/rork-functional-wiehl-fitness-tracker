@@ -117,7 +117,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'client' | 'trainer' | 'admin' | 'superadmin';
+  role: 'client' | 'trainer' | 'admin';
   avatar?: string;
   joinDate: string;
   phone?: string;

@@ -15,17 +15,17 @@ app.use('/trpc/auth.login*', loginRateLimit());
 // CORS middleware
 app.use('/*', cors({
   origin: process.env.CORS_ORIGIN || 'https://app.functional-wiehl.de',
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Studio-Id'],
+  allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
 // tRPC handler (mounted under /api in backend-server.ts, so this becomes /api/trpc/*)
 app.use('/trpc/*', trpcServer({
   router: appRouter,
-  createContext: (opts: any) => createContext(opts),
-  onError: ({ error, path }: { error: any; path: any }) => {
+  createContext: (opts: unknown) => createContext(opts as Parameters<typeof createContext>[0]),
+  onError: ({ error, path }: { error: Error; path: string | undefined }) => {
     console.error('[tRPC] Error on procedure:', path, error.message);
-    Sentry.captureException(error instanceof Error ? error : new Error(error.message), { procedure: path });
+    Sentry.captureException(error, { procedure: path });
   },
   endpoint: '/api/trpc',  // Tell tRPC where it's mounted in the full URL path
 }));

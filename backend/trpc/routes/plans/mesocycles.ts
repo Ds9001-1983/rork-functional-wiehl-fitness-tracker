@@ -18,7 +18,6 @@ export const createMesocycle = trainerProcedure
   }))
   .mutation(async ({ input, ctx }) => {
     return storage.mesocycles.create(
-      ctx.user.studioId,
       input.clientId || null,
       input.name,
       input.startDate,
@@ -30,7 +29,7 @@ export const createMesocycle = trainerProcedure
 
 export const listMesocycles = protectedProcedure
   .query(async ({ ctx }) => {
-    return storage.mesocycles.list(ctx.user.studioId);
+    return storage.mesocycles.list();
   });
 
 export const updateMesocycle = trainerProcedure

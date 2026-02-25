@@ -3,7 +3,7 @@ import { storage } from '../../../storage';
 
 export default adminProcedure
   .query(async ({ ctx }) => {
-    const allClients = await storage.clients.getAll(ctx.user.studioId);
+    const allClients = await storage.clients.getAll();
 
     return allClients.map(c => ({
       id: c.id,

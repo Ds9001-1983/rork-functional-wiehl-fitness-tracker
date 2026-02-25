@@ -28,10 +28,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    const studioId = await AsyncStorage.getItem('studioId');
-    if (studioId) {
-      headers['X-Studio-Id'] = studioId;
-    }
   } catch {
     // AsyncStorage not available
   }

@@ -9,10 +9,11 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown } from 'lucide-react-native';
+import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown, ClipboardList } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
+import { useAuth } from '@/hooks/use-auth';
 import { exercises as exerciseDb, exerciseCategories } from '@/data/exercises';
 import { RoutineExercise } from '@/types/workout';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -20,7 +21,8 @@ import StatusBanner from '@/components/StatusBanner';
 
 export default function RoutinesScreen() {
   const router = useRouter();
-  const { routines, saveRoutine, updateRoutine, deleteRoutine, startWorkoutFromRoutine } = useWorkouts();
+  const { routines, workoutPlans, saveRoutine, updateRoutine, deleteRoutine, startWorkoutFromRoutine, startWorkout } = useWorkouts();
+  const { user } = useAuth();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -61,6 +63,19 @@ export default function RoutinesScreen() {
   };
 
   const sortLabel = sortMode === 'name' ? 'A-Z' : sortMode === 'usage' ? 'Meistgenutzt' : 'Neueste';
+
+  // Assigned training plans from trainer
+  const assignedPlans = useMemo(() => {
+    if (!user?.id) return [];
+    return workoutPlans.filter(p =>
+      p.assignedTo?.includes(user.id) || p.assignedUserId === user.id
+    );
+  }, [workoutPlans, user?.id]);
+
+  const handleStartFromPlan = (planId: string) => {
+    startWorkout(planId);
+    router.push('/active-workout');
+  };
 
   // Edit state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -220,14 +235,14 @@ export default function RoutinesScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Routinen' }} />
+      <Stack.Screen options={{ title: 'Trainingspläne' }} />
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.headerRow}>
               <View>
-                <Text style={styles.title}>Meine Routinen</Text>
-                <Text style={styles.subtitle}>Erstelle Vorlagen für deine Workouts</Text>
+                <Text style={styles.title}>Meine Trainingspläne</Text>
+                <Text style={styles.subtitle}>Deine Pläne und Routinen</Text>
               </View>
               {routines.length > 1 && (
                 <TouchableOpacity style={styles.sortButton} onPress={cycleSortMode}>
@@ -248,15 +263,49 @@ export default function RoutinesScreen() {
             </View>
           )}
 
-          {routines.length === 0 ? (
+          {/* Assigned Training Plans from Trainer */}
+          {assignedPlans.length > 0 && (
+            <View style={{ marginBottom: Spacing.lg }}>
+              <Text style={styles.sectionLabel}>Vom Trainer zugewiesen</Text>
+              {assignedPlans.map((plan) => (
+                <TouchableOpacity
+                  key={plan.id}
+                  style={styles.assignedPlanCard}
+                  onPress={() => handleStartFromPlan(plan.id)}
+                >
+                  <View style={styles.assignedPlanIcon}>
+                    <ClipboardList size={20} color={Colors.accent} />
+                  </View>
+                  <View style={styles.assignedPlanInfo}>
+                    <Text style={styles.assignedPlanName}>{plan.name}</Text>
+                    <Text style={styles.assignedPlanDetails}>
+                      {plan.exercises.length} Übungen
+                      {plan.description ? ` - ${plan.description}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.assignedPlanStartButton}>
+                    <Play size={16} color={Colors.text} />
+                    <Text style={styles.assignedPlanStartText}>Starten</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* User Routines */}
+          {routines.length > 0 && (
+            <Text style={styles.sectionLabel}>Meine Routinen</Text>
+          )}
+
+          {routines.length === 0 && assignedPlans.length === 0 ? (
             <View style={styles.emptyState}>
               <Dumbbell size={48} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>Keine Routinen vorhanden</Text>
+              <Text style={styles.emptyText}>Keine Trainingspläne vorhanden</Text>
               <Text style={styles.emptySubtext}>
-                Erstelle deine erste Routine, um Workouts schneller zu starten.
+                Dein Trainer kann dir Pläne zuweisen, oder erstelle eigene Routinen.
               </Text>
             </View>
-          ) : (
+          ) : routines.length === 0 ? null : (
             sortedRoutines.map((routine) => (
               <View key={routine.id} style={styles.routineCard}>
                 <View style={styles.routineHeader}>
@@ -917,5 +966,63 @@ const createStyles = (Colors: any) => StyleSheet.create({
   exercisePickerMuscles: {
     fontSize: 13,
     color: Colors.textMuted,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  assignedPlanCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.accent + '40',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+  },
+  assignedPlanIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.accent + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  assignedPlanInfo: {
+    flex: 1,
+  },
+  assignedPlanName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  assignedPlanDetails: {
+    fontSize: 13,
+    color: Colors.textMuted,
+  },
+  assignedPlanStartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    gap: 4,
+  },
+  assignedPlanStartText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.text,
   },
 });

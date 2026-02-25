@@ -11,7 +11,6 @@ export default protectedProcedure
   .mutation(async ({ input, ctx }) => {
     return storage.progressPhotos.create(
       ctx.user.userId,
-      ctx.user.studioId,
       input.imageData,
       input.category,
       input.notes

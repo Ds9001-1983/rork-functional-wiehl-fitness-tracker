@@ -14,8 +14,7 @@ export default trainerProcedure
     for (const userId of input.userIds) {
       const instance = await storage.workoutPlans.instantiate(
         input.templateId,
-        userId,
-        ctx.user.studioId
+        userId
       );
 
       if (!instance) {
@@ -28,6 +27,19 @@ export default trainerProcedure
       instances.push(instance);
     }
 
-    console.log('[Server] Instantiated plan', input.templateId, 'for', input.userIds.length, 'users');
+    // Benachrichtigungen fuer zugewiesene Kunden erstellen
+    try {
+      for (let i = 0; i < instances.length; i++) {
+        await storage.notifications.create({
+          userId: input.userIds[i],
+          title: 'Neuer Trainingsplan',
+          body: `Dein Trainer hat dir den Plan "${instances[i].name}" zugewiesen.`,
+          type: 'system',
+          data: { type: 'plan_assigned', planId: instances[i].id, templateId: input.templateId },
+        });
+      }
+    } catch {
+      // Nicht-kritisch: Zuweisung klappt trotzdem
+    }
     return { success: true, instances };
   });

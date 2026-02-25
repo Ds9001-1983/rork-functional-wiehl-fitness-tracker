@@ -9,7 +9,6 @@ import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { GamificationProvider } from "@/hooks/use-gamification";
 import { NotificationProvider } from "@/hooks/use-notifications";
-import { StudioProvider } from "@/hooks/use-studio";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import LoadingScreen from "@/components/LoadingScreen";
@@ -21,7 +20,6 @@ const queryClient = new QueryClient();
 
 function getInitialRoute(role?: string): string {
   switch (role) {
-    case 'superadmin': return '(superadmin-tabs)';
     case 'admin': return '(admin-tabs)';
     case 'trainer': return '(trainer-tabs)';
     default: return '(tabs)';
@@ -53,7 +51,6 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(trainer-tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(superadmin-tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
       <Stack.Screen name="trainer" options={{ title: 'Trainer Center' }} />
       <Stack.Screen name="change-password" options={{ title: 'Passwort ändern' }} />
@@ -87,20 +84,18 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
           <View style={{ flex: 1, maxWidth: 768, width: '100%', alignSelf: 'center', backgroundColor: '#0A0A0A' }}>
             <AuthProvider>
-              <StudioProvider>
-                <ClientsProvider>
-                  <WorkoutProvider>
-                    <GamificationProvider>
-                      <NotificationProvider>
-                        <ErrorBoundary>
-                          <OfflineBanner />
-                          <RootLayoutNav />
-                        </ErrorBoundary>
-                      </NotificationProvider>
-                    </GamificationProvider>
-                  </WorkoutProvider>
-                </ClientsProvider>
-              </StudioProvider>
+              <ClientsProvider>
+                <WorkoutProvider>
+                  <GamificationProvider>
+                    <NotificationProvider>
+                      <ErrorBoundary>
+                        <OfflineBanner />
+                        <RootLayoutNav />
+                      </ErrorBoundary>
+                    </NotificationProvider>
+                  </GamificationProvider>
+                </WorkoutProvider>
+              </ClientsProvider>
             </AuthProvider>
           </View>
         </GestureHandlerRootView>

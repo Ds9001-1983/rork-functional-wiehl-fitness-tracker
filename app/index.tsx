@@ -26,7 +26,6 @@ export default function IndexRedirect() {
 
   if (!isAuthenticated) return <Redirect href="/login" />;
 
-  if (user?.role === 'superadmin') return <Redirect href="/(superadmin-tabs)" />;
   if (user?.role === 'admin') return <Redirect href="/(admin-tabs)" />;
   if (user?.role === 'trainer') return <Redirect href="/(trainer-tabs)" />;
 

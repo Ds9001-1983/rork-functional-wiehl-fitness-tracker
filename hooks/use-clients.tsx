@@ -85,11 +85,11 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
   }, [invitations]);
 
   const addClient = useCallback(async (client: Omit<User, 'id' | 'joinDate' | 'role'> & { id?: string; phone?: string; starterPassword?: string; passwordChanged?: boolean }) => {
-    try {
-      if (!client.starterPassword) {
-        throw new Error('Starter password is required');
-      }
+    if (!client.starterPassword) {
+      throw new Error('Starter password is required');
+    }
 
+    try {
       const newClient = await trpcClient.clients.create.mutate({
         name: client.name,
         email: client.email,
@@ -97,14 +97,25 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
         starterPassword: client.starterPassword,
       });
 
+      // Immediately add to local state
       const updatedClients = [newClient, ...clients];
       setClients(updatedClients);
       await AsyncStorage.setItem('clients', JSON.stringify(updatedClients));
 
+      // Reload from server to ensure consistency
+      try {
+        const serverClients = await trpcClient.clients.list.query();
+        setClients(serverClients);
+        await AsyncStorage.setItem('clients', JSON.stringify(serverClients));
+      } catch {
+        // Keep optimistic state if reload fails
+      }
+
       return newClient;
     } catch (error: any) {
-      if (error.message === 'CLIENT_ALREADY_EXISTS') {
-        throw new Error('CLIENT_ALREADY_EXISTS');
+      // Re-throw known errors so the UI can show the correct message
+      if (error.message?.includes('EMAIL_EXISTS') || error.message?.includes('PHONE_EXISTS') || error.message?.includes('CLIENT_ALREADY_EXISTS')) {
+        throw error;
       }
 
       // Fallback to local creation only if server is completely unavailable

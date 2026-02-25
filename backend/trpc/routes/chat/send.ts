@@ -9,7 +9,6 @@ export default protectedProcedure
   }))
   .mutation(async ({ input, ctx }) => {
     const result = await storage.chatMessages.send(
-      ctx.user.studioId,
       ctx.user.userId,
       input.receiverId,
       input.message

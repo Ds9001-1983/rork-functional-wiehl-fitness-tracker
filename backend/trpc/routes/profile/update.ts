@@ -6,9 +6,9 @@ import { storage } from '../../../storage';
 export default protectedProcedure
   .input(z.object({
     userId: z.string(),
-    name: z.string().optional(),
-    phone: z.string().optional(),
-    avatar: z.string().optional(),
+    name: z.string().min(1).max(255).optional(),
+    phone: z.string().max(50).optional(),
+    avatar: z.string().max(500000).optional(),
   }))
   .mutation(async ({ input }) => {
     const { userId, ...updates } = input;
@@ -18,7 +18,5 @@ export default protectedProcedure
     if (!updated) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'USER_NOT_FOUND' });
     }
-
-    console.log('[Server] Profile updated for user:', userId);
     return { success: true };
   });
