@@ -151,6 +151,7 @@ export interface StoredNotification {
 // Database connection
 let pool: Pool | null = null;
 let useDatabase = false;
+let dbReady: Promise<void> | null = null;
 
 // In-memory fallback storage (dev only - no hardcoded credentials)
 // In production, DATABASE_URL is required
@@ -222,11 +223,12 @@ if (process.env.DATABASE_URL) {
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
 
-    pool.connect().then(client => {
+    // dbReady is awaited before any storage operation to prevent race conditions
+    dbReady = pool.connect().then(async (client) => {
       console.log('[Storage] PostgreSQL connected successfully');
       client.release();
       useDatabase = true;
-      initializeTables();
+      await initializeTables();
     }).catch(err => {
       if (process.env.NODE_ENV === 'production') {
         console.error('[Storage] FATAL: PostgreSQL connection failed in production:', err.message);
@@ -252,6 +254,11 @@ if (process.env.DATABASE_URL) {
   }
   console.warn('[Storage] No DATABASE_URL provided - using in-memory storage (dev only)');
   console.warn('[Storage] Dev credentials: admin=' + devAdminPw + ', trainer=' + devTrainerPw);
+}
+
+// Ensure DB is ready before any storage operation
+async function waitForDb(): Promise<void> {
+  if (dbReady) await dbReady;
 }
 
 // Initialize database tables
@@ -591,6 +598,9 @@ export function getDatabaseStatus(): { connected: boolean } {
   return { connected: useDatabase && pool !== null };
 }
 
+/** Wait until the database connection is established (or fallback is decided). */
+export { waitForDb };
+
 export const storage = {
   users: {
     findByEmail: async (email: string): Promise<StoredUser | null> => {
@@ -726,7 +736,8 @@ export const storage = {
             },
           }));
         } catch (err) {
-          console.log('[Storage] DB query failed for getAll clients:', err);
+          console.error('[Storage] DB query failed for getAll clients:', err);
+          throw err;
         }
       }
       return clients;
