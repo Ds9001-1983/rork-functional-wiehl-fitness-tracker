@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, X } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Target, Flame, Calendar, ClipboardList, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
@@ -24,10 +24,8 @@ export default function WorkoutScreen() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const {
     activeWorkout,
-    routines,
     workoutPlans,
     startWorkout,
-    startWorkoutFromRoutine,
     setCurrentUserId,
     getWorkoutHistory,
     getMuscleGroupVolume,
@@ -67,11 +65,6 @@ export default function WorkoutScreen() {
       startWorkout();
       router.push('/active-workout');
     }
-  };
-
-  const handleStartFromRoutine = (routine: any) => {
-    startWorkoutFromRoutine(routine);
-    router.push('/active-workout');
   };
 
   const userWorkouts = getWorkoutHistory();
@@ -168,7 +161,7 @@ export default function WorkoutScreen() {
           </Text>
         </View>
 
-        {userWorkouts.length === 0 && routines.length === 0 && showWelcome && (
+        {userWorkouts.length === 0 && myPlans.length === 0 && showWelcome && (
           <View style={styles.welcomeCard}>
             <TouchableOpacity
               style={styles.welcomeDismiss}
@@ -256,7 +249,7 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Meine Trainingspläne - Zugewiesene Pläne + Routinen */}
+        {/* Meine Trainingspläne - Zugewiesene Pläne vom Trainer */}
         <View style={styles.routinesSection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
@@ -265,8 +258,7 @@ export default function WorkoutScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Zugewiesene Trainingspläne vom Trainer */}
-          {myPlans.map(plan => {
+          {myPlans.length > 0 ? myPlans.map(plan => {
             const isToday = todaysPlans.some(tp => tp.id === plan.id);
             return (
               <TouchableOpacity
@@ -293,34 +285,11 @@ export default function WorkoutScreen() {
                 <ChevronRight size={20} color={Colors.textMuted} />
               </TouchableOpacity>
             );
-          })}
-
-          {/* Eigene Routinen */}
-          {routines.slice(0, 3).map((routine) => (
-            <TouchableOpacity
-              key={routine.id}
-              style={styles.routineCard}
-              onPress={() => handleStartFromRoutine(routine)}
-            >
-              <View style={styles.routineIcon}>
-                <Repeat size={20} color={Colors.accent} />
-              </View>
-              <View style={styles.routineInfo}>
-                <Text style={styles.routineName}>{routine.name}</Text>
-                <Text style={styles.routineDetails}>
-                  {routine.exercises.length} Übungen
-                  {routine.timesUsed > 0 && ` · ${routine.timesUsed}x verwendet`}
-                </Text>
-              </View>
-              <ChevronRight size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
-          ))}
-
-          {myPlans.length === 0 && routines.length === 0 && (
+          }) : (
             <View style={styles.emptyState}>
               <ClipboardList size={40} color={Colors.textMuted} />
               <Text style={styles.emptyStateText}>Keine Trainingspläne</Text>
-              <Text style={styles.emptyStateSubtext}>Dein Trainer kann dir Pläne zuweisen, oder erstelle eigene Routinen.</Text>
+              <Text style={styles.emptyStateSubtext}>Dein Trainer kann dir Pläne zuweisen.</Text>
             </View>
           )}
         </View>
@@ -493,49 +462,6 @@ const createStyles = (Colors: any) => StyleSheet.create({
     fontSize: 14,
     color: Colors.accent,
     fontWeight: '500' as const,
-  },
-  routineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  routineIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.surfaceLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  routineInfo: {
-    flex: 1,
-  },
-  routineName: {
-    fontSize: 16,
-    fontWeight: '500' as const,
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  routineDetails: {
-    fontSize: 13,
-    color: Colors.textMuted,
-  },
-  createRoutineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
   },
   createRoutineText: {
     color: Colors.accent,
