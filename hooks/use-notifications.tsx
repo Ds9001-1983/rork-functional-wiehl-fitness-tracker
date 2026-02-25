@@ -34,46 +34,49 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const userStr = await AsyncStorage.getItem('user');
-      if (!userStr) { setIsLoading(false); return; }
-      const userId = JSON.parse(userStr).id;
-      if (!userId) { setIsLoading(false); return; }
+      // Check if user is logged in (has auth token)
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
 
+      // Routes now use ctx.user.userId from JWT - no userId input needed
+      const [serverNotifs, serverCount] = await Promise.all([
+        trpcClient.notifications.list.query(),
+        trpcClient.notifications.unreadCount.query(),
+      ]);
+
+      const notifs = serverNotifs as AppNotification[];
+      setNotifications(notifs);
+      setUnreadCount((serverCount as any).count || 0);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(notifs));
+    } catch (err) {
+      console.warn('[Notifications] Server-Fetch fehlgeschlagen:', err);
+      // Fallback to local
       try {
-        const [serverNotifs, serverCount] = await Promise.all([
-          trpcClient.notifications.list.query({ userId, limit: 50 }),
-          trpcClient.notifications.unreadCount.query({ userId }),
-        ]);
-
-        const notifs = serverNotifs as AppNotification[];
-        setNotifications(notifs);
-        setUnreadCount((serverCount as any).count || 0);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(notifs));
-      } catch {
-        // Fallback to local
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored) as AppNotification[];
           setNotifications(parsed);
           setUnreadCount(parsed.filter(n => !n.read).length);
         }
+      } catch {
+        // AsyncStorage not available
       }
-    } catch {
-      // Silent fail
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Fetch on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Alle 30 Sekunden nach neuen Notifications pruefen
+  // Poll every 15 seconds (was 30)
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 30000);
+    const interval = setInterval(fetchNotifications, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -91,19 +94,9 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
     try {
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) {
-        const userId = JSON.parse(userStr).id;
-        if (userId) {
-          try {
-            await trpcClient.notifications.markAllRead.mutate({ userId });
-          } catch {
-            syncQueue.enqueue('notifications.markAllRead', { userId });
-          }
-        }
-      }
-    } catch {
-      // Silent fail
+      await trpcClient.notifications.markAllRead.mutate();
+    } catch (err) {
+      console.warn('[Notifications] markAllRead fehlgeschlagen:', err);
     }
   }, []);
 

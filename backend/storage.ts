@@ -1591,19 +1591,22 @@ export const storage = {
 
   notifications: {
     create: async (data: { userId: string; title: string; body: string; type: string; data?: Record<string, unknown> }): Promise<{ id: string }> => {
+      console.log('[Notifications] Creating notification for user:', data.userId, '| title:', data.title, '| type:', data.type);
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
             `INSERT INTO notifications (user_id, title, body, type, data) VALUES ($1, $2, $3, $4, $5) RETURNING id::text`,
             [data.userId, data.title, data.body, data.type, JSON.stringify(data.data || {})]
           );
+          console.log('[Notifications] Created in DB with id:', result.rows[0].id);
           return { id: result.rows[0].id };
         } catch (err) {
-          console.log('[Storage] DB insert failed for notification:', err);
+          console.error('[Notifications] DB INSERT FAILED:', err);
         }
       }
       const id = generateId();
       notificationsData.push({ id, userId: data.userId, title: data.title, body: data.body, type: data.type, read: false, data: data.data || {}, createdAt: new Date().toISOString() });
+      console.log('[Notifications] Created in memory with id:', id);
       return { id };
     },
 
