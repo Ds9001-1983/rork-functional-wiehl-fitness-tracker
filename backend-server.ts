@@ -4,6 +4,7 @@ import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import apiApp from './backend/hono';
 import { appRouter } from './backend/trpc/app-router';
+import { waitForDb } from './backend/storage';
 
 // Load environment variables
 const port = parseInt(process.env.BACKEND_PORT || '3000');
@@ -81,7 +82,12 @@ app.get('*', (c) => {
 console.log(`🚀 Server starting on port ${port}`);
 console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN}`);
-console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+console.log(`💾 Database: ${process.env.DATABASE_URL ? 'Connecting...' : 'Not configured'}`);
+
+// Wait for database to be ready before accepting requests
+// This prevents the race condition where requests arrive before useDatabase is set
+await waitForDb();
+console.log(`💾 Database: Ready`);
 
 // Start HTTP server explicitly with Bun.serve()
 // NOTE: "export default { port, fetch }" only works when running "bun file.ts" directly.
