@@ -256,42 +256,74 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Meine Trainingspläne - IMMER sichtbar wenn Pläne vorhanden */}
-        {myPlans.length > 0 && (
-          <View style={styles.myPlansSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
-            </View>
-            {myPlans.map(plan => {
-              const isToday = todaysPlans.some(tp => tp.id === plan.id);
-              return (
-                <TouchableOpacity
-                  key={plan.id}
-                  style={[styles.planCard, isToday && styles.planCardToday]}
-                  onPress={() => router.push(`/plan-detail/${plan.id}` as any)}
-                >
-                  <View style={[styles.planCardIcon, isToday && styles.planCardIconToday]}>
-                    <ClipboardList size={20} color={Colors.accent} />
-                  </View>
-                  <View style={styles.planCardInfo}>
-                    <View style={styles.planCardNameRow}>
-                      <Text style={styles.planCardName}>{plan.name}</Text>
-                      {isToday && (
-                        <View style={styles.todayBadge}>
-                          <Text style={styles.todayBadgeText}>Heute</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.planCardDetails}>
-                      {plan.exercises.length} Übungen · {plan.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)} Sätze
-                    </Text>
-                  </View>
-                  <ChevronRight size={20} color={Colors.textMuted} />
-                </TouchableOpacity>
-              );
-            })}
+        {/* Meine Trainingspläne - Zugewiesene Pläne + Routinen */}
+        <View style={styles.routinesSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
+            <TouchableOpacity onPress={() => router.push('/routines' as never)}>
+              <Text style={styles.seeAllText}>Alle</Text>
+            </TouchableOpacity>
           </View>
-        )}
+
+          {/* Zugewiesene Trainingspläne vom Trainer */}
+          {myPlans.map(plan => {
+            const isToday = todaysPlans.some(tp => tp.id === plan.id);
+            return (
+              <TouchableOpacity
+                key={plan.id}
+                style={[styles.planCard, isToday && styles.planCardToday]}
+                onPress={() => router.push(`/plan-detail/${plan.id}` as any)}
+              >
+                <View style={[styles.planCardIcon, isToday && styles.planCardIconToday]}>
+                  <ClipboardList size={20} color={Colors.accent} />
+                </View>
+                <View style={styles.planCardInfo}>
+                  <View style={styles.planCardNameRow}>
+                    <Text style={styles.planCardName}>{plan.name}</Text>
+                    {isToday && (
+                      <View style={styles.todayBadge}>
+                        <Text style={styles.todayBadgeText}>Heute</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.planCardDetails}>
+                    {plan.exercises.length} Übungen · {plan.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)} Sätze
+                  </Text>
+                </View>
+                <ChevronRight size={20} color={Colors.textMuted} />
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* Eigene Routinen */}
+          {routines.slice(0, 3).map((routine) => (
+            <TouchableOpacity
+              key={routine.id}
+              style={styles.routineCard}
+              onPress={() => handleStartFromRoutine(routine)}
+            >
+              <View style={styles.routineIcon}>
+                <Repeat size={20} color={Colors.accent} />
+              </View>
+              <View style={styles.routineInfo}>
+                <Text style={styles.routineName}>{routine.name}</Text>
+                <Text style={styles.routineDetails}>
+                  {routine.exercises.length} Übungen
+                  {routine.timesUsed > 0 && ` · ${routine.timesUsed}x verwendet`}
+                </Text>
+              </View>
+              <ChevronRight size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+
+          {myPlans.length === 0 && routines.length === 0 && (
+            <View style={styles.emptyState}>
+              <ClipboardList size={40} color={Colors.textMuted} />
+              <Text style={styles.emptyStateText}>Keine Trainingspläne</Text>
+              <Text style={styles.emptyStateSubtext}>Dein Trainer kann dir Pläne zuweisen, oder erstelle eigene Routinen.</Text>
+            </View>
+          )}
+        </View>
 
         {/* Muscle Group Recovery */}
         {topMuscleGroups.length > 0 && (
@@ -316,46 +348,6 @@ export default function WorkoutScreen() {
             </View>
           </View>
         )}
-
-        {/* Routines Section */}
-        <View style={styles.routinesSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Meine Routinen</Text>
-            <TouchableOpacity onPress={() => router.push('/routines' as never)}>
-              <Text style={styles.seeAllText}>Alle</Text>
-            </TouchableOpacity>
-          </View>
-
-          {routines.length > 0 ? (
-            routines.slice(0, 3).map((routine) => (
-              <TouchableOpacity
-                key={routine.id}
-                style={styles.routineCard}
-                onPress={() => handleStartFromRoutine(routine)}
-              >
-                <View style={styles.routineIcon}>
-                  <Repeat size={20} color={Colors.accent} />
-                </View>
-                <View style={styles.routineInfo}>
-                  <Text style={styles.routineName}>{routine.name}</Text>
-                  <Text style={styles.routineDetails}>
-                    {routine.exercises.length} Übungen
-                    {routine.timesUsed > 0 && ` - ${routine.timesUsed}x verwendet`}
-                  </Text>
-                </View>
-                <ChevronRight size={20} color={Colors.textMuted} />
-              </TouchableOpacity>
-            ))
-          ) : (
-            <TouchableOpacity
-              style={styles.createRoutineButton}
-              onPress={() => router.push('/routines' as never)}
-            >
-              <Plus size={18} color={Colors.accent} />
-              <Text style={styles.createRoutineText}>Routine erstellen</Text>
-            </TouchableOpacity>
-          )}
-        </View>
 
         {/* Recent Workouts */}
         <View style={styles.recentSection}>
@@ -601,10 +593,6 @@ const createStyles = (Colors: any) => StyleSheet.create({
     fontSize: 14,
     color: Colors.textMuted,
     marginTop: Spacing.xs,
-  },
-  myPlansSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
   },
   planCard: {
     flexDirection: 'row',

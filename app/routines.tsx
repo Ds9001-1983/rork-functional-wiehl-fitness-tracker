@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown, ClipboardList } from 'lucide-react-native';
+import { Plus, Trash2, Play, X, Dumbbell, Edit3, ArrowUpDown, ClipboardList, ChevronRight } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -271,7 +271,7 @@ export default function RoutinesScreen() {
                 <TouchableOpacity
                   key={plan.id}
                   style={styles.assignedPlanCard}
-                  onPress={() => handleStartFromPlan(plan.id)}
+                  onPress={() => router.push(`/plan-detail/${plan.id}` as any)}
                 >
                   <View style={styles.assignedPlanIcon}>
                     <ClipboardList size={20} color={Colors.accent} />
@@ -280,13 +280,10 @@ export default function RoutinesScreen() {
                     <Text style={styles.assignedPlanName}>{plan.name}</Text>
                     <Text style={styles.assignedPlanDetails}>
                       {plan.exercises.length} Übungen
-                      {plan.description ? ` - ${plan.description}` : ''}
+                      {plan.description ? ` · ${plan.description}` : ''}
                     </Text>
                   </View>
-                  <View style={styles.assignedPlanStartButton}>
-                    <Play size={16} color={Colors.text} />
-                    <Text style={styles.assignedPlanStartText}>Starten</Text>
-                  </View>
+                  <ChevronRight size={20} color={Colors.textMuted} />
                 </TouchableOpacity>
               ))}
             </View>
