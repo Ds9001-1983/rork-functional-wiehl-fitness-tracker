@@ -9,7 +9,7 @@ interface AppNotification {
   userId: string;
   title: string;
   body: string;
-  type: 'badge' | 'streak' | 'challenge' | 'system' | 'workout_reminder' | 'level';
+  type: 'badge' | 'streak' | 'challenge' | 'system' | 'workout_reminder' | 'level' | 'chat';
   read: boolean;
   data?: any;
   createdAt: string;
