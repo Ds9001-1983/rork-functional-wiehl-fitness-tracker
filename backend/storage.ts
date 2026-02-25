@@ -1945,6 +1945,44 @@ export const storage = {
       }
       return 0;
     },
+
+    async getConversations(userId: string) {
+      if (pool) {
+        try {
+          const result = await pool.query(
+            `SELECT DISTINCT ON (other_id)
+               other_id,
+               last_message,
+               last_message_at,
+               unread_count,
+               other_name,
+               other_role
+             FROM (
+               SELECT
+                 CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END AS other_id,
+                 message AS last_message,
+                 cm.created_at AS last_message_at,
+                 (SELECT COUNT(*)::int FROM chat_messages WHERE receiver_id = $1 AND sender_id = CASE WHEN cm.sender_id = $1 THEN cm.receiver_id ELSE cm.sender_id END AND read_at IS NULL) AS unread_count,
+                 COALESCE(c.name, u.email, 'Unbekannt') AS other_name,
+                 u.role AS other_role
+               FROM chat_messages cm
+               LEFT JOIN users u ON u.id = CASE WHEN cm.sender_id = $1 THEN cm.receiver_id ELSE cm.sender_id END
+               LEFT JOIN clients c ON c.user_id = u.id
+               WHERE cm.sender_id = $1 OR cm.receiver_id = $1
+               ORDER BY cm.created_at DESC
+             ) sub
+             ORDER BY other_id, last_message_at DESC`,
+            [userId]
+          );
+          // Sort by last message time descending
+          return result.rows.sort((a: any, b: any) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+        } catch (err) {
+          console.log('[Storage] Chat conversations failed:', err);
+          return [];
+        }
+      }
+      return [];
+    },
   },
 
   // Mesocycles

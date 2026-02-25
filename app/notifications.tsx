@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList } from 'lucide-react-native';
+import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList, MessageSquare } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -13,6 +13,7 @@ function getNotificationIcon(type: string, Colors: any) {
     case 'challenge': return <Target size={20} color={Colors.success} />;
     case 'level': return <Star size={20} color={Colors.warning} />;
     case 'workout_reminder': return <Dumbbell size={20} color={Colors.accent} />;
+    case 'chat': return <MessageSquare size={20} color={Colors.accent} />;
     case 'system': return <ClipboardList size={20} color={Colors.accent} />;
     default: return <Info size={20} color={Colors.textSecondary} />;
   }
@@ -38,7 +39,9 @@ export default function NotificationsScreen() {
 
   const handleNotificationPress = (item: any) => {
     if (!item.read) markRead(item.id);
-    if (item.data?.type === 'plan_assigned') {
+    if (item.type === 'chat' && item.data?.senderId) {
+      router.push(`/chat/${item.data.senderId}` as any);
+    } else if (item.data?.type === 'plan_assigned') {
       router.push('/(tabs)');
     }
   };

@@ -6,10 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, Zap, X } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, Dumbbell, ChevronRight, Repeat, Target, Flame, Calendar, ClipboardList, X } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
@@ -29,7 +28,6 @@ export default function WorkoutScreen() {
     workoutPlans,
     startWorkout,
     startWorkoutFromRoutine,
-    endWorkout,
     setCurrentUserId,
     getWorkoutHistory,
     getMuscleGroupVolume,
@@ -140,34 +138,6 @@ export default function WorkoutScreen() {
     if (mins < 60) return `${mins} Min.`;
     const hrs = Math.floor(mins / 60);
     return `${hrs}h ${mins % 60}m`;
-  };
-
-  const handleStartFromPlan = (planId: string) => {
-    if (activeWorkout) {
-      Alert.alert(
-        'Aktives Workout',
-        'Du hast bereits ein laufendes Workout. Möchtest du es verwerfen und den Plan starten?',
-        [
-          { text: 'Abbrechen', style: 'cancel' },
-          {
-            text: 'Fortsetzen',
-            onPress: () => router.push('/active-workout'),
-          },
-          {
-            text: 'Neues Workout',
-            style: 'destructive',
-            onPress: () => {
-              endWorkout();
-              startWorkout(planId);
-              router.push('/active-workout');
-            },
-          },
-        ],
-      );
-      return;
-    }
-    startWorkout(planId);
-    router.push('/active-workout');
   };
 
   if (isLoading) {
@@ -286,63 +256,40 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Today's Scheduled Plans */}
-        {todaysPlans.length > 0 && (
-          <View style={styles.todayPlansSection}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Heute geplant</Text>
-            </View>
-            {todaysPlans.map(plan => (
-              <TouchableOpacity
-                key={plan.id}
-                style={styles.todayPlanCard}
-                onPress={() => handleStartFromPlan(plan.id)}
-              >
-                <View style={styles.todayPlanIcon}>
-                  <ClipboardList size={20} color={Colors.accent} />
-                </View>
-                <View style={styles.todayPlanInfo}>
-                  <Text style={styles.todayPlanName}>{plan.name}</Text>
-                  <Text style={styles.todayPlanDetails}>
-                    {plan.exercises.length} Übungen
-                    {plan.schedule?.find(s => s.dayOfWeek === new Date().getDay())?.time
-                      ? ` - ${plan.schedule.find(s => s.dayOfWeek === new Date().getDay())?.time}`
-                      : ''}
-                  </Text>
-                </View>
-                <Play size={20} color={Colors.accent} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Assigned Plans - Always visible */}
-        {myPlans.length > 0 && todaysPlans.length === 0 && (
+        {/* Meine Trainingspläne - IMMER sichtbar wenn Pläne vorhanden */}
+        {myPlans.length > 0 && (
           <View style={styles.myPlansSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Meine Pläne</Text>
+              <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
             </View>
-            {myPlans.map(plan => (
-              <TouchableOpacity
-                key={plan.id}
-                style={styles.planCard}
-                onPress={() => handleStartFromPlan(plan.id)}
-              >
-                <View style={styles.planCardIcon}>
-                  <ClipboardList size={20} color={Colors.accent} />
-                </View>
-                <View style={styles.planCardInfo}>
-                  <Text style={styles.planCardName}>{plan.name}</Text>
-                  <Text style={styles.planCardDetails}>
-                    {plan.exercises.length} Übungen
-                  </Text>
-                </View>
-                <View style={styles.planStartButton}>
-                  <Play size={16} color={Colors.text} />
-                  <Text style={styles.planStartText}>Starten</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {myPlans.map(plan => {
+              const isToday = todaysPlans.some(tp => tp.id === plan.id);
+              return (
+                <TouchableOpacity
+                  key={plan.id}
+                  style={[styles.planCard, isToday && styles.planCardToday]}
+                  onPress={() => router.push(`/plan-detail/${plan.id}` as any)}
+                >
+                  <View style={[styles.planCardIcon, isToday && styles.planCardIconToday]}>
+                    <ClipboardList size={20} color={Colors.accent} />
+                  </View>
+                  <View style={styles.planCardInfo}>
+                    <View style={styles.planCardNameRow}>
+                      <Text style={styles.planCardName}>{plan.name}</Text>
+                      {isToday && (
+                        <View style={styles.todayBadge}>
+                          <Text style={styles.todayBadgeText}>Heute</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.planCardDetails}>
+                      {plan.exercises.length} Übungen · {plan.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)} Sätze
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.textMuted} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 
@@ -370,10 +317,10 @@ export default function WorkoutScreen() {
           </View>
         )}
 
-        {/* Training Plans & Routines Section */}
+        {/* Routines Section */}
         <View style={styles.routinesSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
+            <Text style={styles.sectionTitle}>Meine Routinen</Text>
             <TouchableOpacity onPress={() => router.push('/routines' as never)}>
               <Text style={styles.seeAllText}>Alle</Text>
             </TouchableOpacity>
@@ -655,42 +602,6 @@ const createStyles = (Colors: any) => StyleSheet.create({
     color: Colors.textMuted,
     marginTop: Spacing.xs,
   },
-  todayPlansSection: {
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-  },
-  todayPlanCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.accent + '15',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.accent + '40',
-  },
-  todayPlanIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.accent + '25',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  todayPlanInfo: {
-    flex: 1,
-  },
-  todayPlanName: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  todayPlanDetails: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
   myPlansSection: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
@@ -705,6 +616,10 @@ const createStyles = (Colors: any) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  planCardToday: {
+    backgroundColor: Colors.accent + '12',
+    borderColor: Colors.accent + '40',
+  },
   planCardIcon: {
     width: 40,
     height: 40,
@@ -714,32 +629,37 @@ const createStyles = (Colors: any) => StyleSheet.create({
     justifyContent: 'center',
     marginRight: Spacing.md,
   },
+  planCardIconToday: {
+    backgroundColor: Colors.accent + '25',
+  },
   planCardInfo: {
     flex: 1,
   },
+  planCardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: 2,
+  },
   planCardName: {
     fontSize: 16,
-    fontWeight: '500' as const,
+    fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: 2,
   },
   planCardDetails: {
     fontSize: 13,
     color: Colors.textMuted,
   },
-  planStartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  todayBadge: {
     backgroundColor: Colors.accent,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    gap: Spacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
   },
-  planStartText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: Colors.text,
+  todayBadgeText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
   },
   muscleSection: {
     paddingHorizontal: Spacing.lg,
