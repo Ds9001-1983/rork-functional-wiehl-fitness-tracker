@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Platform } from 'react-native';
 import { Stack } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { Camera, Plus, Trash2, X, User } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
@@ -40,38 +41,61 @@ export default function ProgressPhotosScreen() {
     setLoading(false);
   };
 
-  const handlePickPhoto = async () => {
-    if (Platform.OS !== 'web') return;
-
+  const uploadBase64 = async (base64: string) => {
     try {
-      // Use file input on web
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = async (e: any) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Read as base64
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = (reader.result as string).split(',')[1];
-          try {
-            await trpcClient.photos.upload.mutate({
-              imageData: base64,
-              category: selectedCategory,
-            });
-            setStatusMessage({ type: 'success', text: 'Foto gespeichert!' });
-            loadPhotos();
-          } catch {
-            setStatusMessage({ type: 'error', text: 'Fehler beim Hochladen.' });
-          }
-        };
-        reader.readAsDataURL(file);
-      };
-      input.click();
+      await trpcClient.photos.upload.mutate({
+        imageData: base64,
+        category: selectedCategory,
+      });
+      setStatusMessage({ type: 'success', text: 'Foto gespeichert!' });
+      loadPhotos();
     } catch {
-      setStatusMessage({ type: 'error', text: 'Kamera/Galerie nicht verfügbar.' });
+      setStatusMessage({ type: 'error', text: 'Fehler beim Hochladen.' });
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    if (Platform.OS === 'web') {
+      try {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64 = (reader.result as string).split(',')[1];
+            await uploadBase64(base64);
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      } catch {
+        setStatusMessage({ type: 'error', text: 'Dateiauswahl nicht verfuegbar.' });
+      }
+      return;
+    }
+
+    // Native: use expo-image-picker
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setStatusMessage({ type: 'error', text: 'Zugriff auf Fotobibliothek verweigert. Bitte in den Einstellungen erlauben.' });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]?.base64) {
+        await uploadBase64(result.assets[0].base64);
+      }
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Kamera/Galerie nicht verfuegbar.' });
     }
   };
 
