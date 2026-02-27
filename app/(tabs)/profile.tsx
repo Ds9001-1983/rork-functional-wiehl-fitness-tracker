@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LogOut, User, Settings, Award, Users, Lock, Edit3, Phone, ChevronRight, X, Zap, Ruler, Trophy, Target, Shield, Download, Trash2, Bell, BellOff, MessageSquare, Camera, Calculator } from 'lucide-react-native';
@@ -19,6 +20,11 @@ import { useGamification } from '@/hooks/use-gamification';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
 import { trpcClient } from '@/lib/trpc';
+import {
+  registerForPushNotificationsAsync,
+  registerPushTokenWithServer,
+  unregisterPushTokenFromServer,
+} from '@/lib/push-notifications';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -50,9 +56,19 @@ export default function ProfileScreen() {
 
   // Check push notification status
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPushEnabled(Notification.permission === 'granted');
-    }
+    (async () => {
+      if (Platform.OS === 'web') {
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          setPushEnabled(Notification.permission === 'granted');
+        }
+      } else {
+        try {
+          const Notifications = await import('expo-notifications');
+          const { status } = await Notifications.getPermissionsAsync();
+          setPushEnabled(status === 'granted');
+        } catch {}
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -110,48 +126,64 @@ export default function ProfileScreen() {
   };
 
   const handleTogglePush = async () => {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      setStatusMessage({ type: 'info', text: 'Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.' });
-      return;
-    }
-
     setPushLoading(true);
     try {
-      if (!pushEnabled) {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          // Subscribe to push
-          const registration = await navigator.serviceWorker?.ready;
-          if (registration) {
-            const subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              // Use a placeholder VAPID key - replace with real one in production
-              applicationServerKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkGs-GDx6QkrJIO8JpyTPSxXgUoN_q-KB14Xhxp4us',
-            });
-            const p256dh = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!)));
-            const auth = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)));
-            await trpcClient.notifications.subscribePush.mutate({
-              endpoint: subscription.endpoint,
-              keys: { p256dh, auth },
-            });
+      if (Platform.OS !== 'web') {
+        // Native (iOS) push via expo-notifications
+        if (!pushEnabled) {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            await registerPushTokenWithServer(token);
             setPushEnabled(true);
             setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen aktiviert!' });
+          } else {
+            setStatusMessage({ type: 'info', text: 'Push-Berechtigung wurde abgelehnt. Bitte aendere dies in den Einstellungen.' });
           }
         } else {
-          setStatusMessage({ type: 'info', text: 'Push-Berechtigung wurde abgelehnt. Bitte ändere dies in den Browser-Einstellungen.' });
+          await unregisterPushTokenFromServer();
+          setPushEnabled(false);
+          setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen deaktiviert.' });
         }
       } else {
-        // Unsubscribe
-        const registration = await navigator.serviceWorker?.ready;
-        if (registration) {
-          const subscription = await registration.pushManager.getSubscription();
-          if (subscription) {
-            await trpcClient.notifications.unsubscribePush.mutate({ endpoint: subscription.endpoint });
-            await subscription.unsubscribe();
-          }
+        // Web push via browser Notification API
+        if (typeof window === 'undefined' || !('Notification' in window)) {
+          setStatusMessage({ type: 'info', text: 'Push-Benachrichtigungen werden von diesem Browser nicht unterstuetzt.' });
+          return;
         }
-        setPushEnabled(false);
-        setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen deaktiviert.' });
+
+        if (!pushEnabled) {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const registration = await navigator.serviceWorker?.ready;
+            if (registration) {
+              const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkGs-GDx6QkrJIO8JpyTPSxXgUoN_q-KB14Xhxp4us',
+              });
+              const p256dh = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!)));
+              const auth = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)));
+              await trpcClient.notifications.subscribePush.mutate({
+                endpoint: subscription.endpoint,
+                keys: { p256dh, auth },
+              });
+              setPushEnabled(true);
+              setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen aktiviert!' });
+            }
+          } else {
+            setStatusMessage({ type: 'info', text: 'Push-Berechtigung wurde abgelehnt. Bitte aendere dies in den Browser-Einstellungen.' });
+          }
+        } else {
+          const registration = await navigator.serviceWorker?.ready;
+          if (registration) {
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+              await trpcClient.notifications.unsubscribePush.mutate({ endpoint: subscription.endpoint });
+              await subscription.unsubscribe();
+            }
+          }
+          setPushEnabled(false);
+          setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen deaktiviert.' });
+        }
       }
     } catch (error) {
       console.error('[Push] Error:', error);

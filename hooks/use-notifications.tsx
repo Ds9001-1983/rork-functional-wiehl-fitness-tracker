@@ -1,8 +1,10 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Platform } from 'react-native';
 import { trpcClient } from '@/lib/trpc';
 import { syncQueue } from '@/lib/sync-queue';
+import { registerForPushNotificationsAsync, registerPushTokenWithServer } from '@/lib/push-notifications';
 
 interface AppNotification {
   id: string;
@@ -27,10 +29,14 @@ interface NotificationState {
 
 const STORAGE_KEY = 'notifications';
 
+// On native with push, poll less frequently (60s). On web keep 15s.
+const POLL_INTERVAL = Platform.OS === 'web' ? 15000 : 60000;
+
 export const [NotificationProvider, useNotifications] = createContextHook<NotificationState>(() => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const pushRegistered = useRef(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -69,14 +75,66 @@ export const [NotificationProvider, useNotifications] = createContextHook<Notifi
     }
   }, []);
 
+  // Register native push notifications on mount
+  useEffect(() => {
+    if (Platform.OS === 'web' || pushRegistered.current) return;
+    pushRegistered.current = true;
+
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) return;
+
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          await registerPushTokenWithServer(pushToken);
+        }
+      } catch (err) {
+        console.warn('[Notifications] Push-Registrierung fehlgeschlagen:', err);
+      }
+    })();
+  }, []);
+
+  // Set up native notification listeners
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+
+    let notificationListener: any;
+    let responseListener: any;
+
+    (async () => {
+      try {
+        const Notifications = await import('expo-notifications');
+
+        // Listener for notifications received while app is in foreground
+        notificationListener = Notifications.addNotificationReceivedListener(() => {
+          // Refresh in-app notification list when a push arrives
+          fetchNotifications();
+        });
+
+        // Listener for when user taps on a notification
+        responseListener = Notifications.addNotificationResponseReceivedListener(() => {
+          fetchNotifications();
+        });
+      } catch {
+        // expo-notifications not available
+      }
+    })();
+
+    return () => {
+      notificationListener?.remove();
+      responseListener?.remove();
+    };
+  }, [fetchNotifications]);
+
   // Fetch on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Poll every 15 seconds (was 30)
+  // Poll for new notifications
   useEffect(() => {
-    const interval = setInterval(fetchNotifications, 15000);
+    const interval = setInterval(fetchNotifications, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
