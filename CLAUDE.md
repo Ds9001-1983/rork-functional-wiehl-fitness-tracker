@@ -17,16 +17,22 @@ Bei Bedarf kann die App auf einem separaten Server fuer ein anderes Studio deplo
 - **Icons**: lucide-react-native
 - **Validation**: Zod v4
 - **Serialisierung**: superjson
-- **Error Tracking**: Sentry (`lib/sentry.ts`)
+- **Error Tracking**: Sentry (`lib/sentry.ts`, @sentry/react-native auf iOS, Web-Fallback)
+- **Push Notifications**: expo-notifications (iOS nativ) + Web Push API (Browser) + Expo Push API (Backend)
+- **Image Picker**: expo-image-picker (iOS nativ) + File Input (Web)
 - **Testing**: bun test (built-in runner)
-- **Deployment**: PM2 + Nginx + Bun auf Hetzner CX22
+- **Native Builds**: EAS Build (Expo Application Services) fuer iOS
+- **Deployment**: PM2 + Nginx + Bun auf Hetzner CX22 (Web) + App Store via EAS Submit (iOS)
 
 ## Wichtige Befehle
 ```bash
 bun run server              # Backend starten (Port 3000, via backend-server.ts)
 bun test                    # Tests ausfuehren (__tests__/)
 bun run build-web           # Web-Build mit Expo (patch-metro + expo export)
-bun run deploy              # Vollstaendiges Deployment (deploy.sh)
+bun run build:ios-preview   # iOS Preview-Build via EAS (TestFlight/intern)
+bun run build:ios-prod      # iOS Production-Build via EAS (App Store)
+bun run submit:ios          # iOS App Store Submit via EAS
+bun run deploy              # Vollstaendiges Web-Deployment (deploy.sh)
 bun run start               # Expo Dev-Server mit Tunnel (rork CLI)
 bun run start-web           # Expo Web Dev-Server mit Tunnel
 bun run start-web-dev       # Web Dev-Server mit Debug-Logging
@@ -66,6 +72,7 @@ app/                        # Expo Router Screens (File-based routing)
 backend/
   hono.ts                   # Hono API-App (CORS, tRPC-Mount, Rate-Limiting)
   storage.ts                # Zentrale Daten-Abstraktion (16+ Tabellen, DB + Memory, ~92KB)
+  push-sender.ts            # Expo Push API Integration (native iOS Push-Versand)
   middleware/
     rate-limit.ts           # API- und Login-Rate-Limiting
   trpc/
@@ -95,7 +102,7 @@ hooks/
   use-workouts.tsx          # Workouts, Plans, Routinen (Server-Sync), Records, MuscleVolume
   use-clients.tsx           # Client-Management (Trainer)
   use-gamification.tsx      # XP, Badges, Streaks, Levels (Server-Sync)
-  use-notifications.tsx     # In-App Benachrichtigungen (Server-Sync, Polling alle 15s)
+  use-notifications.tsx     # In-App Benachrichtigungen (Server-Sync, Polling 15s Web / 60s iOS, native Push-Listener)
   use-colors.ts             # useColors() Hook - liefert Design Tokens fuer alle Screens
 components/
   RestTimer.tsx             # Rest-Timer (konfigurierbar, Play/Pause, Vibration)
@@ -129,7 +136,8 @@ types/
 lib/
   trpc.ts                   # tRPC Client Setup
   sync-queue.ts             # Offline Sync Queue
-  sentry.ts                 # Error Tracking
+  sentry.ts                 # Error Tracking (@sentry/react-native auf iOS, Web-Fallback)
+  push-notifications.ts     # Native Push-Token Registrierung (expo-notifications + expo-device)
 scripts/
   patch-metro-exports.js    # Metro Bundler Export-Fix (postinstall)
   backup-db.sh              # Datenbank-Backup Script
@@ -140,7 +148,8 @@ __tests__/
 ```
 
 ## Konfigurations-Dateien (Root)
-- `app.json` - Expo Konfiguration (Bundle-IDs, Splash-Screen, Plugins)
+- `app.json` - Expo Konfiguration (Bundle-IDs, Splash-Screen, Plugins, iOS Permissions, Privacy Manifest)
+- `eas.json` - EAS Build Konfiguration (development/preview/production Profile, App Store Submit)
 - `babel.config.js` - Babel Preset (babel-preset-expo)
 - `metro.config.js` - Metro Bundler Konfiguration
 - `tsconfig.json` - TypeScript (strict, `@/*` Path-Alias)
@@ -219,7 +228,7 @@ __tests__/
 - `challenge_progress` - Challenge-Fortschritt (userId, challengeId, progress JSON, currentRank, joinedAt)
 - `notifications` - Benachrichtigungen (id, userId, title, body, type, read, data JSON, createdAt)
 - `studios` - Studio-Branding (id, name, location, logoUrl, colors JSON, settings JSON)
-- `push_subscriptions` - Web-Push-Abonnements (userId, endpoint, p256dh, auth)
+- `push_subscriptions` - Push-Abonnements Web + iOS (userId, endpoint, p256dh, auth)
 - `chat_messages` - Chat-Nachrichten (id, senderId, recipientId, message, read, createdAt)
 - `mesocycles` - Trainingszyklen (id, planId, name, weekNumber, focusAreas JSON, notes)
 - `progress_photos` - Fortschrittsfotos (id, userId, url, date, caption)
@@ -247,6 +256,9 @@ EXPO_PUBLIC_RORK_API_BASE_URL=https://app.functional-wiehl.de
 
 # Optional: E-Mail (Passwort-Reset)
 RESEND_API_KEY=...
+
+# Optional: Error Tracking
+SENTRY_DSN=...
 ```
 
 ## Provider-Chain (app/_layout.tsx)
@@ -287,7 +299,8 @@ trpc.Provider
 - **Debug-Routes**: GET `/api/debug/routes` listet alle tRPC-Prozeduren
 - **SPA-Fallback**: `backend-server.ts` serviert `dist/index.html` fuer alle Nicht-API-Routes
 - **Rate-Limiting**: `backend/middleware/rate-limit.ts` schuetzt API und Login
-- **Notifications Polling**: `use-notifications.tsx` pollt alle 15 Sekunden auf neue Benachrichtigungen
+- **Notifications**: Dual-System: native Push (iOS via expo-notifications + Expo Push API) + Polling-Fallback (15s Web, 60s iOS)
+- **Push-Token Flow**: App-Start -> `registerForPushNotificationsAsync()` -> Token an Backend -> Backend nutzt `push-sender.ts` via Expo Push API
 - **Streak Freezes**: Max 2 pro Woche (`MAX_STREAK_FREEZES = 2`)
 - **1RM Berechnung**: Epley-Formel in `types/workout.ts` (`calculate1RM()`)
 
@@ -304,11 +317,21 @@ chest, back, legs, shoulders, arms, core, cardio, full-body (80+ Uebungen mit Yo
 ## Set-Typen
 normal, warmup, dropset, failure
 
+## iOS App Store
+- **Bundle Identifier**: `de.functional-wiehl.app`
+- **URL-Scheme**: `functional-wiehl` (Deep-Links)
+- **Min. iOS**: 16.0 (deploymentTarget)
+- **EAS Profile**: development (Simulator), preview (TestFlight intern), production (App Store)
+- **Plugins**: expo-router, expo-font, expo-web-browser, expo-notifications, expo-image-picker, expo-build-properties, @sentry/react-native
+- **Privacy Manifest**: UserDefaults (CA92.1) + SystemBootTime (35F9.1) deklariert
+- **Permissions**: Kamera, Fotobibliothek, Push-Notifications (in app.json konfiguriert)
+- **EAS Submit**: `eas.json` enthaelt Platzhalter fuer appleId, ascAppId, appleTeamId (muessen ersetzt werden)
+
 ## Bekannte Einschraenkungen
-- Native Push-Notifications: In-App Notification Center implementiert (kein Service Worker / expo-notifications)
-- Mobile Builds: Nicht getestet (nur Web)
 - Passwort-Reset E-Mail: Braucht RESEND_API_KEY in .env
-- Web-Push: Subscriptions werden gespeichert, aber Push-Versand nicht vollstaendig implementiert
+- Web-Push VAPID Key: Platzhalter in `app/(tabs)/profile.tsx` (muss durch echten Key ersetzt werden)
+- PlanPdfExport: Nur auf Web verfuegbar (rendert `null` auf iOS)
+- Native Builds: Erfordern EAS CLI (`npm install -g eas-cli`) + Apple Developer Account
 
 ## Server (Produktion)
 - **Domain**: app.functional-wiehl.de (SSL via Nginx)
