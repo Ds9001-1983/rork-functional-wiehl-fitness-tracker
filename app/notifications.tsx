@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList, MessageSquare } from 'lucide-react-native';
@@ -32,10 +32,15 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationsScreen() {
-  const { notifications, unreadCount, isLoading, markRead, markAllRead } = useNotifications();
+  const { notifications, unreadCount, isLoading, markRead, markAllRead, fetchNotifications } = useNotifications();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const router = useRouter();
+
+  // Sofort beim Öffnen des Screens aktualisieren
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const handleNotificationPress = (item: any) => {
     if (!item.read) markRead(item.id);

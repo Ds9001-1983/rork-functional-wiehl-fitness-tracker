@@ -3,7 +3,11 @@ import { storage } from '../../../storage';
 import { z } from 'zod';
 
 export default protectedProcedure
-  .input(z.object({ userId: z.string(), limit: z.number().optional() }))
-  .query(async ({ input }) => {
-    return storage.notifications.getByUserId(input.userId, input.limit || 50);
+  .input(z.object({ limit: z.number().optional() }).optional())
+  .query(async ({ input, ctx }) => {
+    const userId = ctx.user.userId;
+    console.log('[Notifications] list for userId:', userId);
+    const results = await storage.notifications.getByUserId(userId, input?.limit || 50);
+    console.log('[Notifications] found', results.length, 'notifications');
+    return results;
   });
