@@ -140,7 +140,7 @@ export default function ProfileScreen() {
             setStatusMessage({ type: 'info', text: 'Push-Berechtigung wurde abgelehnt. Bitte aendere dies in den Einstellungen.' });
           }
         } else {
-          await unregisterPushTokenFromServer();
+          await unregisterPushTokenFromServer()
           setPushEnabled(false);
           setStatusMessage({ type: 'success', text: 'Push-Benachrichtigungen deaktiviert.' });
         }
@@ -158,7 +158,7 @@ export default function ProfileScreen() {
             if (registration) {
               const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkGs-GDx6QkrJIO8JpyTPSxXgUoN_q-KB14Xhxp4us',
+                applicationServerKey: 'BLQ4Mn-0yZL9XmsnXDB2DE21O4yAi4XqIQT7CFiRlyrBszcBwikahhAbKf0PzMNML4I8i2EfuI75aq95a33Z-Ck',
               });
               const p256dh = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!)));
               const auth = btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)));
