@@ -1,41 +1,42 @@
 {
-    "cli": {
-          "version": ">= 12.0.0"
-    },
-    "build": {
-          "development": {
-                  "developmentClient": true,
-                  "distribution": "internal",
-                  "ios": {
-                            "simulator": true
-                  }
-          },
-          "preview": {
-                  "distribution": "internal",
-                  "env": {
-                            "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-                  },
-                  "ios": {
-                            "buildConfiguration": "Release"
-                  }
-          },
-          "production": {
-                  "env": {
-                            "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-                  },
-                  "ios": {
-                            "buildConfiguration": "Release",
-                            "autoIncrement": true
-                  }
-          }
-    },
-    "submit": {
-          "production": {
-                  "ios": {
-                            "appleId": "sasse.dennis@googlemail.com",
-                                    "ascAppId": "APP_STORE_CONNECT_APP_ID",
-                            "appleTeamId": "KXGPDQ8SWR"
-                  }
-          }
-    }
+      "cli": {
+              "version": ">= 12.0.0",
+              "appVersionSource": "remote"
+      },
+      "build": {
+              "development": {
+                        "developmentClient": true,
+                        "distribution": "internal",
+                        "ios": {
+                                    "simulator": true
+                        }
+              },
+              "preview": {
+                        "distribution": "internal",
+                        "env": {
+                                    "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+                        },
+                        "ios": {
+                                    "buildConfiguration": "Release"
+                        }
+              },
+              "production": {
+                        "env": {
+                                    "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+                        },
+                        "ios": {
+                                    "buildConfiguration": "Release",
+                                    "autoIncrement": true
+                        }
+              }
+      },
+      "submit": {
+              "production": {
+                        "ios": {
+                                    "appleId": "sasse.dennis@googlemail.com",
+                                    "ascAppId": "6751567109",
+                                    "appleTeamId": "KXGPDQ8SWR"
+                        }
+              }
+      }
 }
