@@ -1,35 +1,41 @@
 {
-  "cli": {
-    "version": ">= 12.0.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "simulator": true
-      }
+    "cli": {
+          "version": ">= 12.0.0"
     },
-    "preview": {
-      "distribution": "internal",
-      "ios": {
-        "buildConfiguration": "Release"
-      }
+    "build": {
+          "development": {
+                  "developmentClient": true,
+                  "distribution": "internal",
+                  "ios": {
+                            "simulator": true
+                  }
+          },
+          "preview": {
+                  "distribution": "internal",
+                  "env": {
+                            "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+                  },
+                  "ios": {
+                            "buildConfiguration": "Release"
+                  }
+          },
+          "production": {
+                  "env": {
+                            "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+                  },
+                  "ios": {
+                            "buildConfiguration": "Release",
+                            "autoIncrement": true
+                  }
+          }
     },
-    "production": {
-      "ios": {
-        "buildConfiguration": "Release",
-        "autoIncrement": true
-      }
+    "submit": {
+          "production": {
+                  "ios": {
+                            "appleId": "sasse.dennis@googlemail.com",
+                                    "ascAppId": "APP_STORE_CONNECT_APP_ID",
+                            "appleTeamId": "KXGPDQ8SWR"
+                  }
+          }
     }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appleId": "DEIN_APPLE_ID",
-        "ascAppId": "APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "DEIN_TEAM_ID"
-      }
-    }
-  }
 }
