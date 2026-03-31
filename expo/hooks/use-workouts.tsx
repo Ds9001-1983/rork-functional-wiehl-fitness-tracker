@@ -2,7 +2,20 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Workout, WorkoutPlan, WorkoutExercise, WorkoutSet } from '@/types/workout';
+import { trpcClient } from '@/lib/trpc';
 
+function toServerExercises(exercises: WorkoutExercise[]) {
+  return exercises.map(ex => ({
+    exerciseId: ex.exerciseId,
+    notes: ex.notes,
+    sets: ex.sets.map(s => ({
+      reps: s.reps,
+      weight: s.weight,
+      completed: s.completed,
+      restTime: s.restTime,
+    })),
+  }));
+}
 
 interface WorkoutState {
   workouts: Workout[];
@@ -34,13 +47,85 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
 
   const loadData = useCallback(async () => {
     try {
-      const [storedWorkouts, storedPlans] = await Promise.all([
-        AsyncStorage.getItem('workouts'),
-        AsyncStorage.getItem('workoutPlans'),
-      ]);
-      
-      if (storedWorkouts) setWorkouts(JSON.parse(storedWorkouts));
-      if (storedPlans) setWorkoutPlans(JSON.parse(storedPlans));
+      // Migration: Bestehende lokale Workouts zum Server synchronisieren
+      const migrated = await AsyncStorage.getItem('workouts_migrated');
+      if (!migrated) {
+        const localWorkouts = await AsyncStorage.getItem('workouts');
+        if (localWorkouts) {
+          const parsed = JSON.parse(localWorkouts) as Workout[];
+          if (parsed.length > 0) {
+            try {
+              const result = await trpcClient.workouts.sync.mutate({
+                workouts: parsed.map(w => ({
+                  localId: w.id,
+                  name: w.name,
+                  date: w.date,
+                  duration: w.duration,
+                  exercises: toServerExercises(w.exercises),
+                  completed: w.completed,
+                  userId: w.userId,
+                })),
+              });
+              console.log('[Workouts] Migration abgeschlossen:', result.synced, 'Workouts synchronisiert');
+              await AsyncStorage.setItem('workouts_migrated', 'true');
+            } catch (syncError) {
+              console.error('[Workouts] Migration fehlgeschlagen, wird beim nächsten Start erneut versucht:', syncError);
+            }
+          } else {
+            await AsyncStorage.setItem('workouts_migrated', 'true');
+          }
+        } else {
+          await AsyncStorage.setItem('workouts_migrated', 'true');
+        }
+      }
+
+      // Offline-Retry: Lokal gespeicherte Workouts die nicht synchronisiert wurden nachsynen
+      try {
+        const localWorkouts = await AsyncStorage.getItem('workouts');
+        if (localWorkouts) {
+          const parsed = JSON.parse(localWorkouts) as Workout[];
+          // Lokale Workouts haben Timestamp-IDs (rein numerisch, > 1000000000)
+          const unsyncedWorkouts = parsed.filter(w => parseInt(w.id) > 1000000000);
+          if (unsyncedWorkouts.length > 0) {
+            const result = await trpcClient.workouts.sync.mutate({
+              workouts: unsyncedWorkouts.map(w => ({
+                localId: w.id,
+                name: w.name,
+                date: w.date,
+                duration: w.duration,
+                exercises: toServerExercises(w.exercises),
+                completed: w.completed,
+                userId: w.userId,
+              })),
+            });
+            console.log('[Workouts] Offline-Retry:', result.synced, 'Workouts nachsynchronisiert');
+          }
+        }
+      } catch (retryError) {
+        console.error('[Workouts] Offline-Retry fehlgeschlagen:', retryError);
+      }
+
+      // Server-First: Workouts vom Server laden
+      try {
+        const serverWorkouts = await trpcClient.workouts.list.query();
+        setWorkouts(serverWorkouts as Workout[]);
+        await AsyncStorage.setItem('workouts', JSON.stringify(serverWorkouts));
+      } catch (serverError) {
+        console.error('[Workouts] Server-Load fehlgeschlagen, nutze lokale Daten:', serverError);
+        const localWorkouts = await AsyncStorage.getItem('workouts');
+        if (localWorkouts) setWorkouts(JSON.parse(localWorkouts));
+      }
+
+      // Workout-Pläne vom Server laden (Server-First)
+      try {
+        const serverPlans = await trpcClient.plans.list.query();
+        setWorkoutPlans(serverPlans as WorkoutPlan[]);
+        await AsyncStorage.setItem('workoutPlans', JSON.stringify(serverPlans));
+      } catch (planError) {
+        console.error('[Workouts] Plan-Load vom Server fehlgeschlagen, nutze lokale Daten:', planError);
+        const storedPlans = await AsyncStorage.getItem('workoutPlans');
+        if (storedPlans) setWorkoutPlans(JSON.parse(storedPlans));
+      }
     } catch (error) {
       console.error('Error loading workout data:', error);
     } finally {
@@ -49,8 +134,10 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (currentUserId) {
+      loadData();
+    }
+  }, [currentUserId, loadData]);
 
   const startWorkout = useCallback((planId?: string) => {
     const plan = planId ? workoutPlans.find(p => p.id === planId) : null;
@@ -61,7 +148,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       date: new Date().toISOString(),
       exercises: plan?.exercises || [],
       completed: false,
-      userId: currentUserId || '1',
+      userId: currentUserId || 'unknown',
     };
     
     setActiveWorkout(newWorkout);
@@ -76,18 +163,35 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       duration: Date.now() - new Date(activeWorkout.date).getTime(),
     };
 
-    const updatedWorkouts = [...workouts, completedWorkout];
-    setWorkouts(updatedWorkouts);
-    
-    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+    try {
+      // Server-First: Workout zum Server senden
+      const serverWorkout = await trpcClient.workouts.create.mutate({
+        name: completedWorkout.name,
+        date: completedWorkout.date,
+        duration: completedWorkout.duration,
+        exercises: toServerExercises(completedWorkout.exercises),
+        completed: completedWorkout.completed,
+        userId: completedWorkout.userId,
+      });
+
+      // Lokalen State mit Server-ID aktualisieren
+      const savedWorkout = { ...completedWorkout, id: serverWorkout.id } as Workout;
+      const updatedWorkouts = [...workouts, savedWorkout];
+      setWorkouts(updatedWorkouts);
+      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+      console.log('[Workouts] Workout auf Server gespeichert:', serverWorkout.id);
+    } catch (error) {
+      console.error('[Workouts] Server-Save fehlgeschlagen, speichere lokal:', error);
+      // Fallback: Lokal speichern
+      const updatedWorkouts = [...workouts, completedWorkout];
+      setWorkouts(updatedWorkouts);
+      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+    }
   }, [activeWorkout, workouts]);
 
   const endWorkout = useCallback(() => {
-    if (activeWorkout) {
-      saveWorkout();
-    }
     setActiveWorkout(null);
-  }, [activeWorkout, saveWorkout]);
+  }, []);
 
   const addExerciseToWorkout = useCallback((exerciseId: string) => {
     if (!activeWorkout) return;
@@ -162,39 +266,80 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [workouts, currentUserId]);
 
   const createWorkoutPlan = useCallback(async (plan: Omit<WorkoutPlan, 'id'>) => {
-    const newPlan: WorkoutPlan = {
-      ...plan,
-      id: Date.now().toString(),
-    };
-
-    const updatedPlans = [...workoutPlans, newPlan];
-    setWorkoutPlans(updatedPlans);
-    
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    try {
+      const serverPlan = await trpcClient.plans.create.mutate({
+        name: plan.name,
+        description: plan.description,
+        exercises: plan.exercises,
+        schedule: plan.schedule,
+      });
+      const newPlan = { ...plan, id: serverPlan.id } as WorkoutPlan;
+      const updatedPlans = [...workoutPlans, newPlan];
+      setWorkoutPlans(updatedPlans);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    } catch (error) {
+      console.error('[Workouts] Server createWorkoutPlan fehlgeschlagen, speichere lokal:', error);
+      const newPlan: WorkoutPlan = { ...plan, id: Date.now().toString() };
+      const updatedPlans = [...workoutPlans, newPlan];
+      setWorkoutPlans(updatedPlans);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
+    }
   }, [workoutPlans]);
 
   const createWorkout = useCallback(async (workout: Omit<Workout, 'id'>) => {
-    const newWorkout: Workout = {
-      ...workout,
-      id: Date.now().toString(),
-    };
+    try {
+      const serverWorkout = await trpcClient.workouts.create.mutate({
+        name: workout.name,
+        date: workout.date,
+        duration: workout.duration,
+        exercises: toServerExercises(workout.exercises),
+        completed: workout.completed,
+        userId: workout.userId,
+      });
 
-    const updatedWorkouts = [...workouts, newWorkout];
-    setWorkouts(updatedWorkouts);
-    
-    await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+      const newWorkout = { ...workout, id: serverWorkout.id } as Workout;
+      const updatedWorkouts = [...workouts, newWorkout];
+      setWorkouts(updatedWorkouts);
+      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+    } catch (error) {
+      console.error('[Workouts] Server createWorkout fehlgeschlagen, speichere lokal:', error);
+      const newWorkout: Workout = { ...workout, id: Date.now().toString() };
+      const updatedWorkouts = [...workouts, newWorkout];
+      setWorkouts(updatedWorkouts);
+      await AsyncStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+    }
   }, [workouts]);
 
   const updateWorkoutPlan = useCallback(async (planId: string, updatedPlan: WorkoutPlan) => {
-    const updatedPlans = workoutPlans.map(p => 
+    try {
+      await trpcClient.plans.update.mutate({
+        id: planId,
+        name: updatedPlan.name,
+        description: updatedPlan.description,
+        exercises: updatedPlan.exercises,
+        schedule: updatedPlan.schedule,
+      });
+      console.log('[Workouts] Plan auf Server aktualisiert:', planId);
+    } catch (error) {
+      console.error('[Workouts] Server updatePlan fehlgeschlagen:', error);
+    }
+
+    const updatedPlans = workoutPlans.map(p =>
       p.id === planId ? updatedPlan : p
     );
-    
     setWorkoutPlans(updatedPlans);
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);
 
   const assignPlanToUser = useCallback(async (planId: string, userId: string) => {
+    try {
+      await trpcClient.plans.assign.mutate({ planId, userId });
+      console.log('[Workouts] Plan', planId, 'an User', userId, 'zugewiesen (+ Push-Notification)');
+    } catch (error) {
+      console.error('[Workouts] Server assignPlan fehlgeschlagen:', error);
+    }
+
+    // Lokalen State aktualisieren
     const plan = workoutPlans.find(p => p.id === planId);
     if (!plan) return;
 
@@ -203,10 +348,10 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
       assignedTo: [...(plan.assignedTo || []), userId],
     };
 
-    const updatedPlans = workoutPlans.map(p => 
+    const updatedPlans = workoutPlans.map(p =>
       p.id === planId ? updatedPlan : p
     );
-    
+
     setWorkoutPlans(updatedPlans);
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);

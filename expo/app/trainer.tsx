@@ -39,21 +39,15 @@ export default function TrainerCenterScreen() {
   ]), []);
 
   const generateStarterPassword = (): string => {
-    // Verwende eine Kombination aus Buchstaben und Zahlen für bessere Lesbarkeit
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    
-    let result = '';
-    // 4 Buchstaben + 4 Zahlen für bessere Lesbarkeit
-    for (let i = 0; i < 4; i++) {
-      result += letters.charAt(Math.floor(Math.random() * letters.length));
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const array = new Uint8Array(8);
+    // getRandomValues ist in React Native via expo verfügbar
+    if (typeof globalThis.crypto?.getRandomValues === 'function') {
+      globalThis.crypto.getRandomValues(array);
+    } else {
+      for (let i = 0; i < 8; i++) array[i] = Math.floor(Math.random() * 256);
     }
-    for (let i = 0; i < 4; i++) {
-      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    }
-    
-    // Mische das Ergebnis
-    return result.split('').sort(() => Math.random() - 0.5).join('');
+    return Array.from(array, b => chars[b % chars.length]).join('');
   };
 
   const sendWelcomeEmail = async (email: string, name: string, password: string): Promise<boolean> => {

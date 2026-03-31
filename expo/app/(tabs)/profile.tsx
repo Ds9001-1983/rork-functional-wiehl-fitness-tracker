@@ -8,14 +8,14 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Award, ToggleLeft, ToggleRight, Users } from 'lucide-react-native';
+import { LogOut, User, Settings, Users } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, switchRole, isAuthenticated, isLoading } = useAuth();
+  const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { clients } = useClients();
 
   useEffect(() => {
@@ -80,17 +80,10 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/change-password')}>
             <View style={styles.menuItemLeft}>
               <Settings size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Einstellungen</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Award size={20} color={Colors.textMuted} />
-              <Text style={styles.menuItemText}>Erfolge</Text>
+              <Text style={styles.menuItemText}>Passwort ändern</Text>
             </View>
           </TouchableOpacity>
         </View>

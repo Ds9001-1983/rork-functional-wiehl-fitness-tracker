@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { StatsCard } from '@/components/StatsCard';
+import { exercises as exerciseData } from '@/data/exercises';
 
 export default function StatsScreen() {
   const { user } = useAuth();
@@ -40,6 +41,29 @@ export default function StatsScreen() {
   const avgWorkoutDuration = userWorkouts.length > 0
     ? userWorkouts.reduce((total, w) => total + (w.duration || 0), 0) / userWorkouts.length / 60000
     : 0;
+
+  // Echte persönliche Rekorde aus Workout-Daten berechnen
+  const personalRecords = useMemo(() => {
+    const maxWeights = new Map<string, number>();
+    for (const workout of userWorkouts) {
+      for (const exercise of workout.exercises) {
+        const maxWeight = exercise.sets.reduce((max, s) => Math.max(max, s.weight), 0);
+        if (maxWeight > 0) {
+          const current = maxWeights.get(exercise.exerciseId) || 0;
+          if (maxWeight > current) {
+            maxWeights.set(exercise.exerciseId, maxWeight);
+          }
+        }
+      }
+    }
+    return Array.from(maxWeights.entries())
+      .map(([exerciseId, weight]) => {
+        const ex = exerciseData.find(e => e.id === exerciseId);
+        return { name: ex?.name || exerciseId, weight };
+      })
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 5);
+  }, [userWorkouts]);
 
   return (
     <View style={styles.container}>
@@ -101,18 +125,18 @@ export default function StatsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Persönliche Bestleistungen</Text>
           <View style={styles.recordsList}>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Bankdrücken</Text>
-              <Text style={styles.recordValue}>100 kg</Text>
-            </View>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Kniebeuge</Text>
-              <Text style={styles.recordValue}>120 kg</Text>
-            </View>
-            <View style={styles.recordItem}>
-              <Text style={styles.recordName}>Kreuzheben</Text>
-              <Text style={styles.recordValue}>140 kg</Text>
-            </View>
+            {personalRecords.length > 0 ? (
+              personalRecords.map((record, index) => (
+                <View key={`${record.name}-${index}`} style={styles.recordItem}>
+                  <Text style={styles.recordName}>{record.name}</Text>
+                  <Text style={styles.recordValue}>{record.weight} kg</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>
+                Noch keine Bestleistungen. Starte dein erstes Workout!
+              </Text>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -205,5 +229,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.accent,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.textMuted,
+    textAlign: 'center' as const,
+    paddingVertical: Spacing.md,
   },
 });

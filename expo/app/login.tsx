@@ -43,13 +43,9 @@ export default function LoginScreen() {
   const loadSavedCredentials = async () => {
     try {
       const savedEmail = await AsyncStorage.getItem('savedEmail');
-      const savedPassword = await AsyncStorage.getItem('savedPassword');
-      const rememberSetting = await AsyncStorage.getItem('rememberPassword');
       if (savedEmail) setEmail(savedEmail);
-      if (savedPassword && rememberSetting === 'true') {
-        setPassword(savedPassword);
-        setRememberPassword(true);
-      }
+      const rememberSetting = await AsyncStorage.getItem('rememberPassword');
+      if (rememberSetting === 'true') setRememberPassword(true);
     } catch (error) {
       console.error('Fehler beim Laden der gespeicherten Anmeldedaten:', error);
     }
@@ -63,15 +59,10 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       const user = await login(email, password);
-      if (rememberPassword) {
-        await AsyncStorage.setItem('savedEmail', email);
-        await AsyncStorage.setItem('savedPassword', password);
-        await AsyncStorage.setItem('rememberPassword', 'true');
-      } else {
-        await AsyncStorage.removeItem('savedPassword');
-        await AsyncStorage.setItem('rememberPassword', 'false');
-        await AsyncStorage.setItem('savedEmail', email);
-      }
+      // E-Mail merken, aber NIE das Passwort speichern
+      await AsyncStorage.setItem('savedEmail', email);
+      await AsyncStorage.setItem('rememberPassword', rememberPassword ? 'true' : 'false');
+      await AsyncStorage.removeItem('savedPassword');
       if (!user) {
         return;
       }
@@ -129,12 +120,7 @@ export default function LoginScreen() {
       Alert.alert('E-Mail erforderlich', 'Bitte E-Mail-Adresse eingeben.');
       return;
     }
-    try {
-      await resetPassword(email);
-      Alert.alert('Passwort zurücksetzen', `Wir haben eine E-Mail an ${email} gesendet.`);
-    } catch {
-      Alert.alert('Fehler', 'Passwort-Reset konnte nicht gestartet werden.');
-    }
+    Alert.alert('Passwort zurücksetzen', 'Bitte wende dich an deinen Trainer, um dein Passwort zurücksetzen zu lassen.');
   };
 
   const handleClearStorage = async () => {
@@ -225,13 +211,15 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Passwort vergessen?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            testID="clear-storage"
-            style={styles.debugButton}
-            onPress={handleClearStorage}
-          >
-            <Text style={styles.debugButtonText}>🗑️ Storage löschen (Debug)</Text>
-          </TouchableOpacity>
+          {__DEV__ && (
+            <TouchableOpacity
+              testID="clear-storage"
+              style={styles.debugButton}
+              onPress={handleClearStorage}
+            >
+              <Text style={styles.debugButtonText}>Storage löschen (Debug)</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.inviteSection}>
             <Text style={styles.inviteText}>

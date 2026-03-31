@@ -1,12 +1,17 @@
 import { z } from "zod";
-import { publicProcedure } from "../../create-context";
+import { TRPCError } from "@trpc/server";
+import { protectedProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({
     id: z.string(),
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ ctx, input }) => {
+    if (ctx.user.role !== 'trainer') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Kunden löschen.' });
+    }
+
     const deleted = await storage.clients.delete(input.id);
     console.log('[Server] Deleted client:', input.id, 'Success:', deleted);
     

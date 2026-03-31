@@ -8,23 +8,32 @@ import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
+import { useNotifications } from "@/hooks/use-notifications";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
-  
+  const { isAuthenticated, isLoading, user } = useAuth();
+  useNotifications(user?.id ?? null);
+
   console.log('🔄 RootLayoutNav - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
   
   if (isLoading) {
     return null; // Show loading or splash screen
   }
   
+  // Kunden mit ungeändertem Starter-Passwort zur Passwort-Änderung weiterleiten
+  const needsPasswordChange = isAuthenticated && user?.role === 'client' && user?.passwordChanged === false;
+
+  const initialRoute = !isAuthenticated ? "login"
+    : needsPasswordChange ? "change-password"
+    : "(tabs)";
+
   return (
-    <Stack 
-      initialRouteName={isAuthenticated ? "(tabs)" : "login"}
+    <Stack
+      initialRouteName={initialRoute}
       screenOptions={{ 
         headerBackTitle: "Zurück",
         headerStyle: {

@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, ClipboardList } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -17,7 +17,7 @@ import { StatsCard } from '@/components/StatsCard';
 export default function WorkoutScreen() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
-  const { activeWorkout, workouts, startWorkout, setCurrentUserId, getWorkoutHistory } = useWorkouts();
+  const { activeWorkout, workouts, workoutPlans, startWorkout, setCurrentUserId, getWorkoutHistory } = useWorkouts();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -114,6 +114,36 @@ export default function WorkoutScreen() {
             <Plus size={24} color={Colors.text} />
             <Text style={styles.startButtonText}>Neues Workout starten</Text>
           </TouchableOpacity>
+        )}
+
+        {user?.role === 'client' && workoutPlans.length > 0 && (
+          <View style={styles.plansSection}>
+            <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
+            {workoutPlans.map((plan) => (
+              <TouchableOpacity
+                key={plan.id}
+                style={styles.planCard}
+                onPress={() => {
+                  startWorkout(plan.id);
+                  router.push('/active-workout');
+                }}
+              >
+                <View style={styles.planCardLeft}>
+                  <ClipboardList size={20} color={Colors.accent} />
+                  <View style={styles.planCardInfo}>
+                    <Text style={styles.planCardName}>{plan.name}</Text>
+                    {plan.description ? (
+                      <Text style={styles.planCardDesc}>{plan.description}</Text>
+                    ) : null}
+                    <Text style={styles.planCardExercises}>
+                      {plan.exercises.length} Übungen
+                    </Text>
+                  </View>
+                </View>
+                <Play size={18} color={Colors.accent} />
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
 
         {user?.role === 'trainer' && (
@@ -241,6 +271,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500' as const,
     textAlign: 'center',
+  },
+  plansSection: {
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  planCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  planCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  planCardInfo: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  planCardName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  planCardDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  planCardExercises: {
+    fontSize: 13,
+    color: Colors.textMuted,
   },
   recentSection: {
     paddingHorizontal: Spacing.lg,

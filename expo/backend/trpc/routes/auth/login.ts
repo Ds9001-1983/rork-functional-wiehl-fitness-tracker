@@ -1,16 +1,11 @@
 import { z } from 'zod';
-import { publicProcedure } from '../../create-context';
-import { Pool } from 'pg';
+import { publicProcedure, signToken } from '../../create-context';
+import { getPool } from '../../../storage';
 import bcrypt from 'bcryptjs';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
-});
-
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
 });
 
 export const loginProcedure = publicProcedure
@@ -19,9 +14,11 @@ export const loginProcedure = publicProcedure
     const { email, password } = input;
     
     console.log('[Server] Login attempt for:', email);
-    console.log('[Server] Password provided:', password ? 'Yes' : 'No');
     
     try {
+      const pool = getPool();
+      if (!pool) throw new Error('CONNECTION_FAILED');
+
       // Check if user exists in database
       const userResult = await pool.query(
         'SELECT * FROM users WHERE email = $1',
@@ -45,14 +42,10 @@ export const loginProcedure = publicProcedure
       });
       
       // Verify password
-      console.log('[Server] Comparing password...');
       const isValidPassword = await bcrypt.compare(password, user.password);
-      console.log('[Server] Password comparison result:', isValidPassword);
-      
+
       if (!isValidPassword) {
         console.log('[Server] Invalid password for user:', email);
-        console.log('[Server] Provided password:', password);
-        console.log('[Server] Stored hash exists:', !!user.password);
         throw new Error('INVALID_PASSWORD');
       }
       
@@ -85,6 +78,8 @@ export const loginProcedure = publicProcedure
         },
       };
       
+      const token = signToken({ userId: userData.id, role: userData.role });
+
       console.log('[Server] User login successful:', email, 'role:', user.role);
       console.log('[Server] Returning user data:', {
         id: userData.id,
@@ -92,7 +87,7 @@ export const loginProcedure = publicProcedure
         email: userData.email,
         role: userData.role
       });
-      return { success: true, user: userData };
+      return { success: true, user: userData, token };
       
     } catch (error: any) {
       console.log('[Server] Login error:', error.message);

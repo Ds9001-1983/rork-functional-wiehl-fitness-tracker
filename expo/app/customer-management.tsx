@@ -5,57 +5,47 @@ import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target } from 
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
+import { useWorkouts } from '@/hooks/use-workouts';
+import { exercises as exerciseData } from '@/data/exercises';
 
 import type { User as UserType } from '@/types/workout';
 
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
+  const { workouts } = useWorkouts();
 
-  
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<UserType | null>(null);
   const [showClientDetails, setShowClientDetails] = useState<boolean>(false);
 
-
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
 
-  // Filter clients based on search query
   const filteredClients = useMemo(() => {
     if (!searchQuery.trim()) return clients;
-    
     const query = searchQuery.toLowerCase();
-    return clients.filter(client => 
+    return clients.filter(client =>
       client.name.toLowerCase().includes(query) ||
       client.email.toLowerCase().includes(query) ||
       (client.phone && client.phone.includes(query))
     );
   }, [clients, searchQuery]);
 
-  // Mock visit data - in production this would come from a backend
-  const getClientVisits = (clientId: string) => {
-    const mockVisits = [
-      { id: '1', date: '2024-01-15', type: 'Krafttraining', duration: 60, notes: 'Gutes Training, Steigerung bei Bankdrücken' },
-      { id: '2', date: '2024-01-12', type: 'Cardio', duration: 45, notes: 'Ausdauer verbessert' },
-      { id: '3', date: '2024-01-10', type: 'Krafttraining', duration: 75, notes: 'Neue Übungen eingeführt' },
-    ];
-    return mockVisits;
+  // Echte Workout-Daten des Kunden
+  const getClientWorkouts = (clientId: string) => {
+    return workouts
+      .filter(w => w.userId === clientId && w.completed)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
   };
 
-  // Mock performance data
   const getClientPerformance = (clientId: string) => {
-    return {
-      totalWorkouts: selectedClient?.stats?.totalWorkouts || 0,
-      totalVolume: selectedClient?.stats?.totalVolume || 0,
-      currentStreak: selectedClient?.stats?.currentStreak || 0,
-      longestStreak: selectedClient?.stats?.longestStreak || 0,
-      personalRecords: selectedClient?.stats?.personalRecords || {},
-      improvements: [
-        { exercise: 'Bankdrücken', improvement: '+5kg', date: '2024-01-15' },
-        { exercise: 'Kniebeugen', improvement: '+10kg', date: '2024-01-12' },
-        { exercise: 'Kreuzheben', improvement: '+7.5kg', date: '2024-01-10' },
-      ]
-    };
+    const clientWorkouts = workouts.filter(w => w.userId === clientId && w.completed);
+    const totalWorkouts = clientWorkouts.length;
+    const totalVolume = clientWorkouts.reduce((total, w) =>
+      total + w.exercises.reduce((wt, ex) =>
+        wt + ex.sets.reduce((st, s) => st + (s.weight * s.reps), 0), 0), 0);
+    return { totalWorkouts, totalVolume };
   };
 
 
@@ -210,51 +200,38 @@ export default function CustomerManagementScreen() {
                       <View style={styles.performanceCard}>
                         <TrendingUp size={20} color={Colors.accent} />
                         <Text style={styles.performanceValue}>
-                          {getClientPerformance(selectedClient.id).currentStreak}
+                          {`${(getClientPerformance(selectedClient.id).totalVolume / 1000).toFixed(1)}t`}
                         </Text>
-                        <Text style={styles.performanceLabel}>Streak</Text>
-                      </View>
-                      <View style={styles.performanceCard}>
-                        <Award size={20} color={Colors.accent} />
-                        <Text style={styles.performanceValue}>
-                          {getClientPerformance(selectedClient.id).improvements.length}
-                        </Text>
-                        <Text style={styles.performanceLabel}>Verbesserungen</Text>
+                        <Text style={styles.performanceLabel}>Volumen</Text>
                       </View>
                     </View>
                   </View>
 
-                  {/* Recent Visits */}
+                  {/* Letzte Workouts */}
                   <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Letzte Besuche</Text>
-                    {getClientVisits(selectedClient.id).map((visit) => (
-                      <View key={visit.id} style={styles.visitCard}>
-                        <View style={styles.visitHeader}>
-                          <Text style={styles.visitDate}>
-                            {new Date(visit.date).toLocaleDateString('de-DE')}
+                    <Text style={styles.sectionTitle}>Letzte Workouts</Text>
+                    {getClientWorkouts(selectedClient.id).length === 0 ? (
+                      <Text style={styles.visitNotes}>Noch keine Workouts absolviert.</Text>
+                    ) : (
+                      getClientWorkouts(selectedClient.id).map((workout) => (
+                        <View key={workout.id} style={styles.visitCard}>
+                          <View style={styles.visitHeader}>
+                            <Text style={styles.visitDate}>
+                              {new Date(workout.date).toLocaleDateString('de-DE')}
+                            </Text>
+                            <Text style={styles.visitType}>{workout.name}</Text>
+                          </View>
+                          <Text style={styles.visitDuration}>
+                            {workout.exercises.length} Übungen, {workout.exercises.reduce((t, ex) => t + ex.sets.length, 0)} Sätze
                           </Text>
-                          <Text style={styles.visitType}>{visit.type}</Text>
+                          {workout.duration && (
+                            <Text style={styles.visitNotes}>
+                              Dauer: {Math.round(workout.duration / 60000)} Min
+                            </Text>
+                          )}
                         </View>
-                        <Text style={styles.visitDuration}>{visit.duration} Min</Text>
-                        <Text style={styles.visitNotes}>{visit.notes}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Recent Improvements */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Aktuelle Verbesserungen</Text>
-                    {getClientPerformance(selectedClient.id).improvements.map((improvement, index) => (
-                      <View key={index} style={styles.improvementCard}>
-                        <View style={styles.improvementInfo}>
-                          <Text style={styles.improvementExercise}>{improvement.exercise}</Text>
-                          <Text style={styles.improvementDate}>
-                            {new Date(improvement.date).toLocaleDateString('de-DE')}
-                          </Text>
-                        </View>
-                        <Text style={styles.improvementValue}>{improvement.improvement}</Text>
-                      </View>
-                    ))}
+                      ))
+                    )}
                   </View>
 
                   {/* Action Buttons */}

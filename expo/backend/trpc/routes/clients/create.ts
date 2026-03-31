@@ -1,15 +1,21 @@
 import { z } from "zod";
-import { publicProcedure } from "../../create-context";
+import { TRPCError } from "@trpc/server";
+import { protectedProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({
     name: z.string(),
     email: z.string().email(),
     phone: z.string().optional(),
     starterPassword: z.string().optional(),
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ ctx, input }) => {
+    // Nur Trainer dürfen Clients erstellen
+    if (ctx.user.role !== 'trainer') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Kunden erstellen.' });
+    }
+
     // Check if client with this email or phone already exists
     const existingClients = await storage.clients.getAll();
     
@@ -29,9 +35,8 @@ export default publicProcedure
       }
     }
     
-    const starterPassword = input.starterPassword || 'TEMP123'; // Fallback password
-    console.log('[Server] Creating client with password:', starterPassword);
-    
+    const starterPassword = input.starterPassword || 'TEMP123';
+
     const newClient = await storage.clients.create({
       name: input.name,
       email: input.email,
@@ -48,9 +53,7 @@ export default publicProcedure
         personalRecords: {},
       },
     });
-    
-    console.log('[Server] Created client:', newClient.id, 'with password:', newClient.starterPassword);
-    const allClients = await storage.clients.getAll();
-    console.log('[Server] All clients after creation:', allClients.map(c => ({ id: c.id, email: c.email, password: c.starterPassword })));
+
+    console.log('[Server] Created client:', newClient.id, 'email:', newClient.email);
     return newClient;
   });

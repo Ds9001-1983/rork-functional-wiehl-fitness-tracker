@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Animated,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Save } from 'lucide-react-native';
+import { Plus, Save, Timer } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { exercises } from '@/data/exercises';
@@ -18,18 +19,38 @@ import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const { activeWorkout, updateSet, addSet, removeSet, saveWorkout, endWorkout } = useWorkouts();
-  const [duration, setDuration] = useState(0);
+  const [, forceUpdate] = useState(0);
+
+  // Timer aus Workout-Startzeit ableiten - überlebt App-Backgrounding/Crash
+  const duration = activeWorkout
+    ? Math.floor((Date.now() - new Date(activeWorkout.date).getTime()) / 1000)
+    : 0;
 
   React.useEffect(() => {
-    const interval = setInterval(() => {
-      setDuration(prev => prev + 1);
-    }, 1000);
+    const interval = setInterval(() => forceUpdate(n => n + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
+  // Pulsierender Punkt
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnim]);
+
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -78,7 +99,11 @@ export default function ActiveWorkoutScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.workoutName}>{activeWorkout.name}</Text>
-          <Text style={styles.duration}>{formatDuration(duration)}</Text>
+          <View style={styles.timerContainer}>
+            <Animated.View style={[styles.timerDot, { opacity: pulseAnim }]} />
+            <Timer size={18} color={Colors.accent} />
+            <Text style={styles.duration}>{formatDuration(duration)}</Text>
+          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -138,17 +163,39 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   workoutName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600' as const,
     color: Colors.text,
-    marginBottom: 4,
+    flex: 1,
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    gap: 6,
+  },
+  timerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
   },
   duration: {
-    fontSize: 16,
+    fontSize: 18,
     color: Colors.accent,
-    fontWeight: '500' as const,
+    fontWeight: '700' as const,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 1,
   },
   exerciseContainer: {
     padding: Spacing.lg,

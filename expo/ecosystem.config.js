@@ -10,7 +10,7 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 3000,
       DATABASE_URL: 'postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app',
-      JWT_SECRET: 'aN8hS3kZrPq!xY9mWt7sKuF2LgJeD4b',
+      JWT_SECRET: 'J5Kbw4LGHd79brs0MAfq9r4e63KSeQQkGmKQSqtFMzmQrVdk',
       CORS_ORIGIN: 'https://app.functional-wiehl.de',
       API_BASE_URL: 'https://app.functional-wiehl.de/api'
     },

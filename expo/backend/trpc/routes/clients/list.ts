@@ -1,16 +1,12 @@
-import { publicProcedure } from "../../create-context";
-import { Pool } from 'pg';
+import { protectedProcedure } from "../../create-context";
+import { getPool } from "../../../storage";
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-export default publicProcedure
-  .query(async () => {
+export default protectedProcedure
+  .query(async ({ ctx }) => {
     try {
-      console.log('[Server] Fetching clients from database...');
-      
+      const pool = getPool();
+      if (!pool) throw new Error('Database not available');
+
       // Get all users with their client data
       const result = await pool.query(`
         SELECT 
@@ -32,7 +28,7 @@ export default publicProcedure
         ORDER BY u.created_at DESC
       `);
       
-      const clients = result.rows.map(row => ({
+      let clients = result.rows.map(row => ({
         id: row.id.toString(),
         name: row.name || row.email.split('@')[0],
         email: row.email,
@@ -48,7 +44,12 @@ export default publicProcedure
           personalRecords: row.personal_records || {},
         },
       }));
-      
+
+      // Clients dürfen nur ihre eigenen Daten sehen
+      if (ctx.user.role === 'client') {
+        clients = clients.filter(c => c.id === ctx.user.userId);
+      }
+
       console.log('[Server] Fetched clients:', clients.length);
       return clients;
       

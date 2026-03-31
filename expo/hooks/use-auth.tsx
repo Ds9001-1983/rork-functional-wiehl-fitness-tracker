@@ -2,7 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { User } from '@/types/workout';
-import { trpcClient } from '@/lib/trpc';
+import { trpcClient, setCachedToken } from '@/lib/trpc';
 
 interface AuthState {
   user: User | null;
@@ -10,8 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
-  switchRole: () => void;
-  updatePassword: (newPassword: string) => Promise<void>;
+  updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   clearStorage: () => Promise<void>;
 }
@@ -23,12 +22,21 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const loadUser = useCallback(async () => {
     try {
       console.log('🔄 Loading user from AsyncStorage...');
-      const storedUser = await AsyncStorage.getItem('user');
+      const [storedUser, storedToken] = await Promise.all([
+        AsyncStorage.getItem('user'),
+        AsyncStorage.getItem('authToken'),
+      ]);
       console.log('📱 Stored user data:', storedUser);
-      if (storedUser) {
+      if (storedUser && storedToken) {
         const parsedUser = JSON.parse(storedUser);
         console.log('👤 Parsed user:', parsedUser);
+        setCachedToken(storedToken);
         setUser(parsedUser);
+      } else if (storedUser && !storedToken) {
+        // User exists but no token (pre-JWT session) -> force re-login
+        console.log('⚠️ User ohne Token gefunden - erzwinge Re-Login');
+        await AsyncStorage.removeItem('user');
+        setUser(null);
       } else {
         console.log('❌ No stored user found');
       }
@@ -65,7 +73,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       if (result.success && result.user) {
         console.log('✅ Backend login successful for:', email);
         console.log('✅ User data:', result.user);
-        await AsyncStorage.setItem('user', JSON.stringify(result.user));
+        await Promise.all([
+          AsyncStorage.setItem('user', JSON.stringify(result.user)),
+          AsyncStorage.setItem('authToken', result.token),
+        ]);
+        setCachedToken(result.token);
         setUser(result.user);
         return result.user;
       }
@@ -98,44 +110,32 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   const logout = useCallback(async () => {
     try {
       console.log('🔄 Logout: Entferne Benutzerdaten aus AsyncStorage...');
-      await AsyncStorage.removeItem('user');
+      await Promise.all([
+        AsyncStorage.removeItem('user'),
+        AsyncStorage.removeItem('authToken'),
+      ]);
+      setCachedToken(null);
       console.log('✅ Logout: Benutzerdaten erfolgreich entfernt');
       setUser(null);
       console.log('✅ Logout: User State zurückgesetzt');
     } catch (error) {
       console.error('❌ Logout Fehler:', error);
-      // Auch bei Fehlern den User State zurücksetzen
+      setCachedToken(null);
       setUser(null);
       throw error;
     }
   }, []);
 
-  const switchRole = useCallback(() => {
-    if (user) {
-      const newUser = {
-        ...user,
-        role: user.role === 'client' ? 'trainer' : 'client',
-      } as User;
-      setUser(newUser);
-      AsyncStorage.setItem('user', JSON.stringify(newUser));
-    }
-  }, [user]);
+  const updatePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    if (!user) return;
 
-  const updatePassword = useCallback(async (newPassword: string) => {
-    if (user) {
-      const updatedUser = {
-        ...user,
-        passwordChanged: true,
-      };
-      setUser(updatedUser);
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      console.log('🔑 Passwort erfolgreich geändert für:', user.email);
+    // Passwort auf dem Server ändern
+    await trpcClient.auth.changePassword.mutate({ currentPassword, newPassword });
 
-      const rememberSetting = await AsyncStorage.getItem('rememberPassword');
-      if (rememberSetting === 'true') {
-        await AsyncStorage.setItem('savedPassword', newPassword);
-      }
-    }
+    const updatedUser = { ...user, passwordChanged: true };
+    setUser(updatedUser);
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    console.log('[Auth] Passwort erfolgreich geändert');
   }, [user]);
 
   const resetPassword = useCallback(async (email: string) => {
@@ -145,12 +145,18 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
 
   const clearStorage = useCallback(async () => {
     try {
-      console.log('🗑️ Clearing all AsyncStorage data...');
+      console.log('[Auth] Clearing user data from AsyncStorage...');
+      // workouts_migrated bewahren um Duplikate zu vermeiden
+      const migrated = await AsyncStorage.getItem('workouts_migrated');
       await AsyncStorage.clear();
+      if (migrated) {
+        await AsyncStorage.setItem('workouts_migrated', migrated);
+      }
+      setCachedToken(null);
       setUser(null);
-      console.log('✅ AsyncStorage cleared successfully');
+      console.log('[Auth] AsyncStorage cleared');
     } catch (error) {
-      console.error('❌ Error clearing AsyncStorage:', error);
+      console.error('[Auth] Error clearing AsyncStorage:', error);
       throw error;
     }
   }, []);
@@ -161,11 +167,10 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     isAuthenticated: !!user,
     login,
     logout,
-    switchRole,
     updatePassword,
     resetPassword,
     clearStorage,
-  }), [user, isLoading, login, logout, switchRole, updatePassword, resetPassword, clearStorage]);
+  }), [user, isLoading, login, logout, updatePassword, resetPassword, clearStorage]);
 
   return authState;
 });

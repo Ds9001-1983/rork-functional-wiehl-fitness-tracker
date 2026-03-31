@@ -491,11 +491,25 @@ export default function ScheduleTrainingScreen() {
                     </View>
                   )}
                 </View>
+
+                <View style={styles.fullWidth}>
+                  <Text style={styles.label}>Enddatum</Text>
+                  <View style={styles.inputContainer}>
+                    <Calendar size={18} color={Colors.textSecondary} />
+                    <TextInput
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={Colors.textMuted}
+                      value={recurringEndDate}
+                      onChangeText={setRecurringEndDate}
+                      style={styles.input}
+                    />
+                  </View>
+                </View>
               </View>
             )}
           </View>
         )}
-        
+
         {/* Zusammenfassung & Bestätigung */}
         {selectedClientId && planName.trim() && selectedExercises.length > 0 && (
           <View style={styles.card}>

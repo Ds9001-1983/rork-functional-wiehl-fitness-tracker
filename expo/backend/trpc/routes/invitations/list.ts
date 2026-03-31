@@ -1,9 +1,12 @@
-import { publicProcedure } from "../../create-context";
+import { TRPCError } from "@trpc/server";
+import { protectedProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
-export default publicProcedure
-  .query(async () => {
+export default protectedProcedure
+  .query(async ({ ctx }) => {
+    if (ctx.user.role !== 'trainer') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Einladungen sehen.' });
+    }
     const invitations = await storage.invitations.getAll();
-    console.log('[Server] Fetching invitations:', invitations.length);
     return invitations;
   });

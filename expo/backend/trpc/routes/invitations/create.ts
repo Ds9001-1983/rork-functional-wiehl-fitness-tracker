@@ -1,14 +1,20 @@
 import { z } from "zod";
-import { publicProcedure } from "../../create-context";
+import { randomBytes } from "crypto";
+import { TRPCError } from "@trpc/server";
+import { protectedProcedure } from "../../create-context";
 import { storage } from "../../../storage";
 
-export default publicProcedure
+export default protectedProcedure
   .input(z.object({
     name: z.string().optional(),
     email: z.string().email().optional(),
   }))
-  .mutation(async ({ input }) => {
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+  .mutation(async ({ ctx, input }) => {
+    if (ctx.user.role !== 'trainer') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Einladungen erstellen.' });
+    }
+
+    const code = randomBytes(4).toString('hex').toUpperCase();
     const invitation = await storage.invitations.create({
       code,
       name: input.name,

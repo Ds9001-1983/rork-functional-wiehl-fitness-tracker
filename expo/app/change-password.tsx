@@ -54,10 +54,10 @@ export default function ChangePasswordScreen() {
 
     setIsLoading(true);
     try {
-      await updatePassword(newPassword);
-      
+      await updatePassword(currentPassword, newPassword);
+
       Alert.alert(
-        'Passwort geändert! 🎉',
+        'Passwort geändert!',
         'Ihr Passwort wurde erfolgreich geändert. Sie können jetzt die App verwenden.',
         [
           {
@@ -66,9 +66,13 @@ export default function ChangePasswordScreen() {
           },
         ]
       );
-    } catch (error) {
-      console.error('Fehler beim Ändern des Passworts:', error);
-      Alert.alert('Fehler', 'Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.');
+    } catch (error: any) {
+      const msg = error?.message || '';
+      if (msg.includes('INVALID_CURRENT_PASSWORD')) {
+        Alert.alert('Fehler', 'Das aktuelle Passwort ist falsch.');
+      } else {
+        Alert.alert('Fehler', 'Passwort konnte nicht geändert werden. Bitte versuchen Sie es erneut.');
+      }
     } finally {
       setIsLoading(false);
     }

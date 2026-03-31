@@ -7,9 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Linking,
 } from 'react-native';
-import { Search, X, Youtube, Plus } from 'lucide-react-native';
+import { Search, X, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { exercises, exerciseCategories } from '@/data/exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
@@ -39,12 +38,6 @@ export default function ExercisesScreen() {
     if (selectedExercise && activeWorkout) {
       addExerciseToWorkout(selectedExercise.id);
       setModalVisible(false);
-    }
-  };
-
-  const handleOpenVideo = () => {
-    if (selectedExercise?.videoUrl) {
-      Linking.openURL(selectedExercise.videoUrl);
     }
   };
 
@@ -142,13 +135,6 @@ export default function ExercisesScreen() {
                   <Text style={styles.modalSectionTitle}>Anleitung</Text>
                   <Text style={styles.modalText}>{selectedExercise.instructions}</Text>
                 </View>
-              )}
-
-              {selectedExercise?.videoUrl && (
-                <TouchableOpacity style={styles.videoButton} onPress={handleOpenVideo}>
-                  <Youtube size={20} color={Colors.text} />
-                  <Text style={styles.videoButtonText}>Video ansehen</Text>
-                </TouchableOpacity>
               )}
 
               {activeWorkout && (
@@ -272,21 +258,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     lineHeight: 24,
-  },
-  videoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.error,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.md,
-  },
-  videoButtonText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '500' as const,
-    marginLeft: Spacing.sm,
   },
   addButton: {
     flexDirection: 'row',
