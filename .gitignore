@@ -1,3 +1,5 @@
 node_modules
+node_modules_broken
+expo/node_modules_broken
 .env
 .expo

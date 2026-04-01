@@ -1,0 +1,12 @@
+node_modules/
+node_modules_broken/
+.expo/
+dist/
+web-build/
+.git/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
