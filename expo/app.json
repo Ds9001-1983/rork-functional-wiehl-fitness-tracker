@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Functional Wiehl Fitness Tracker",
+    "name": "Functional Wiehl GmbH",
     "slug": "functional-wiehl-fitness-tracker",
-    "version": "1.2.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -15,15 +15,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.functional-wiehl-fitness-tracker",
-      "buildNumber": "3"
+      "bundleIdentifier": "com.functionalwiehl.app",
+      "buildNumber": "3",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.functional-wiehl-fitness-tracker",
+      "package": "com.functionalwiehl.app",
       "versionCode": 3
     },
     "web": {
@@ -48,6 +51,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "62406811-431e-485a-b0f9-3abade28ca00"
+      }
     }
   }
 }
