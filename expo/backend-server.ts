@@ -3,6 +3,10 @@ import { serveStatic } from 'hono/bun';
 import { join } from 'path';
 import { readFileSync, existsSync } from 'fs';
 import apiApp from './backend/hono';
+import { initCourseTables, instancesStore, bookingsStore, coursesStore } from './backend/courses/storage';
+import { generateUpcomingInstances, expireSchedules } from './backend/courses/generate';
+import { sendPushToUser } from './backend/push/send';
+import { formatDateTimeDe } from './backend/courses/rules';
 
 // Load environment variables
 const port = parseInt(process.env.BACKEND_PORT || '3000');
@@ -67,6 +71,58 @@ app.get('*', (c) => {
     trpc: '/api/trpc'
   });
 });
+
+// Schutz gegen Doppel-Registrierung bei Hot-Reload (Dev)
+const globalAny = globalThis as any;
+if (globalAny.__courseCronRegistered) {
+  clearTimeout(globalAny.__courseCronTimeout);
+  clearInterval(globalAny.__courseCronInterval);
+}
+globalAny.__courseCronRegistered = true;
+
+// Initialize course tables (after storage.ts has connected the pool)
+setTimeout(() => {
+  initCourseTables()
+    .then(() => generateUpcomingInstances().catch(err => console.log('[Cron] initial generate failed:', err)))
+    .catch(err => console.log('[Courses] init failed:', err));
+}, 2000);
+
+// Cron: daily instance generation (03:00 Europe/Berlin)
+async function runDailyGeneration() {
+  try {
+    await generateUpcomingInstances();
+    await expireSchedules();
+  } catch (err) { console.log('[Cron] daily generation failed:', err); }
+}
+function scheduleDaily() {
+  const now = new Date();
+  const berlinNowStr = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(now);
+  const [bh, bm] = berlinNowStr.split(':').map(Number);
+  const minutesNow = bh * 60 + bm;
+  const targetMin = 3 * 60;
+  const minutesUntil = (targetMin - minutesNow + 24 * 60) % (24 * 60) || 24 * 60;
+  globalAny.__courseCronTimeout = setTimeout(async () => {
+    await runDailyGeneration();
+    scheduleDaily();
+  }, minutesUntil * 60 * 1000);
+}
+scheduleDaily();
+
+// Cron: reminder every 5 minutes (großzügiges Fenster in remindersDue fängt Drift)
+async function runReminders() {
+  try {
+    const due = await instancesStore.remindersDue();
+    for (const { booking, instance, course } of due) {
+      await sendPushToUser(booking.user_id, 'Kurs startet bald',
+        `Dein Kurs ${course.name} findet bald statt! (${formatDateTimeDe(instance.start_time)})`,
+        { type: 'reminder', instanceId: instance.id });
+      await bookingsStore.markReminderSent(booking.id);
+    }
+  } catch (err) { console.log('[Cron] reminder failed:', err); }
+}
+globalAny.__courseCronInterval = setInterval(runReminders, 5 * 60 * 1000);
 
 console.log(`🚀 Server starting on port ${port}`);
 console.log(`📊 Environment: ${process.env.NODE_ENV}`);

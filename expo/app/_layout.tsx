@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
+import { CoursesProvider } from "@/hooks/use-courses";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -50,6 +51,12 @@ function RootLayoutNav() {
       <Stack.Screen name="schedule-training" options={{ title: 'Training planen' }} />
       <Stack.Screen name="customer-management" options={{ title: 'Kundenverwaltung' }} />
       <Stack.Screen name="training-units-selection" options={{ title: 'Trainingseinheiten auswählen' }} />
+      <Stack.Screen name="my-bookings" options={{ title: 'Meine Buchungen' }} />
+      <Stack.Screen name="trainer-courses" options={{ title: 'Meine Kurse' }} />
+      <Stack.Screen name="trainer-course-participants" options={{ title: 'Teilnehmer' }} />
+      <Stack.Screen name="admin-courses" options={{ title: 'Kursverwaltung' }} />
+      <Stack.Screen name="admin-course-detail" options={{ title: 'Kurs' }} />
+      <Stack.Screen name="admin-penalties" options={{ title: 'No-Show Verwaltung' }} />
     </Stack>
   );
 }
@@ -66,9 +73,11 @@ export default function RootLayout() {
           <AuthProvider>
             <ClientsProvider>
               <WorkoutProvider>
-                <ErrorBoundary>
-                  <RootLayoutNav />
-                </ErrorBoundary>
+                <CoursesProvider>
+                  <ErrorBoundary>
+                    <RootLayoutNav />
+                  </ErrorBoundary>
+                </CoursesProvider>
               </WorkoutProvider>
             </ClientsProvider>
           </AuthProvider>

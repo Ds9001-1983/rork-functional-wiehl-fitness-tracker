@@ -856,5 +856,13 @@ export function getPool(): Pool | null {
   return useDatabase ? pool : null;
 }
 
+export function isUsingDatabase(): boolean {
+  return useDatabase;
+}
+
+export function getRawPool(): Pool | null {
+  return pool;
+}
+
 // Export the debug function for potential use
 export { logStorageState };
