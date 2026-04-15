@@ -6,9 +6,9 @@ export default protectedProcedure
     const { userId, role } = ctx.user;
 
     if (role === 'trainer') {
-      return storage.plans.getByCreator(userId);
+      return storage.workoutPlans.getByCreator(userId);
     }
 
     // Clients sehen nur ihnen zugewiesene Pläne
-    return storage.plans.getAssignedToUser(userId);
+    return storage.workoutPlans.getByUserId(userId);
   });

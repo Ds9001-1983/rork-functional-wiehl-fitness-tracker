@@ -33,7 +33,7 @@ export const loginProcedure = publicProcedure
         passwordChanged: client.passwordChanged,
         stats: client.stats,
       };
-      const token = signToken({ userId: userData.id, role: userData.role });
+      const token = signToken({ userId: userData.id, email: userData.email, role: userData.role });
       console.log('[Server] In-memory login successful:', email);
       return { success: true, user: userData, token };
     }
@@ -82,7 +82,7 @@ export const loginProcedure = publicProcedure
         },
       };
 
-      const token = signToken({ userId: userData.id, role: userData.role });
+      const token = signToken({ userId: userData.id, email: userData.email, role: userData.role });
       console.log('[Server] DB login successful:', email, 'role:', user.role);
       return { success: true, user: userData, token };
 

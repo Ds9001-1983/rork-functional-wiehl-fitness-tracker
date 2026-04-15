@@ -12,7 +12,7 @@ export default protectedProcedure
       if (input?.userId) {
         return storage.workouts.getByUserId(input.userId);
       }
-      return storage.workouts.getByTrainer(userId);
+      return storage.workouts.getAll();
     }
 
     // Clients sehen NUR eigene Workouts - userId aus Token, nicht aus Input

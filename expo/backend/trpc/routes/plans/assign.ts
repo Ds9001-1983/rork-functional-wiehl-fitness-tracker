@@ -13,13 +13,13 @@ export default protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Pläne zuweisen.' });
     }
 
-    await storage.plans.assign(input.planId, input.userId);
+    await storage.workoutPlans.assign(input.planId, input.userId);
 
     // Push-Notification an den Kunden senden
     const pushToken = await storage.pushTokens.getByUserId(input.userId);
     if (pushToken) {
       try {
-        const plan = (await storage.plans.getByCreator(ctx.user.userId)).find(p => p.id === input.planId);
+        const plan = (await storage.workoutPlans.getByCreator(ctx.user.userId)).find(p => p.id === input.planId);
         await sendPushNotification(pushToken, {
           title: 'Neuer Trainingsplan!',
           body: `Dir wurde der Plan "${plan?.name || 'Trainingsplan'}" zugewiesen.`,

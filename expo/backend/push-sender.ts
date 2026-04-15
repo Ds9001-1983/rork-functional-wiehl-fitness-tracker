@@ -22,7 +22,7 @@ export async function sendPushToUser(
   data?: Record<string, any>,
 ): Promise<void> {
   try {
-    const subscriptions = await storage.pushSubscriptions.list(userId);
+    const subscriptions = await storage.pushSubscriptions.getByUserId(userId);
     if (!subscriptions || subscriptions.length === 0) return;
 
     const messages: PushMessage[] = [];
