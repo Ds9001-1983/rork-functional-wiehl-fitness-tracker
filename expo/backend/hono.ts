@@ -3,6 +3,11 @@ import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from './trpc/app-router.ts';
 import { createContext } from './trpc/create-context.ts';
 import { cors } from 'hono/cors';
+import { initCourseTables } from './courses/storage.ts';
+
+initCourseTables()
+  .then(() => console.log('[Courses] ✅ Course tables initialized'))
+  .catch((err) => console.error('[Courses] ❌ Course table init failed:', err));
 
 const app = new Hono();
 
