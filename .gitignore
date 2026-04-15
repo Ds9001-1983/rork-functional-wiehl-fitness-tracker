@@ -4,3 +4,4 @@ expo/node_modules_broken
 expo-broken
 .env
 .expo
+package-lock.json

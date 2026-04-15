@@ -8,7 +8,6 @@
     "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel"
   },
   "dependencies": {
-    "@expo/cli": "^54.0.1",
     "@expo/vector-icons": "^14.1.0",
     "@expo/webpack-config": "^19.0.1",
     "@hono/node-server": "1.19.1",
