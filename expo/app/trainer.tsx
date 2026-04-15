@@ -25,8 +25,8 @@ export default function TrainerCenterScreen() {
   const [swipedClientId, setSwipedClientId] = useState<string | null>(null);
   const [deleteHoldProgress, setDeleteHoldProgress] = useState<number>(0);
   const [isHolding, setIsHolding] = useState<boolean>(false);
-  const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const swipeAnimations = useRef<Map<string, Animated.Value>>(new Map()).current;
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';

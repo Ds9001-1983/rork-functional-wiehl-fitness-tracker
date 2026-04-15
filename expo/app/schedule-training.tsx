@@ -494,7 +494,7 @@ export default function ScheduleTrainingScreen() {
 
                 <View style={styles.fullWidth}>
                   <Text style={styles.label}>Enddatum</Text>
-                  <View style={styles.inputContainer}>
+                  <View style={styles.row}>
                     <Calendar size={18} color={Colors.textSecondary} />
                     <TextInput
                       placeholder="YYYY-MM-DD"

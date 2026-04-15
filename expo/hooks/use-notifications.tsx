@@ -14,8 +14,8 @@ Notifications.setNotificationHandler({
 });
 
 export function useNotifications(userId: string | null) {
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
+  const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
+  const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
 
   const registerForPushNotifications = useCallback(async () => {
     if (!userId) return;
