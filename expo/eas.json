@@ -17,7 +17,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_RORK_API_BASE_URL": "https://app.functional-wiehl.de"
+        "EXPO_PUBLIC_RORK_API_BASE_URL": "https://app.functional-wiehl.de",
+        "EXPO_NO_DOCTOR": "1"
       }
     }
   },
