@@ -29,8 +29,10 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (user?.role === 'trainer' || user?.role === 'admin') {
-      router.replace('/trainer');
+    if (user?.role === 'admin') {
+      router.replace('/(admin-tabs)');
+    } else if (user?.role === 'trainer') {
+      router.replace('/(trainer-tabs)');
     } else {
       router.replace('/(tabs)');
     }
@@ -66,8 +68,12 @@ export default function LoginScreen() {
       if (!user) {
         return;
       }
-      if (user.role === 'trainer' || user.role === 'admin') {
-        router.replace('/trainer');
+      if (user.role === 'admin') {
+        router.replace('/(admin-tabs)');
+        return;
+      }
+      if (user.role === 'trainer') {
+        router.replace('/(trainer-tabs)');
         return;
       }
       if (user.role === 'client' && user.passwordChanged === false) {

@@ -21,7 +21,7 @@ export default function AdminCoursesScreen() {
   const [form, setForm] = useState({ name: '', description: '', duration_minutes: '60', max_participants: '10', category: '', is_active: true });
 
   const load = useCallback(async () => {
-    try { setCourses(await trpcClient.courses.admin.listCourses.query()); }
+    try { setCourses(await trpcClient.courses.admin.listCourses.query({})); }
     catch (e: any) { infoAlert('Fehler', e?.message); }
     finally { setLoading(false); }
   }, []);
@@ -55,14 +55,20 @@ export default function AdminCoursesScreen() {
           duration_minutes: dur, max_participants: max,
           category: form.category || null, is_active: form.is_active,
         });
+        setModalOpen(false); await load();
       } else {
-        await trpcClient.courses.admin.createCourse.mutate({
+        const created = await trpcClient.courses.admin.createCourse.mutate({
           name: form.name, description: form.description || undefined,
           duration_minutes: dur, max_participants: max,
           category: form.category || undefined,
         });
+        setModalOpen(false);
+        await load();
+        const newId = (created as any)?.id;
+        if (newId) {
+          router.push(`/admin-course-detail?id=${newId}`);
+        }
       }
-      setModalOpen(false); await load();
     } catch (e: any) { infoAlert('Fehler', e?.message); }
   };
 
@@ -99,6 +105,12 @@ export default function AdminCoursesScreen() {
           <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} keyboardShouldPersistTaps="handled">
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{editing ? 'Kurs bearbeiten' : 'Neuer Kurs'}</Text>
+            {!editing && (
+              <Text style={{ color: Colors.textSecondary, fontSize: 12, marginBottom: Spacing.sm, lineHeight: 18 }}>
+                Schritt 1: Kurs-Stammdaten (Name, Dauer, Teilnehmer).{'\n'}
+                Schritt 2: Nach dem Speichern öffnet sich der Kurs-Detail-Screen, dort legst du Wochentage, wöchentliche Wiederholung oder Einzeltermine an.
+              </Text>
+            )}
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={Colors.textMuted} value={form.name} onChangeText={v => setForm({ ...form, name: v })} />
             <TextInput style={[styles.input, { height: 80 }]} multiline placeholder="Beschreibung" placeholderTextColor={Colors.textMuted} value={form.description} onChangeText={v => setForm({ ...form, description: v })} />
             <TextInput style={styles.input} placeholder="Dauer (Minuten)" keyboardType="numeric" placeholderTextColor={Colors.textMuted} value={form.duration_minutes} onChangeText={v => setForm({ ...form, duration_minutes: v })} />

@@ -30,6 +30,8 @@ function RootLayoutNav() {
 
   const initialRoute = !isAuthenticated ? "login"
     : needsPasswordChange ? "change-password"
+    : user?.role === 'admin' ? "(admin-tabs)"
+    : user?.role === 'trainer' ? "(trainer-tabs)"
     : "(tabs)";
 
   return (
@@ -45,6 +47,8 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(trainer-tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
       <Stack.Screen name="trainer" options={{ title: 'Trainer Center' }} />
       <Stack.Screen name="change-password" options={{ title: 'Passwort ändern' }} />

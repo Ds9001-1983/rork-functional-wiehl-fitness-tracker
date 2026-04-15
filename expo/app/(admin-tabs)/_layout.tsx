@@ -1,5 +1,5 @@
 import { Tabs, Redirect } from "expo-router";
-import { Users, ClipboardList, User, MessageSquare, Bell } from "lucide-react-native";
+import { BarChart3, Users, Calendar, User, MessageSquare, Bell } from "lucide-react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { trpcClient } from "@/lib/trpc";
 import LoadingScreen from "@/components/LoadingScreen";
 
-function TrainerHeaderRight() {
+function AdminHeaderRight() {
   const [chatUnread, setChatUnread] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const Colors = useColors();
@@ -65,13 +65,13 @@ function TrainerHeaderRight() {
   );
 }
 
-export default function TrainerTabLayout() {
+export default function AdminTabLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const Colors = useColors();
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/login" />;
-  if (user?.role !== 'trainer' && user?.role !== 'admin') return <Redirect href="/(tabs)" />;
+  if (user?.role !== 'admin') return <Redirect href="/(tabs)" />;
 
   return (
     <Tabs
@@ -89,21 +89,28 @@ export default function TrainerTabLayout() {
         headerTitleStyle: {
           fontWeight: '600' as const,
         },
-        headerRight: () => <TrainerHeaderRight />,
+        headerRight: () => <AdminHeaderRight />,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Kunden",
+          title: "Dashboard",
+          tabBarIcon: ({ color }) => <BarChart3 size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{
+          title: "Nutzer",
           tabBarIcon: ({ color }) => <Users size={24} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="plans"
+        name="system"
         options={{
-          title: "Trainingspläne",
-          tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
+          title: "System",
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
         }}
       />
       <Tabs.Screen

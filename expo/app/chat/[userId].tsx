@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Send } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
@@ -52,18 +52,39 @@ export default function ChatScreen() {
   }, [otherUserId]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !otherUserId || sending) return;
+    const text = newMessage.trim();
+    if (!text || !otherUserId || sending) return;
     setSending(true);
+
+    // Optimistic update: append the message locally so the user gets instant feedback
+    const tempId = `tmp-${Date.now()}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
+      sender_id: user?.id ?? '',
+      receiver_id: otherUserId,
+      message: text,
+      read_at: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setNewMessage('');
+    setTimeout(() => flatListRef.current?.scrollToEnd(), 50);
+
     try {
       await trpcClient.chat.send.mutate({
         receiverId: otherUserId,
-        message: newMessage.trim(),
+        message: text,
       });
-      setNewMessage('');
       await loadMessages();
       setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
-    } catch {}
-    setSending(false);
+    } catch (err: any) {
+      // Rollback optimistic message and notify
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setNewMessage(text);
+      Alert.alert('Nachricht nicht gesendet', err?.message || 'Bitte prüfe deine Internetverbindung und versuche es erneut.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const isMyMessage = (msg: ChatMessage) => msg.sender_id === user?.id;
