@@ -692,47 +692,49 @@ export const storage = {
   },
 
   clients: {
+    // Reads/writes operate on the `users` table only (role='client').
+    // `id` and `userId` in the returned object are identical — single-ID from now on.
     getAll: async (): Promise<StoredClient[]> => {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(`
             SELECT
-              u.id as user_id,
-              c.id as client_id,
-              c.name,
-              u.email,
-              c.phone,
-              u.role,
-              c.join_date as "joinDate",
-              c.starter_password as "starterPassword",
-              u.password_changed as "passwordChanged",
-              c.avatar,
-              c.total_workouts as "totalWorkouts",
-              c.total_volume as "totalVolume",
-              c.current_streak as "currentStreak",
-              c.longest_streak as "longestStreak",
-              c.personal_records as "personalRecords"
-            FROM users u
-            LEFT JOIN clients c ON u.id = c.user_id
-            ORDER BY u.created_at DESC
+              id,
+              email,
+              role,
+              name,
+              phone,
+              avatar,
+              join_date as "joinDate",
+              starter_password as "starterPassword",
+              password_changed as "passwordChanged",
+              total_workouts as "totalWorkouts",
+              total_volume as "totalVolume",
+              current_streak as "currentStreak",
+              longest_streak as "longestStreak",
+              personal_records as "personalRecords",
+              created_at as "createdAt"
+            FROM users
+            WHERE role = 'client'
+            ORDER BY created_at DESC
           `);
 
           return result.rows.map(row => ({
-            id: row.user_id?.toString() || row.client_id?.toString(),
-            userId: row.user_id?.toString(),
+            id: row.id.toString(),
+            userId: row.id.toString(),
             name: row.name || row.email?.split('@')[0] || 'Unbekannt',
             email: row.email,
             phone: row.phone,
-            role: row.role || 'client',
-            joinDate: row.joinDate || new Date().toISOString(),
+            role: row.role,
+            joinDate: row.joinDate || row.createdAt || new Date().toISOString(),
             starterPassword: row.starterPassword,
             passwordChanged: row.passwordChanged || false,
             avatar: row.avatar,
             stats: {
-              totalWorkouts: row.totalWorkouts || 0,
-              totalVolume: row.totalVolume || 0,
-              currentStreak: row.currentStreak || 0,
-              longestStreak: row.longestStreak || 0,
+              totalWorkouts: Number(row.totalWorkouts) || 0,
+              totalVolume: Number(row.totalVolume) || 0,
+              currentStreak: Number(row.currentStreak) || 0,
+              longestStreak: Number(row.longestStreak) || 0,
               personalRecords: row.personalRecords || {},
             },
           }));
@@ -748,34 +750,40 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const hashedPassword = await bcrypt.hash(client.starterPassword || 'TEMP123', 10);
-          const userResult = await pool.query(
-            `INSERT INTO users (email, password, role, password_changed)
-             VALUES ($1, $2, $3, $4)
+          const result = await pool.query(
+            `INSERT INTO users
+              (email, password, role, password_changed, name, phone, avatar, join_date,
+               starter_password, total_workouts, total_volume, current_streak,
+               longest_streak, personal_records)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              RETURNING id`,
-            [client.email, hashedPassword, client.role, client.passwordChanged]
+            [
+              client.email,
+              hashedPassword,
+              client.role,
+              client.passwordChanged,
+              client.name,
+              client.phone ?? null,
+              client.avatar ?? null,
+              client.joinDate,
+              client.starterPassword ?? null,
+              client.stats.totalWorkouts,
+              client.stats.totalVolume,
+              client.stats.currentStreak,
+              client.stats.longestStreak,
+              JSON.stringify(client.stats.personalRecords),
+            ]
           );
-          const userId = userResult.rows[0].id;
-
-          await pool.query(
-            `INSERT INTO clients (user_id, name, email, phone, role, join_date, starter_password, total_workouts, total_volume, current_streak, longest_streak, personal_records)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-            [userId, client.name, client.email, client.phone, client.role, client.joinDate,
-             client.starterPassword, client.stats.totalWorkouts, client.stats.totalVolume,
-             client.stats.currentStreak, client.stats.longestStreak, JSON.stringify(client.stats.personalRecords)]
-          );
-
-          const newClient: StoredClient = {
-            ...client,
-            id: userId.toString(),
-            userId: userId.toString(),
-          };
-          console.log('[Storage] Created client in DB with user_id:', userId);
+          const userId = result.rows[0].id.toString();
+          const newClient: StoredClient = { ...client, id: userId, userId };
+          console.log('[Storage] Created client in users-table with id:', userId);
           return newClient;
         } catch (err: unknown) {
           console.log('[Storage] DB insert failed for client:', (err as Error).message);
           if ((err as Error).message?.includes('duplicate key') || (err as { code?: string }).code === '23505') {
             throw new Error('CLIENT_EMAIL_EXISTS');
           }
+          throw err;
         }
       }
 
@@ -783,8 +791,6 @@ export const storage = {
       const id = generateId();
       const newClient: StoredClient = { ...client, id };
       clients.push(newClient);
-
-      // Also create in-memory user for auth
       const hashedPassword = await bcrypt.hash(client.starterPassword || 'TEMP123', 10);
       users.push({
         id,
@@ -794,7 +800,6 @@ export const storage = {
         passwordChanged: client.passwordChanged,
         createdAt: new Date().toISOString(),
       });
-
       return newClient;
     },
 
@@ -807,7 +812,6 @@ export const storage = {
           console.log('[Storage] DB delete failed:', err);
         }
       }
-
       const initialLength = clients.length;
       clients = clients.filter(client => client.id !== id);
       users = users.filter(user => user.id !== id);
@@ -820,7 +824,6 @@ export const storage = {
           const updates: string[] = [];
           const values: (string | number | boolean | null)[] = [];
           let idx = 1;
-
           if (stats.totalWorkouts !== undefined) { updates.push(`total_workouts = $${idx++}`); values.push(stats.totalWorkouts); }
           if (stats.totalVolume !== undefined) { updates.push(`total_volume = $${idx++}`); values.push(stats.totalVolume); }
           if (stats.currentStreak !== undefined) { updates.push(`current_streak = $${idx++}`); values.push(stats.currentStreak); }
@@ -831,7 +834,7 @@ export const storage = {
 
           values.push(userId);
           const result = await pool.query(
-            `UPDATE clients SET ${updates.join(', ')} WHERE user_id = $${idx}`,
+            `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`,
             values
           );
           return (result.rowCount ?? 0) > 0;
@@ -854,7 +857,6 @@ export const storage = {
           const setClauses: string[] = [];
           const values: (string | number | boolean | null)[] = [];
           let idx = 1;
-
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
           if (updates.phone !== undefined) { setClauses.push(`phone = $${idx++}`); values.push(updates.phone); }
           if (updates.avatar !== undefined) { setClauses.push(`avatar = $${idx++}`); values.push(updates.avatar); }
@@ -863,7 +865,7 @@ export const storage = {
 
           values.push(userId);
           const result = await pool.query(
-            `UPDATE clients SET ${setClauses.join(', ')} WHERE user_id = $${idx}`,
+            `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${idx}`,
             values
           );
           return (result.rowCount ?? 0) > 0;
@@ -1408,9 +1410,9 @@ export const storage = {
         try {
           const result = await pool.query(
             `SELECT g.user_id as "userId", g.xp, g.level, g.current_streak as "currentStreak",
-             g.badges, c.name
+             g.badges, u.name
              FROM gamification g
-             LEFT JOIN clients c ON g.user_id = c.user_id::text
+             LEFT JOIN users u ON u.id::text = g.user_id
              ORDER BY g.xp DESC LIMIT $1`,
             [limit]
           );
@@ -1575,9 +1577,9 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `SELECT cp.user_id as "userId", cp.current_value as "currentValue", c.name
+            `SELECT cp.user_id as "userId", cp.current_value as "currentValue", u.name
              FROM challenge_progress cp
-             LEFT JOIN clients c ON cp.user_id = c.user_id::text
+             LEFT JOIN users u ON u.id::text = cp.user_id
              WHERE cp.challenge_id = $1 ORDER BY cp.current_value DESC`,
             [challengeId]
           );
@@ -1786,10 +1788,10 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const result = await pool.query(
-            `SELECT u.id, u.email, u.role, u.created_at as "createdAt", u.consented_at as "consentedAt",
-             c.name, c.phone, c.avatar
-             FROM users u LEFT JOIN clients c ON u.id = c.user_id
-             WHERE u.id = $1`,
+            `SELECT id, email, role, created_at as "createdAt", consented_at as "consentedAt",
+             name, phone, avatar
+             FROM users
+             WHERE id = $1`,
             [userId]
           );
           if (result.rows.length > 0) {
@@ -1829,7 +1831,8 @@ export const storage = {
           await pool.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
-          await pool.query(`DELETE FROM clients WHERE user_id = $1::integer`, [userId]);
+          // clients-Tabelle wird nach Merge nicht mehr gebraucht, aber gelöscht für sauberen Cleanup (falls noch Legacy-Row)
+          await pool.query(`DELETE FROM clients WHERE user_id = $1::integer`, [userId]).catch(() => {});
           await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
           console.log(`[Storage] DSGVO: All data deleted for user ${userId}`);
           return true;
@@ -1967,11 +1970,10 @@ export const storage = {
                  message AS last_message,
                  cm.created_at AS last_message_at,
                  (SELECT COUNT(*)::int FROM chat_messages WHERE receiver_id = $1 AND sender_id = CASE WHEN cm.sender_id = $1 THEN cm.receiver_id ELSE cm.sender_id END AND read_at IS NULL) AS unread_count,
-                 COALESCE(c.name, u.email, 'Unbekannt') AS other_name,
+                 COALESCE(u.name, u.email, 'Unbekannt') AS other_name,
                  u.role AS other_role
                FROM chat_messages cm
                LEFT JOIN users u ON u.id = CASE WHEN cm.sender_id = $1 THEN cm.receiver_id ELSE cm.sender_id END
-               LEFT JOIN clients c ON c.user_id = u.id
                WHERE cm.sender_id = $1 OR cm.receiver_id = $1
                ORDER BY cm.created_at DESC
              ) sub

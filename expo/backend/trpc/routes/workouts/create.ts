@@ -43,10 +43,10 @@ export default protectedProcedure
         );
 
         await pool.query(
-          `UPDATE clients SET
-            total_workouts = total_workouts + 1,
-            total_volume = total_volume + $1
-          WHERE user_id = $2`,
+          `UPDATE users SET
+            total_workouts = COALESCE(total_workouts, 0) + 1,
+            total_volume = COALESCE(total_volume, 0) + $1
+          WHERE id = $2`,
           [Math.round(totalVolume), parseInt(input.userId)]
         );
         console.log('[Server] Updated stats for user:', input.userId, 'volume:', totalVolume);

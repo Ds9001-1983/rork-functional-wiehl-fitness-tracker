@@ -22,9 +22,9 @@ async function resolveUserNames(userIds: string[]): Promise<Map<string, { name: 
     const pool = getRawPool();
     if (pool) {
       const r = await pool.query(
-        `SELECT u.id::text as id, u.email, COALESCE(c.name, u.email) as name
-         FROM users u LEFT JOIN clients c ON c.user_id=u.id
-         WHERE u.id = ANY($1::int[])`,
+        `SELECT id::text as id, email, COALESCE(name, email) as name
+         FROM users
+         WHERE id = ANY($1::int[])`,
         [userIds.map(id => parseInt(id))]
       );
       for (const row of r.rows) map.set(row.id, { name: row.name, email: row.email });

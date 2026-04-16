@@ -39,15 +39,20 @@ export default function ClientProgressScreen() {
     if (!clientId) return;
     const load = async () => {
       try {
-        const [data, clients, workouts, plans] = await Promise.all([
+        // Erst Clients laden, um den echten user_id zu ermitteln (clientId ist die clients.id, nicht users.id)
+        const [progressData, clients] = await Promise.all([
           trpcClient.clients.progress.query({ clientId }),
           trpcClient.clients.list.query(),
-          trpcClient.workouts.list.query({ userId: clientId }).catch(() => []),
-          trpcClient.plans.list.query({ userId: clientId }).catch(() => []),
         ]);
-        setProgress(data);
+        setProgress(progressData);
         const client = (clients as any[]).find((c: any) => c.id === clientId || c.userId === clientId);
+        const realUserId = client?.userId || clientId;
         if (client) setClientName(client.name);
+
+        const [workouts, plans] = await Promise.all([
+          trpcClient.workouts.list.query({ userId: realUserId }).catch(() => []),
+          trpcClient.plans.list.query({ userId: realUserId }).catch(() => []),
+        ]);
         setClientWorkouts((workouts as WorkoutListItem[]) || []);
         setClientPlans((plans as PlanListItem[]) || []);
       } catch {}

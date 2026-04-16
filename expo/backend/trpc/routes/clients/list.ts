@@ -9,23 +9,22 @@ export default protectedProcedure
 
       // Get all users with their client data
       const result = await pool.query(`
-        SELECT 
-          u.id,
-          u.email,
-          u.role,
-          u.password_changed,
-          u.created_at,
-          c.name,
-          c.phone,
-          c.join_date,
-          c.total_workouts,
-          c.total_volume,
-          c.current_streak,
-          c.longest_streak,
-          c.personal_records
-        FROM users u
-        LEFT JOIN clients c ON u.id = c.user_id
-        ORDER BY u.created_at DESC
+        SELECT
+          id,
+          email,
+          role,
+          password_changed,
+          created_at,
+          name,
+          phone,
+          join_date,
+          total_workouts,
+          total_volume,
+          current_streak,
+          longest_streak,
+          personal_records
+        FROM users
+        ORDER BY created_at DESC
       `);
       
       let clients = result.rows.map(row => ({

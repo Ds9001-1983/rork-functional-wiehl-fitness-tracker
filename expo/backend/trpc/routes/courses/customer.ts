@@ -15,7 +15,7 @@ async function resolveTrainerName(trainerId: string): Promise<string> {
   if (!isUsingDatabase()) return '';
   const pool = getRawPool(); if (!pool) return '';
   const r = await pool.query(
-    `SELECT COALESCE(c.name, u.email) as name FROM users u LEFT JOIN clients c ON c.user_id=u.id WHERE u.id=$1`,
+    `SELECT COALESCE(name, email) as name FROM users WHERE id=$1`,
     [parseInt(trainerId)]
   );
   return r.rows[0]?.name ?? '';

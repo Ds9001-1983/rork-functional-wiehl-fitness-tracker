@@ -120,6 +120,9 @@ export default function TrainerTabLayout() {
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
+      {/* Hidden detail-screens inside the trainer tab-group — they keep the TabBar visible */}
+      <Tabs.Screen name="client-progress/[id]" options={{ href: null }} />
+      <Tabs.Screen name="trainer-plan-edit/[id]" options={{ href: null }} />
     </Tabs>
   );
 }

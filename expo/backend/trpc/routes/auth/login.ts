@@ -56,29 +56,21 @@ export const loginProcedure = publicProcedure
         throw new Error('INVALID_PASSWORD');
       }
 
-      let clientData = null;
-      if (user.role === 'client') {
-        const clientResult = await pool.query(
-          'SELECT * FROM clients WHERE user_id = $1',
-          [user.id]
-        );
-        clientData = clientResult.rows[0] || null;
-      }
-
+      // Alle Profildaten kommen jetzt direkt aus der users-Tabelle (post-merge).
       const userData = {
         id: user.id.toString(),
-        name: clientData?.name || (user.role === 'trainer' ? 'Functional Wiehl Trainer' : user.email.split('@')[0]),
+        name: user.name || (user.role === 'trainer' ? 'Functional Wiehl Trainer' : user.role === 'admin' ? 'Administrator' : user.email.split('@')[0]),
         email: user.email,
-        phone: clientData?.phone,
+        phone: user.phone,
         role: user.role,
-        joinDate: clientData?.join_date || user.created_at,
+        joinDate: user.join_date || user.created_at,
         passwordChanged: user.password_changed,
         stats: {
-          totalWorkouts: clientData?.total_workouts || 0,
-          totalVolume: clientData?.total_volume || 0,
-          currentStreak: clientData?.current_streak || 0,
-          longestStreak: clientData?.longest_streak || 0,
-          personalRecords: clientData?.personal_records || {},
+          totalWorkouts: Number(user.total_workouts) || 0,
+          totalVolume: Number(user.total_volume) || 0,
+          currentStreak: Number(user.current_streak) || 0,
+          longestStreak: Number(user.longest_streak) || 0,
+          personalRecords: user.personal_records || {},
         },
       };
 

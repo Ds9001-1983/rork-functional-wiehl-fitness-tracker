@@ -607,10 +607,9 @@ export const penaltiesStore = {
     const pool = needDb();
     if (pool) {
       const r = await pool.query(`
-        SELECT p.*, u.email as user_email, COALESCE(c.name, u.email) as user_name
+        SELECT p.*, u.email as user_email, COALESCE(u.name, u.email) as user_name
         FROM user_penalties p
         JOIN users u ON u.id = p.user_id
-        LEFT JOIN clients c ON c.user_id = u.id
         ORDER BY p.is_blocked DESC, p.no_show_count DESC`);
       return r.rows.map(row => ({ ...mapPenaltyRow(row), user_email: row.user_email, user_name: row.user_name }));
     }
