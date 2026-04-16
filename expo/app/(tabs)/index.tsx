@@ -138,10 +138,7 @@ export default function WorkoutScreen() {
               <TouchableOpacity
                 key={plan.id}
                 style={styles.planCard}
-                onPress={() => {
-                  startWorkout(plan.id);
-                  router.push('/active-workout');
-                }}
+                onPress={() => router.push(`/plan-detail/${plan.id}` as any)}
               >
                 <View style={styles.planCardLeft}>
                   <ClipboardList size={20} color={Colors.accent} />

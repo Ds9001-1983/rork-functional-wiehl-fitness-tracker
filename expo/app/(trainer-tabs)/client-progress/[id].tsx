@@ -104,6 +104,69 @@ export default function ClientProgressScreen() {
             <Text style={styles.subtitle}>Letzte 4 Wochen</Text>
           </View>
 
+          {/* Tiles: Workouts + Pläne — prominent oben */}
+          <View style={styles.tilesRow}>
+            <View style={styles.tileCard}>
+              <View style={styles.tileHeader}>
+                <History size={18} color={Colors.accent} />
+                <Text style={styles.tileTitle}>Letzte Workouts</Text>
+                <Text style={styles.tileBadge}>{clientWorkouts.length}</Text>
+              </View>
+              {recentWorkoutsSorted.length === 0 ? (
+                <Text style={styles.tileEmpty}>Noch keine Workouts.</Text>
+              ) : (
+                recentWorkoutsSorted.slice(0, 3).map((w) => (
+                  <TouchableOpacity
+                    key={w.id}
+                    style={styles.tileItem}
+                    onPress={() => router.push(`/workout-detail/${w.id}` as any)}
+                  >
+                    <Dumbbell size={14} color={Colors.accent} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tileItemTitle} numberOfLines={1}>{w.name}</Text>
+                      <Text style={styles.tileItemMeta}>{new Date(w.date).toLocaleDateString('de-DE')}</Text>
+                    </View>
+                    <ChevronRight size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                ))
+              )}
+              {clientWorkouts.length > 3 && (
+                <Text style={styles.tileMore}>+ {clientWorkouts.length - 3} weitere</Text>
+              )}
+            </View>
+
+            <View style={styles.tileCard}>
+              <View style={styles.tileHeader}>
+                <ClipboardList size={18} color={Colors.accent} />
+                <Text style={styles.tileTitle}>Trainingspläne</Text>
+                <Text style={styles.tileBadge}>{clientPlans.length}</Text>
+              </View>
+              {clientPlans.length === 0 ? (
+                <Text style={styles.tileEmpty}>Keine Pläne zugewiesen.</Text>
+              ) : (
+                clientPlans.slice(0, 3).map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={styles.tileItem}
+                    onPress={() => router.push(`/trainer-plan-edit/${p.id}` as any)}
+                  >
+                    <ClipboardList size={14} color={Colors.accent} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.tileItemTitle} numberOfLines={1}>{p.name}</Text>
+                      <Text style={styles.tileItemMeta}>
+                        {p.exercises ? `${(p.exercises as unknown[]).length} Übungen` : ''}
+                      </Text>
+                    </View>
+                    <ChevronRight size={14} color={Colors.textMuted} />
+                  </TouchableOpacity>
+                ))
+              )}
+              {clientPlans.length > 3 && (
+                <Text style={styles.tileMore}>+ {clientPlans.length - 3} weitere</Text>
+              )}
+            </View>
+          </View>
+
           {/* Key Metrics */}
           <View style={styles.metricsGrid}>
             <View style={styles.metricCard}>
@@ -182,18 +245,14 @@ export default function ClientProgressScreen() {
             </View>
           </View>
 
-          {/* Letzte Workouts */}
+          {/* Alle Workouts (Details, erweitert) — nur wenn mehr als 3 vorhanden */}
+          {clientWorkouts.length > 3 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <History size={20} color={Colors.accent} />
-              <Text style={styles.sectionTitle}>Letzte Workouts</Text>
+              <Text style={styles.sectionTitle}>Alle Workouts</Text>
             </View>
-            {recentWorkoutsSorted.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyCardText}>Noch keine Workouts absolviert.</Text>
-              </View>
-            ) : (
-              recentWorkoutsSorted.map((w) => (
+            {recentWorkoutsSorted.map((w) => (
                 <TouchableOpacity
                   key={w.id}
                   style={styles.listCard}
@@ -210,22 +269,18 @@ export default function ClientProgressScreen() {
                   </View>
                   <ChevronRight size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
-              ))
-            )}
+              ))}
           </View>
+          )}
 
-          {/* Trainingspläne */}
+          {/* Alle Pläne (erweitert) — nur wenn mehr als 3 */}
+          {clientPlans.length > 3 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <ClipboardList size={20} color={Colors.accent} />
-              <Text style={styles.sectionTitle}>Trainingspläne</Text>
+              <Text style={styles.sectionTitle}>Alle Trainingspläne</Text>
             </View>
-            {clientPlans.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyCardText}>Noch keine Trainingspläne zugewiesen.</Text>
-              </View>
-            ) : (
-              clientPlans.map((p) => (
+            {clientPlans.map((p) => (
                 <TouchableOpacity
                   key={p.id}
                   style={styles.listCard}
@@ -241,9 +296,9 @@ export default function ClientProgressScreen() {
                   </View>
                   <ChevronRight size={18} color={Colors.textMuted} />
                 </TouchableOpacity>
-              ))
-            )}
+              ))}
           </View>
+          )}
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -284,4 +339,14 @@ const createStyles = (Colors: any) => StyleSheet.create({
   listCardMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
   emptyCard: { backgroundColor: Colors.surface, padding: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
   emptyCardText: { color: Colors.textMuted, fontSize: 14 },
+  tilesRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: Spacing.lg, gap: Spacing.md, marginTop: Spacing.md },
+  tileCard: { flex: 1, minWidth: 220, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
+  tileHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm, paddingBottom: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  tileTitle: { flex: 1, fontSize: 15, fontWeight: '600' as const, color: Colors.text },
+  tileBadge: { backgroundColor: Colors.accent, color: Colors.text, fontSize: 12, fontWeight: '700' as const, paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.full, minWidth: 24, textAlign: 'center' as const },
+  tileEmpty: { color: Colors.textMuted, fontSize: 12, fontStyle: 'italic' as const, paddingVertical: Spacing.sm },
+  tileItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
+  tileItemTitle: { fontSize: 13, fontWeight: '500' as const, color: Colors.text },
+  tileItemMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
+  tileMore: { fontSize: 11, color: Colors.accent, marginTop: Spacing.xs, fontStyle: 'italic' as const },
 });

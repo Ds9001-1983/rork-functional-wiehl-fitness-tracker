@@ -62,8 +62,8 @@ export default function CustomerManagementScreen() {
   };
 
   const openClientDetails = (client: UserType) => {
-    setSelectedClient(client);
-    setShowClientDetails(true);
+    // Navigate to the trainer-tabs client-progress screen (with the two tiles + metrics)
+    router.push(`/(trainer-tabs)/client-progress/${client.id}` as any);
   };
 
   if (!isTrainer) {

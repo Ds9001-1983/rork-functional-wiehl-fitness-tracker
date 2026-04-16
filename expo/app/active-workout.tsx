@@ -57,9 +57,17 @@ export default function ActiveWorkoutScreen() {
   const handleFinishWorkout = async () => {
     Alert.alert(
       'Workout beenden',
-      'Möchtest du das Workout speichern und beenden?',
+      'Möchtest du das Workout speichern oder verwerfen?',
       [
-        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Weiter trainieren', style: 'cancel' },
+        {
+          text: 'Verwerfen',
+          style: 'destructive',
+          onPress: () => {
+            endWorkout();
+            router.back();
+          },
+        },
         {
           text: 'Speichern',
           onPress: async () => {
