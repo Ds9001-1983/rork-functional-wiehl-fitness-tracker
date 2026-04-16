@@ -12,6 +12,7 @@ interface AuthState {
   logout: () => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  updateProfile: (updates: { name?: string; phone?: string; avatar?: string }) => Promise<void>;
   clearStorage: () => Promise<void>;
 }
 
@@ -130,7 +131,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     if (!user) return;
 
     // Passwort auf dem Server ändern
-    await trpcClient.auth.changePassword.mutate({ currentPassword, newPassword });
+    await trpcClient.auth.updatePassword.mutate({ userId: user.id, currentPassword, newPassword });
 
     const updatedUser = { ...user, passwordChanged: true };
     setUser(updatedUser);
@@ -161,6 +162,14 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     }
   }, []);
 
+  const updateProfile = useCallback(async (updates: { name?: string; phone?: string; avatar?: string }) => {
+    if (!user?.id) throw new Error('NOT_AUTHENTICATED');
+    await trpcClient.profile.update.mutate({ userId: user.id, ...updates });
+    const updatedUser = { ...user, ...updates };
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  }, [user]);
+
   const authState = useMemo(() => ({
     user,
     isLoading,
@@ -169,8 +178,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     logout,
     updatePassword,
     resetPassword,
+    updateProfile,
     clearStorage,
-  }), [user, isLoading, login, logout, updatePassword, resetPassword, clearStorage]);
+  }), [user, isLoading, login, logout, updatePassword, resetPassword, updateProfile, clearStorage]);
 
   return authState;
 });

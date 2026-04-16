@@ -36,6 +36,13 @@ interface WorkoutState {
   createWorkoutPlan: (plan: Omit<WorkoutPlan, 'id'>) => Promise<void>;
   updateWorkoutPlan: (planId: string, updatedPlan: WorkoutPlan) => Promise<void>;
   assignPlanToUser: (planId: string, userId: string) => Promise<void>;
+  deletePlan: (planId: string) => Promise<void>;
+  deleteWorkout: (workoutId: string) => Promise<void>;
+  duplicatePlan: (planId: string) => Promise<void>;
+  instantiatePlan: (planId: string, userId: string) => Promise<void>;
+  repeatWorkout: (workoutId: string) => void;
+  saveRoutine: (workout: Workout) => Promise<void>;
+  updateWorkout: (workoutId: string, updates: Partial<Workout>) => Promise<void>;
 }
 
 export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(() => {
@@ -356,6 +363,62 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);
 
+  const deletePlan = useCallback(async (planId: string) => {
+    const next = workoutPlans.filter(p => p.id !== planId);
+    setWorkoutPlans(next);
+    await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+    try { await (trpcClient as any).plans.delete?.mutate({ id: planId }); } catch {}
+  }, [workoutPlans]);
+
+  const deleteWorkout = useCallback(async (workoutId: string) => {
+    const next = workouts.filter(w => w.id !== workoutId);
+    setWorkouts(next);
+    await AsyncStorage.setItem('workouts', JSON.stringify(next));
+    try { await (trpcClient as any).workouts.delete?.mutate({ id: workoutId }); } catch {}
+  }, [workouts]);
+
+  const duplicatePlan = useCallback(async (planId: string) => {
+    const plan = workoutPlans.find(p => p.id === planId);
+    if (!plan) return;
+    const copy: WorkoutPlan = { ...plan, id: Date.now().toString(), name: `${plan.name} (Kopie)` };
+    const next = [...workoutPlans, copy];
+    setWorkoutPlans(next);
+    await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+  }, [workoutPlans]);
+
+  const instantiatePlan = useCallback(async (planId: string, userId: string) => {
+    try { await (trpcClient as any).plans.instantiate?.mutate({ planId, userId }); } catch {}
+  }, []);
+
+  const repeatWorkout = useCallback((workoutId: string) => {
+    const previous = workouts.find(w => w.id === workoutId);
+    if (!previous) return;
+    const fresh: Workout = {
+      ...previous,
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      completed: false,
+      exercises: previous.exercises.map((e) => ({
+        ...e,
+        sets: e.sets.map((s) => ({ ...s, completed: false })),
+      })),
+    };
+    setActiveWorkout(fresh);
+  }, [workouts]);
+
+  const saveRoutine = useCallback(async (workout: Workout) => {
+    const stored = await AsyncStorage.getItem('routines');
+    const list: Workout[] = stored ? JSON.parse(stored) : [];
+    list.push({ ...workout, id: Date.now().toString() });
+    await AsyncStorage.setItem('routines', JSON.stringify(list));
+  }, []);
+
+  const updateWorkout = useCallback(async (workoutId: string, updates: Partial<Workout>) => {
+    const next = workouts.map(w => w.id === workoutId ? { ...w, ...updates } : w);
+    setWorkouts(next);
+    await AsyncStorage.setItem('workouts', JSON.stringify(next));
+  }, [workouts]);
+
   return useMemo(() => ({
     workouts,
     workoutPlans,
@@ -375,5 +438,12 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     createWorkoutPlan,
     updateWorkoutPlan,
     assignPlanToUser,
-  }), [workouts, workoutPlans, activeWorkout, isLoading, currentUserId, startWorkout, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, saveWorkout, getWorkoutHistory, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser]);
+    deletePlan,
+    deleteWorkout,
+    duplicatePlan,
+    instantiatePlan,
+    repeatWorkout,
+    saveRoutine,
+    updateWorkout,
+  }), [workouts, workoutPlans, activeWorkout, isLoading, currentUserId, startWorkout, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, saveWorkout, getWorkoutHistory, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, deletePlan, deleteWorkout, duplicatePlan, instantiatePlan, repeatWorkout, saveRoutine, updateWorkout]);
 });
