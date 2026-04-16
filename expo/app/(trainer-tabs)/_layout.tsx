@@ -1,5 +1,5 @@
 import { Tabs, Redirect } from "expo-router";
-import { Users, ClipboardList, User, MessageSquare, Bell } from "lucide-react-native";
+import { Users, ClipboardList, User, MessageSquare, Bell, Calendar } from "lucide-react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
@@ -104,6 +104,13 @@ export default function TrainerTabLayout() {
         options={{
           title: "Trainingspläne",
           tabBarIcon: ({ color }) => <ClipboardList size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="kurse"
+        options={{
+          title: "Kurse",
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
         }}
       />
       <Tabs.Screen

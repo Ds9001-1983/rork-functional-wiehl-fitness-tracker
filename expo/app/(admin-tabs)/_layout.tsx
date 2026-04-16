@@ -100,6 +100,13 @@ export default function AdminTabLayout() {
         }}
       />
       <Tabs.Screen
+        name="kurse"
+        options={{
+          title: "Kurse",
+          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="users"
         options={{
           title: "Nutzer",
@@ -110,7 +117,7 @@ export default function AdminTabLayout() {
         name="system"
         options={{
           title: "System",
-          tabBarIcon: ({ color }) => <Calendar size={24} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
