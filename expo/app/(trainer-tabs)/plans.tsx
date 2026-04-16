@@ -327,6 +327,11 @@ export default function TrainerPlansScreen() {
           <Text style={styles.primaryButtonText}>Neues Training planen</Text>
         </TouchableOpacity>
         <View style={{ height: Spacing.sm }} />
+        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: Colors.surfaceLight }]} onPress={() => router.push('/training-units-selection' as any)}>
+          <ClipboardList size={18} color={Colors.text} />
+          <Text style={styles.primaryButtonText}>Trainingseinheiten auswählen</Text>
+        </TouchableOpacity>
+        <View style={{ height: Spacing.sm }} />
         <AiPlanPreview
           onCreatePlan={async (days) => {
             for (const day of days) {

@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Settings, Users } from 'lucide-react-native';
+import { LogOut, User, Settings, Users, Ruler, Trophy, Shield } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -84,6 +84,30 @@ export default function ProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Settings size={20} color={Colors.textMuted} />
               <Text style={styles.menuItemText}>Passwort ändern</Text>
+            </View>
+          </TouchableOpacity>
+
+          {user?.role === 'client' && (
+            <>
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/body-measurements' as any)}>
+                <View style={styles.menuItemLeft}>
+                  <Ruler size={20} color={Colors.textMuted} />
+                  <Text style={styles.menuItemText}>Meine Körpermaße</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/challenges' as any)}>
+                <View style={styles.menuItemLeft}>
+                  <Trophy size={20} color={Colors.textMuted} />
+                  <Text style={styles.menuItemText}>Challenges</Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-policy' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Shield size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Datenschutz</Text>
             </View>
           </TouchableOpacity>
         </View>

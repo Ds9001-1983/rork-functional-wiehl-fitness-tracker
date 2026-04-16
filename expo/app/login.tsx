@@ -241,6 +241,14 @@ export default function LoginScreen() {
                 Einen Trainer bitten dich einzuladen
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={{ marginTop: Spacing.md, padding: Spacing.sm }}
+              onPress={() => router.push('/privacy-policy' as any)}
+            >
+              <Text style={{ color: Colors.textSecondary, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline' }}>
+                Datenschutzerklärung
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </KeyboardAvoidingView>

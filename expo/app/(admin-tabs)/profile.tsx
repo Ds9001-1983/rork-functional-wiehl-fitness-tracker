@@ -112,6 +112,13 @@ export default function AdminProfileScreen() {
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-policy' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Shield size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Datenschutz</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>

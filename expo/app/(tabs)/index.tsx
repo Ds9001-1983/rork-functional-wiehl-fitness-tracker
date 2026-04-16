@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Play, Plus, Clock, TrendingUp, ClipboardList } from 'lucide-react-native';
+import { Play, Plus, Clock, TrendingUp, ClipboardList, Trophy, Repeat } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
@@ -116,6 +116,21 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         )}
 
+        {user?.role === 'client' && (
+          <View style={styles.quickRow}>
+            <TouchableOpacity style={styles.quickCard} onPress={() => router.push('/routines' as any)}>
+              <Repeat size={22} color={Colors.accent} />
+              <Text style={styles.quickCardTitle}>Meine Routinen</Text>
+              <Text style={styles.quickCardSub}>Schnellstart</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickCard} onPress={() => router.push('/leaderboard' as any)}>
+              <Trophy size={22} color={Colors.success} />
+              <Text style={styles.quickCardTitle}>Rangliste</Text>
+              <Text style={styles.quickCardSub}>XP-Ranking</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {user?.role === 'client' && workoutPlans.length > 0 && (
           <View style={styles.plansSection}>
             <Text style={styles.sectionTitle}>Meine Trainingspläne</Text>
@@ -208,6 +223,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
     marginBottom: Spacing.lg,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  quickCard: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'flex-start',
+    gap: 4,
+  },
+  quickCardTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    marginTop: Spacing.xs,
+  },
+  quickCardSub: {
+    color: Colors.textSecondary,
+    fontSize: 12,
   },
   startButton: {
     flexDirection: 'row',

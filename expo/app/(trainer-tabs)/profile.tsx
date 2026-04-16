@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Users, Lock, Edit3, Phone, ChevronRight, X } from 'lucide-react-native';
+import { LogOut, User, Users, Lock, Edit3, Phone, ChevronRight, X, Trophy, Shield } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -119,6 +119,20 @@ export default function TrainerProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Lock size={20} color={Colors.textMuted} />
               <Text style={styles.menuItemText}>Passwort ändern</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/challenges' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Trophy size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Challenges</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/privacy-policy' as any)}>
+            <View style={styles.menuItemLeft}>
+              <Shield size={20} color={Colors.textMuted} />
+              <Text style={styles.menuItemText}>Datenschutz</Text>
             </View>
             <ChevronRight size={20} color={Colors.textMuted} />
           </TouchableOpacity>
