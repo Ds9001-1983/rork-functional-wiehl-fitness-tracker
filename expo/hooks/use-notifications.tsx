@@ -4,24 +4,27 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { trpcClient } from '@/lib/trpc';
 
-// Notification-Verhalten konfigurieren
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+const isWeb = Platform.OS === 'web';
+
+if (!isWeb) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export function useNotifications(userId: string | null) {
   const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
   const responseListener = useRef<Notifications.Subscription | undefined>(undefined);
 
   const registerForPushNotifications = useCallback(async () => {
+    if (isWeb) return;
     if (!userId) return;
 
     try {
-      // Berechtigungen anfragen
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
@@ -35,19 +38,14 @@ export function useNotifications(userId: string | null) {
         return;
       }
 
-      // Push-Token holen
       const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-      const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId,
-      });
+      const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       const token = tokenData.data;
       console.log('[Notifications] Push token:', token);
 
-      // Token am Server registrieren
       await trpcClient.push.register.mutate({ token });
       console.log('[Notifications] Token am Server registriert');
 
-      // Android-Kanal einrichten
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
           name: 'Functional Wiehl',
@@ -61,14 +59,14 @@ export function useNotifications(userId: string | null) {
   }, [userId]);
 
   useEffect(() => {
+    if (isWeb) return;
+
     registerForPushNotifications();
 
-    // Listener für eingehende Notifications (App im Vordergrund)
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       console.log('[Notifications] Empfangen:', notification.request.content.title);
     });
 
-    // Listener für Notification-Tap (App wird geöffnet)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('[Notifications] Getappt:', response.notification.request.content.data);
     });

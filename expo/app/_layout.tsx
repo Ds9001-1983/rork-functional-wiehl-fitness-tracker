@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
@@ -74,17 +75,19 @@ export default function RootLayout() {
     <trpc.Provider client={trpcReactClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <AuthProvider>
-            <ClientsProvider>
-              <WorkoutProvider>
-                <CoursesProvider>
-                  <ErrorBoundary>
-                    <RootLayoutNav />
-                  </ErrorBoundary>
-                </CoursesProvider>
-              </WorkoutProvider>
-            </ClientsProvider>
-          </AuthProvider>
+          <SafeAreaProvider>
+            <AuthProvider>
+              <ClientsProvider>
+                <WorkoutProvider>
+                  <CoursesProvider>
+                    <ErrorBoundary>
+                      <RootLayoutNav />
+                    </ErrorBoundary>
+                  </CoursesProvider>
+                </WorkoutProvider>
+              </ClientsProvider>
+            </AuthProvider>
+          </SafeAreaProvider>
         </GestureHandlerRootView>
       </QueryClientProvider>
     </trpc.Provider>
