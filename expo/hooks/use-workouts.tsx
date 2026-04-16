@@ -39,7 +39,7 @@ interface WorkoutState {
   deletePlan: (planId: string) => Promise<void>;
   deleteWorkout: (workoutId: string) => Promise<void>;
   duplicatePlan: (planId: string) => Promise<void>;
-  instantiatePlan: (planId: string, userId: string) => Promise<void>;
+  instantiatePlan: (planId: string, userIds: string[]) => Promise<void>;
   repeatWorkout: (workoutId: string) => void;
   saveRoutine: (workout: Workout) => Promise<void>;
   updateWorkout: (workoutId: string, updates: Partial<Workout>) => Promise<void>;
@@ -386,8 +386,8 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
   }, [workoutPlans]);
 
-  const instantiatePlan = useCallback(async (planId: string, userId: string) => {
-    try { await (trpcClient as any).plans.instantiate?.mutate({ planId, userId }); } catch {}
+  const instantiatePlan = useCallback(async (planId: string, userIds: string[]) => {
+    await trpcClient.plans.instantiate.mutate({ templateId: planId, userIds });
   }, []);
 
   const repeatWorkout = useCallback((workoutId: string) => {

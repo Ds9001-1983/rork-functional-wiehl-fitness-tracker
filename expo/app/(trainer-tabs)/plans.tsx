@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { ClipboardList, Plus, Send, X, Edit3, Users, Trash2, Copy, Check, Search, Dumbbell, FileText, GitBranch } from 'lucide-react-native';
@@ -17,7 +17,11 @@ import { AiPlanPreview } from '@/components/AiPlanPreview';
 export default function TrainerPlansScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
-  const { createWorkoutPlan, assignPlanToUser, instantiatePlan, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans } = useWorkouts();
+  const { createWorkoutPlan, assignPlanToUser, instantiatePlan, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans, setCurrentUserId } = useWorkouts();
+
+  useEffect(() => {
+    if (user?.id) setCurrentUserId(user.id);
+  }, [user?.id, setCurrentUserId]);
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 

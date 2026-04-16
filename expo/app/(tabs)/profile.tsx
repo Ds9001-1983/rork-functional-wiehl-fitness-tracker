@@ -1,22 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LogOut, User, Settings, Users, Ruler, Trophy, Shield } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const { clients } = useClients();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -24,33 +25,30 @@ export default function ProfileScreen() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Abmelden',
-      'Möchtest du dich wirklich abmelden?',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Abmelden',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🚪 Logout wird ausgeführt...');
-              await logout();
-              console.log('✅ Logout erfolgreich');
-              router.replace('/login');
-            } catch (error) {
-              console.error('❌ Fehler beim Logout:', error);
-              Alert.alert('Fehler', 'Beim Abmelden ist ein Fehler aufgetreten.');
-            }
-          },
-        },
-      ]
-    );
+  const confirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      console.log('🚪 Logout wird ausgeführt...');
+      await logout();
+      console.log('✅ Logout erfolgreich');
+      router.replace('/login');
+    } catch (error) {
+      console.error('❌ Fehler beim Logout:', error);
+    }
   };
 
   return (
     <View style={styles.container}>
+      <ConfirmDialog
+        visible={showLogoutConfirm}
+        title="Abmelden"
+        message="Möchtest du dich wirklich abmelden?"
+        confirmText="Abmelden"
+        cancelText="Abbrechen"
+        destructive
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -126,7 +124,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutConfirm(true)}>
           <LogOut size={20} color={Colors.text} />
           <Text style={styles.logoutButtonText}>Abmelden</Text>
         </TouchableOpacity>
