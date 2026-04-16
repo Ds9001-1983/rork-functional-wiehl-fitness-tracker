@@ -1,30 +1,55 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
-import { TrendingUp, Calendar, Target, Flame, Dumbbell, BarChart3 } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { TrendingUp, Calendar, Target, Flame, Dumbbell, BarChart3, ClipboardList, ChevronRight, History } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
+
+interface WorkoutListItem {
+  id: string;
+  name: string;
+  date: string;
+  duration?: number;
+  exercises?: unknown[];
+}
+
+interface PlanListItem {
+  id: string;
+  name: string;
+  description?: string;
+  exercises?: unknown[];
+  isInstance?: boolean;
+  templateId?: string | null;
+  assignedUserId?: string | null;
+}
 
 export default function ClientProgressScreen() {
   const { id: clientId } = useLocalSearchParams<{ id: string }>();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<any>(null);
   const [clientName, setClientName] = useState('');
+  const [clientWorkouts, setClientWorkouts] = useState<WorkoutListItem[]>([]);
+  const [clientPlans, setClientPlans] = useState<PlanListItem[]>([]);
 
   useEffect(() => {
     if (!clientId) return;
     const load = async () => {
       try {
-        const [data, clients] = await Promise.all([
+        const [data, clients, workouts, plans] = await Promise.all([
           trpcClient.clients.progress.query({ clientId }),
           trpcClient.clients.list.query(),
+          trpcClient.workouts.list.query({ userId: clientId }).catch(() => []),
+          trpcClient.plans.list.query({ userId: clientId }).catch(() => []),
         ]);
         setProgress(data);
         const client = (clients as any[]).find((c: any) => c.id === clientId || c.userId === clientId);
         if (client) setClientName(client.name);
+        setClientWorkouts((workouts as WorkoutListItem[]) || []);
+        setClientPlans((plans as PlanListItem[]) || []);
       } catch {}
       setLoading(false);
     };
@@ -60,6 +85,9 @@ export default function ClientProgressScreen() {
   }
 
   const maxVolume = Math.max(...progress.weeklyData.map((w: any) => w.volume), 1);
+  const recentWorkoutsSorted = [...clientWorkouts]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   return (
     <>
@@ -149,6 +177,69 @@ export default function ClientProgressScreen() {
             </View>
           </View>
 
+          {/* Letzte Workouts */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <History size={20} color={Colors.accent} />
+              <Text style={styles.sectionTitle}>Letzte Workouts</Text>
+            </View>
+            {recentWorkoutsSorted.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardText}>Noch keine Workouts absolviert.</Text>
+              </View>
+            ) : (
+              recentWorkoutsSorted.map((w) => (
+                <TouchableOpacity
+                  key={w.id}
+                  style={styles.listCard}
+                  onPress={() => router.push(`/workout-detail/${w.id}` as any)}
+                >
+                  <Dumbbell size={18} color={Colors.accent} />
+                  <View style={styles.listCardInfo}>
+                    <Text style={styles.listCardTitle}>{w.name}</Text>
+                    <Text style={styles.listCardMeta}>
+                      {new Date(w.date).toLocaleDateString('de-DE')}
+                      {w.exercises ? ` · ${(w.exercises as unknown[]).length} Übungen` : ''}
+                      {w.duration ? ` · ${w.duration} min` : ''}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+          {/* Trainingspläne */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ClipboardList size={20} color={Colors.accent} />
+              <Text style={styles.sectionTitle}>Trainingspläne</Text>
+            </View>
+            {clientPlans.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyCardText}>Noch keine Trainingspläne zugewiesen.</Text>
+              </View>
+            ) : (
+              clientPlans.map((p) => (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.listCard}
+                  onPress={() => router.push(`/trainer-plan-edit/${p.id}` as any)}
+                >
+                  <ClipboardList size={18} color={Colors.accent} />
+                  <View style={styles.listCardInfo}>
+                    <Text style={styles.listCardTitle}>{p.name}</Text>
+                    <Text style={styles.listCardMeta}>
+                      {p.exercises ? `${(p.exercises as unknown[]).length} Übungen` : ''}
+                      {p.isInstance ? ' · Persönliche Instanz' : ' · Template'}
+                    </Text>
+                  </View>
+                  <ChevronRight size={18} color={Colors.textMuted} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
@@ -182,4 +273,10 @@ const createStyles = (Colors: any) => StyleSheet.create({
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
   summaryLabel: { fontSize: 14, color: Colors.textSecondary },
   summaryValue: { fontSize: 14, fontWeight: '600' as const, color: Colors.text },
+  listCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.surface, padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, marginBottom: Spacing.sm },
+  listCardInfo: { flex: 1 },
+  listCardTitle: { fontSize: 15, fontWeight: '600' as const, color: Colors.text },
+  listCardMeta: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  emptyCard: { backgroundColor: Colors.surface, padding: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, alignItems: 'center' },
+  emptyCardText: { color: Colors.textMuted, fontSize: 14 },
 });

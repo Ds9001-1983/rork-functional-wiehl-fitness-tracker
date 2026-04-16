@@ -62,6 +62,7 @@ function RootLayoutNav() {
       <Stack.Screen name="admin-courses" options={{ title: 'Kursverwaltung' }} />
       <Stack.Screen name="admin-course-detail" options={{ title: 'Kurs' }} />
       <Stack.Screen name="admin-penalties" options={{ title: 'No-Show Verwaltung' }} />
+      <Stack.Screen name="trainer-plan-edit/[id]" options={{ title: 'Plan bearbeiten' }} />
     </Stack>
   );
 }
