@@ -16,6 +16,13 @@ export async function generateUpcomingInstances(days = INSTANCE_GENERATION_DAYS)
       if (s.day_of_week !== ourDow) continue;
       if (s.valid_from && dateStr < s.valid_from) continue;
       if (s.valid_until && dateStr > s.valid_until) continue;
+      // Rhythmus: bei recurrence_weeks=2 nur jede zweite Woche ab valid_from
+      if (s.recurrence_weeks === 2) {
+        const anchor = new Date(s.valid_from + 'T00:00:00Z').getTime();
+        const current = new Date(dateStr + 'T00:00:00Z').getTime();
+        const weeks = Math.floor((current - anchor) / (7 * 24 * 60 * 60 * 1000));
+        if (weeks % 2 !== 0) continue;
+      }
       const course = courses.get(s.course_id);
       if (!course || !course.is_active) continue;
       const startIso = berlinLocalToUtcIso(dateStr, s.start_time);

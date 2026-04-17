@@ -80,6 +80,7 @@ export const createSchedule = protectedProcedure
     start_time: z.string().regex(/^\d{2}:\d{2}$/),
     valid_from: z.string(),
     valid_until: z.string().nullable().optional(),
+    recurrence_weeks: z.union([z.literal(1), z.literal(2)]).optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);
@@ -89,6 +90,7 @@ export const createSchedule = protectedProcedure
       start_time: input.start_time,
       valid_from: input.valid_from,
       valid_until: input.valid_until ?? null,
+      recurrence_weeks: input.recurrence_weeks ?? 1,
     });
     await generateUpcomingInstances();
     return s;
@@ -107,6 +109,7 @@ export const updateSchedule = protectedProcedure
     start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
     valid_from: z.string().optional(),
     valid_until: z.string().nullable().optional(),
+    recurrence_weeks: z.union([z.literal(1), z.literal(2)]).optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);

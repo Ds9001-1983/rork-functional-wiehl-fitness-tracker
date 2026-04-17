@@ -14,7 +14,7 @@ function formatDe(iso: string) {
 }
 
 export default function AdminCourseDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, openSchedule } = useLocalSearchParams<{ id: string; openSchedule?: string }>();
   const [tab, setTab] = useState<'schedules' | 'instances' | 'log'>('schedules');
   type Schedule = Awaited<ReturnType<typeof trpcClient.courses.admin.listSchedules.query>>[number];
   type Instance = Awaited<ReturnType<typeof trpcClient.courses.admin.listInstances.query>>[number];
@@ -23,7 +23,7 @@ export default function AdminCourseDetailScreen() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [newSched, setNewSched] = useState({ day_of_week: 0, start_time: '18:00', valid_from: new Date().toISOString().slice(0, 10), valid_until: '' });
+  const [newSched, setNewSched] = useState<{ day_of_week: number; start_time: string; valid_from: string; valid_until: string; recurrence_weeks: 1 | 2 }>({ day_of_week: 0, start_time: '18:00', valid_from: new Date().toISOString().slice(0, 10), valid_until: '', recurrence_weeks: 1 });
   const [instanceModal, setInstanceModal] = useState(false);
   const [newInst, setNewInst] = useState({ date: new Date().toISOString().slice(0, 10), time: '18:00' });
   const [logModal, setLogModal] = useState<{ id: string } | null>(null);
@@ -43,14 +43,36 @@ export default function AdminCourseDetailScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (openSchedule === '1') {
+      setTab('schedules');
+      setModalOpen(true);
+    }
+  }, [openSchedule]);
+
   const addSchedule = async () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newSched.valid_from)) {
+      infoAlert('Fehler', 'Beginn muss im Format YYYY-MM-DD sein');
+      return;
+    }
+    if (newSched.valid_until && !/^\d{4}-\d{2}-\d{2}$/.test(newSched.valid_until)) {
+      infoAlert('Fehler', 'Ende muss leer oder im Format YYYY-MM-DD sein');
+      return;
+    }
+    if (newSched.valid_until && newSched.valid_until < newSched.valid_from) {
+      infoAlert('Fehler', 'Ende darf nicht vor dem Beginn liegen');
+      return;
+    }
     try {
       await trpcClient.courses.admin.createSchedule.mutate({
         course_id: id!, day_of_week: newSched.day_of_week,
         start_time: newSched.start_time, valid_from: newSched.valid_from,
         valid_until: newSched.valid_until || null,
+        recurrence_weeks: newSched.recurrence_weeks,
       });
-      setModalOpen(false); await load();
+      setModalOpen(false);
+      setNewSched({ day_of_week: 0, start_time: '18:00', valid_from: new Date().toISOString().slice(0, 10), valid_until: '', recurrence_weeks: 1 });
+      await load();
     } catch (e: any) { infoAlert('Fehler', e?.message); }
   };
 
@@ -114,8 +136,12 @@ export default function AdminCourseDetailScreen() {
             </Pressable>
             {schedules.map((s) => (
               <View key={s.id} style={styles.row}>
-                <Text style={styles.rowText}>{DAYS[s.day_of_week]} · {s.start_time}</Text>
-                <Text style={styles.meta}>ab {s.valid_from}{s.valid_until ? ` bis ${s.valid_until}` : ''}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowText}>{DAYS[s.day_of_week]} · {s.start_time}</Text>
+                  <Text style={styles.meta}>
+                    {s.recurrence_weeks === 2 ? 'alle 2 Wochen' : 'wöchentlich'} · ab {s.valid_from}{s.valid_until ? ` bis ${s.valid_until}` : ''}
+                  </Text>
+                </View>
                 <Pressable onPress={() => deleteSchedule(s.id)}><Text style={[styles.link, { color: Colors.error }]}>Löschen</Text></Pressable>
               </View>
             ))}
@@ -158,8 +184,25 @@ export default function AdminCourseDetailScreen() {
               ))}
             </View>
             <TextInput style={styles.input} placeholder="Uhrzeit HH:MM" placeholderTextColor={Colors.textMuted} value={newSched.start_time} onChangeText={v => setNewSched({ ...newSched, start_time: v })} />
-            <TextInput style={styles.input} placeholder="Gültig ab YYYY-MM-DD" placeholderTextColor={Colors.textMuted} value={newSched.valid_from} onChangeText={v => setNewSched({ ...newSched, valid_from: v })} />
-            <TextInput style={styles.input} placeholder="Gültig bis (optional) YYYY-MM-DD" placeholderTextColor={Colors.textMuted} value={newSched.valid_until} onChangeText={v => setNewSched({ ...newSched, valid_until: v })} />
+            <Text style={styles.label}>Beginn (Start des Kurses)</Text>
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} value={newSched.valid_from} onChangeText={v => setNewSched({ ...newSched, valid_from: v })} />
+            <Text style={styles.label}>Ende (optional, leer lassen für unbegrenzt)</Text>
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD" placeholderTextColor={Colors.textMuted} value={newSched.valid_until} onChangeText={v => setNewSched({ ...newSched, valid_until: v })} />
+            <Text style={styles.label}>Rhythmus</Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.md }}>
+              <Pressable
+                style={[styles.dayBtn, { flex: 1 }, newSched.recurrence_weeks === 1 && styles.dayBtnActive]}
+                onPress={() => setNewSched({ ...newSched, recurrence_weeks: 1 })}
+              >
+                <Text style={styles.dayText}>Wöchentlich</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.dayBtn, { flex: 1 }, newSched.recurrence_weeks === 2 && styles.dayBtnActive]}
+                onPress={() => setNewSched({ ...newSched, recurrence_weeks: 2 })}
+              >
+                <Text style={styles.dayText}>Alle 2 Wochen</Text>
+              </Pressable>
+            </View>
             <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
               <Pressable style={[styles.modalBtn, { backgroundColor: Colors.surfaceLight }]} onPress={() => setModalOpen(false)}><Text style={styles.btnText}>Abbrechen</Text></Pressable>
               <Pressable style={[styles.modalBtn, { backgroundColor: Colors.accent }]} onPress={addSchedule}><Text style={styles.btnText}>Anlegen</Text></Pressable>
@@ -230,6 +273,7 @@ const styles = StyleSheet.create({
   modalTitle: { color: Colors.text, fontSize: 18, fontWeight: '700', marginBottom: Spacing.md },
   input: { backgroundColor: Colors.surfaceLight, color: Colors.text, padding: Spacing.sm, borderRadius: BorderRadius.sm, marginBottom: Spacing.sm },
   modalBtn: { flex: 1, padding: Spacing.md, borderRadius: BorderRadius.sm, alignItems: 'center' },
+  label: { color: Colors.textSecondary, fontSize: 12, marginBottom: 4, marginTop: Spacing.xs },
   dayBtn: { backgroundColor: Colors.surfaceLight, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm },
   dayBtnActive: { backgroundColor: Colors.accent },
   dayText: { color: Colors.text, fontWeight: '600' },

@@ -66,7 +66,7 @@ export default function AdminCoursesScreen() {
         await load();
         const newId = (created as any)?.id;
         if (newId) {
-          router.push(`/admin-course-detail?id=${newId}`);
+          router.push(`/admin-course-detail?id=${newId}&openSchedule=1`);
         }
       }
     } catch (e: any) { infoAlert('Fehler', e?.message); }

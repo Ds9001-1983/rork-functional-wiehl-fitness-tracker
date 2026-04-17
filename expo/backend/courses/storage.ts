@@ -24,6 +24,7 @@ export interface CourseSchedule {
   start_time: string; // HH:MM
   valid_from: string;
   valid_until: string | null;
+  recurrence_weeks: 1 | 2; // 1 = jede Woche, 2 = alle zwei Wochen (Anker = valid_from)
 }
 
 export interface CourseInstance {
@@ -113,9 +114,14 @@ export async function initCourseTables() {
         start_time TIME NOT NULL,
         valid_from DATE NOT NULL,
         valid_until DATE,
+        recurrence_weeks SMALLINT NOT NULL DEFAULT 1,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    await pool.query(`
+      ALTER TABLE course_schedules
+      ADD COLUMN IF NOT EXISTS recurrence_weeks SMALLINT NOT NULL DEFAULT 1
     `);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS course_instances (
@@ -222,9 +228,11 @@ function mapCourseRow(r: any): Course {
   };
 }
 function mapScheduleRow(r: any): CourseSchedule {
+  const rec = Number(r.recurrence_weeks);
   return { id: String(r.id), course_id: String(r.course_id), day_of_week: r.day_of_week,
     start_time: typeof r.start_time === 'string' ? r.start_time.slice(0, 5) : r.start_time,
-    valid_from: toDateOnly(r.valid_from)!, valid_until: toDateOnly(r.valid_until) };
+    valid_from: toDateOnly(r.valid_from)!, valid_until: toDateOnly(r.valid_until),
+    recurrence_weeks: rec === 2 ? 2 : 1 };
 }
 function mapInstanceRow(r: any): CourseInstance {
   return { id: String(r.id), course_id: String(r.course_id), schedule_id: r.schedule_id ? String(r.schedule_id) : null,
@@ -318,21 +326,22 @@ export const schedulesStore = {
   },
   async create(data: Omit<CourseSchedule, 'id'>): Promise<CourseSchedule> {
     const pool = needDb();
+    const rec = data.recurrence_weeks === 2 ? 2 : 1;
     if (pool) {
       const r = await pool.query(
-        `INSERT INTO course_schedules (course_id, day_of_week, start_time, valid_from, valid_until)
-         VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-        [parseInt(data.course_id), data.day_of_week, data.start_time, data.valid_from, data.valid_until]
+        `INSERT INTO course_schedules (course_id, day_of_week, start_time, valid_from, valid_until, recurrence_weeks)
+         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+        [parseInt(data.course_id), data.day_of_week, data.start_time, data.valid_from, data.valid_until, rec]
       );
       return mapScheduleRow(r.rows[0]);
     }
-    const s: CourseSchedule = { ...data, id: String(mem.counters.schedule++) };
+    const s: CourseSchedule = { ...data, id: String(mem.counters.schedule++), recurrence_weeks: rec };
     mem.schedules.push(s); return s;
   },
   async update(id: string, patch: Partial<Omit<CourseSchedule, 'id'>>): Promise<CourseSchedule | null> {
     const pool = needDb();
     if (pool) {
-      const allowed = ['day_of_week', 'start_time', 'valid_from', 'valid_until'] as const;
+      const allowed = ['day_of_week', 'start_time', 'valid_from', 'valid_until', 'recurrence_weeks'] as const;
       const { fields, values } = buildUpdate(patch, allowed);
       if (!fields.length) return null;
       fields.push(`updated_at=NOW()`); values.push(parseInt(id));
