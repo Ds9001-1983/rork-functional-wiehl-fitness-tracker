@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { protectedProcedure } from '../../create-context';
 import {
-  coursesStore, instancesStore, bookingsStore, penaltiesStore, waitlistStore,
+  coursesStore, schedulesStore, instancesStore, bookingsStore, penaltiesStore, waitlistStore,
 } from '../../../courses/storage';
 import { notifyWaitlistIfSpotFree } from '../../../courses/waitlist';
 import { sendPushToUser } from '../../../push/send';
@@ -33,6 +33,50 @@ async function resolveUserNames(userIds: string[]): Promise<Map<string, { name: 
   for (const id of userIds) if (!map.has(id)) map.set(id, { name: id, email: '' });
   return map;
 }
+
+export const listMyCourses = protectedProcedure
+  .query(async ({ ctx }) => {
+    requireTrainer(ctx.user.role);
+    const allCourses = await coursesStore.list(true);
+    const mine = allCourses.filter(c => c.trainer_id === ctx.user.userId);
+    const fromMs = Date.now() - 24 * 60 * 60 * 1000;
+    const toMs   = Date.now() + 14 * 24 * 60 * 60 * 1000;
+    const result: Array<{
+      course: typeof mine[number];
+      schedules: Awaited<ReturnType<typeof schedulesStore.listByCourse>>;
+      upcomingInstances: Array<{
+        id: string; start_time: string; status: string;
+        booked: number; available: number; max_participants: number;
+      }>;
+    }> = [];
+    for (const c of mine) {
+      const schedules = await schedulesStore.listByCourse(c.id);
+      const allInsts = await instancesStore.listByCourse(c.id);
+      const upcoming = allInsts
+        .filter(i => {
+          const t = new Date(i.start_time).getTime();
+          return t >= fromMs && t <= toMs;
+        })
+        .sort((a, b) => a.start_time.localeCompare(b.start_time));
+      const upcomingInstances: Array<{
+        id: string; start_time: string; status: string;
+        booked: number; available: number; max_participants: number;
+      }> = [];
+      for (const i of upcoming) {
+        const booked = await bookingsStore.countBookedForInstance(i.id);
+        upcomingInstances.push({
+          id: i.id,
+          start_time: i.start_time,
+          status: i.status,
+          booked,
+          available: i.max_participants - booked,
+          max_participants: i.max_participants,
+        });
+      }
+      result.push({ course: c, schedules, upcomingInstances });
+    }
+    return result;
+  });
 
 export const listMyInstances = protectedProcedure
   .input(z.object({ from: z.string().optional(), to: z.string().optional(), includePast: z.boolean().optional() }).optional())

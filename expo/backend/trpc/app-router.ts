@@ -188,6 +188,7 @@ export const appRouter = createTRPCRouter({
       generateNow: coursesAdmin.generateNow,
     }),
     trainer: createTRPCRouter({
+      listMyCourses: coursesTrainer.listMyCourses,
       listMyInstances: coursesTrainer.listMyInstances,
       getMyInstance: coursesTrainer.getMyInstance,
       markNoShow: coursesTrainer.markNoShow,

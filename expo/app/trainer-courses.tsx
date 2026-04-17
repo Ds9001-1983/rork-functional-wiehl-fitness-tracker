@@ -1,100 +1,222 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { trpcClient } from '@/lib/trpc';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
-import { confirmAlert, infoAlert } from '@/lib/alert';
-import { Users, XCircle } from 'lucide-react-native';
+import { infoAlert } from '@/lib/alert';
+import { Users, ChevronRight, Calendar } from 'lucide-react-native';
 import { TrainerOnly } from '@/components/TrainerOnly';
 
+const DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+
 function formatDe(iso: string) {
-  return new Date(iso).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
+type UpcomingInstance = {
+  id: string;
+  start_time: string;
+  status: string;
+  booked: number;
+  available: number;
+  max_participants: number;
+};
+
+type Schedule = {
+  id: string;
+  day_of_week: number;
+  start_time: string;
+  valid_from: string;
+  valid_until: string | null;
+  recurrence_weeks: 1 | 2;
+};
+
+type Course = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  duration_minutes: number;
+  max_participants: number;
+};
+
+type CourseGroup = {
+  course: Course;
+  schedules: Schedule[];
+  upcomingInstances: UpcomingInstance[];
+};
+
 export default function TrainerCoursesScreen() {
-  const [instances, setInstances] = useState<any[]>([]);
+  const [groups, setGroups] = useState<CourseGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const data = await trpcClient.courses.trainer.listMyInstances.query();
-      setInstances(data);
-    } catch (e: any) { infoAlert('Fehler', e?.message); }
-    finally { setLoading(false); setRefreshing(false); }
+      const data = await trpcClient.courses.trainer.listMyCourses.query();
+      setGroups(data as CourseGroup[]);
+    } catch (e: any) {
+      console.error('[TrainerCourses] load failed:', e);
+      infoAlert('Fehler', e?.message ?? 'Kurse konnten nicht geladen werden.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const onRefresh = useCallback(() => { setRefreshing(true); load(); }, [load]);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    load();
+  }, [load]);
 
-  const handleCancelInstance = (id: string, name: string) => {
-    confirmAlert('Termin absagen?', `${name} wirklich absagen? Alle Teilnehmer werden benachrichtigt.`,
-      async () => {
-        try { await trpcClient.courses.admin.cancelInstance.mutate({ id }); await load(); }
-        catch (e: any) { infoAlert('Fehler', e?.message); }
-      }, { confirmLabel: 'Absagen', destructive: true });
-  };
-
-  if (loading) return <TrainerOnly><View style={styles.center}><ActivityIndicator color={Colors.accent} /></View></TrainerOnly>;
+  if (loading) {
+    return (
+      <TrainerOnly>
+        <View style={styles.center}><ActivityIndicator color={Colors.accent} /></View>
+      </TrainerOnly>
+    );
+  }
 
   return (
-    <TrainerOnly><SafeAreaView edges={['bottom']} style={styles.container}>
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
-        contentContainerStyle={{ padding: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.xxl + Spacing.lg }}
-      >
-        {instances.length === 0 && <Text style={styles.empty}>Keine anstehenden Kurse.</Text>}
-        {instances.map(i => {
-          const fillPct = Math.round((i.booked / i.max_participants) * 100);
-          return (
-            <View key={i.id} style={styles.card}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={styles.name}>{i.course.name}</Text>
-                <Text style={styles.status}>{i.status}</Text>
+    <TrainerOnly>
+      <SafeAreaView edges={['bottom']} style={styles.container}>
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
+          contentContainerStyle={{ padding: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.xxl + Spacing.lg }}
+        >
+          {groups.length === 0 && (
+            <Text style={styles.empty}>
+              Noch keine Kurse zugeordnet. Sobald der Admin einen Kurs erstellt, erscheint er hier.
+            </Text>
+          )}
+
+          {groups.map(g => (
+            <View key={g.course.id} style={styles.card}>
+              <View style={styles.courseHeader}>
+                <Text style={styles.courseName}>{g.course.name}</Text>
+                {g.course.category ? <Text style={styles.badge}>{g.course.category}</Text> : null}
               </View>
-              <Text style={styles.time}>{formatDe(i.start_time)}</Text>
-              <View style={styles.fillBar}>
-                <View style={[styles.fillInner, { width: `${Math.min(fillPct, 100)}%`, backgroundColor: fillPct >= 100 ? Colors.error : Colors.accent }]} />
+              {g.course.description ? (
+                <Text style={styles.courseDesc}>{g.course.description}</Text>
+              ) : null}
+              <Text style={styles.courseMeta}>
+                {g.course.duration_minutes} min · max {g.course.max_participants} Teilnehmer
+              </Text>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Calendar size={14} color={Colors.textSecondary} />
+                  <Text style={styles.sectionTitle}>Wochenplan</Text>
+                </View>
+                {g.schedules.length === 0 ? (
+                  <Text style={styles.emptyInline}>Kein Wochenplan hinterlegt.</Text>
+                ) : (
+                  g.schedules.map(s => (
+                    <Text key={s.id} style={styles.scheduleLine}>
+                      · {DAYS[s.day_of_week]} {s.start_time} · {s.recurrence_weeks === 2 ? 'alle 2 Wochen' : 'wöchentlich'}
+                      {s.valid_until ? `  (bis ${s.valid_until})` : ''}
+                    </Text>
+                  ))
+                )}
               </View>
-              <View style={styles.row}>
-                <Users size={14} color={Colors.textSecondary} />
-                <Text style={styles.count}>{i.booked}/{i.max_participants} ({i.available} frei)</Text>
-              </View>
-              <View style={styles.actions}>
-                <Pressable style={styles.btn} onPress={() => router.push(`/trainer-course-participants?id=${i.id}`)}>
-                  <Text style={styles.btnText}>Teilnehmer</Text>
-                </Pressable>
-                {i.status === 'scheduled' && (
-                  <Pressable style={[styles.btn, styles.btnDanger]} onPress={() => handleCancelInstance(i.id, i.course.name)}>
-                    <XCircle size={14} color={Colors.text} />
-                    <Text style={styles.btnText}>Absagen</Text>
-                  </Pressable>
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Users size={14} color={Colors.textSecondary} />
+                  <Text style={styles.sectionTitle}>Nächste Termine</Text>
+                </View>
+                {g.upcomingInstances.length === 0 ? (
+                  <Text style={styles.emptyInline}>Keine anstehenden Termine in den nächsten 14 Tagen.</Text>
+                ) : (
+                  g.upcomingInstances.map(i => {
+                    const fillPct = Math.round((i.booked / i.max_participants) * 100);
+                    const isFull = fillPct >= 100;
+                    return (
+                      <Pressable
+                        key={i.id}
+                        style={styles.instanceRow}
+                        onPress={() => router.push(`/trainer-course-participants?id=${i.id}`)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.instanceTime}>{formatDe(i.start_time)}</Text>
+                          <View style={styles.fillBar}>
+                            <View style={[styles.fillInner, {
+                              width: `${Math.min(fillPct, 100)}%`,
+                              backgroundColor: isFull ? Colors.error : Colors.accent,
+                            }]} />
+                          </View>
+                          <Text style={styles.instanceMeta}>
+                            {i.booked}/{i.max_participants} · {i.available} frei
+                            {i.status !== 'scheduled' ? ` · ${i.status}` : ''}
+                          </Text>
+                        </View>
+                        <ChevronRight size={18} color={Colors.textMuted} />
+                      </Pressable>
+                    );
+                  })
                 )}
               </View>
             </View>
-          );
-        })}
-      </ScrollView>
-    </SafeAreaView></TrainerOnly>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </TrainerOnly>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background },
-  empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xl },
-  card: { backgroundColor: Colors.surface, padding: Spacing.md, borderRadius: BorderRadius.md, marginBottom: Spacing.sm },
-  name: { color: Colors.text, fontSize: 16, fontWeight: '700' },
-  status: { color: Colors.textMuted, fontSize: 12 },
-  time: { color: Colors.textSecondary, marginTop: 4 },
-  fillBar: { height: 6, backgroundColor: Colors.surfaceLight, borderRadius: 3, marginVertical: Spacing.sm, overflow: 'hidden' },
-  fillInner: { height: '100%', borderRadius: 3 },
-  row: { flexDirection: 'row', gap: Spacing.xs, alignItems: 'center' },
-  count: { color: Colors.textSecondary, fontSize: 13 },
-  actions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.accent, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.sm, flex: 1, justifyContent: 'center' },
-  btnDanger: { backgroundColor: Colors.error },
-  btnText: { color: Colors.text, fontWeight: '700' },
+  empty: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xl, paddingHorizontal: Spacing.md },
+
+  card: {
+    backgroundColor: Colors.surface,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  courseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  courseName: { color: Colors.text, fontSize: 17, fontWeight: '700', flex: 1 },
+  badge: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    textTransform: 'uppercase',
+  },
+  courseDesc: { color: Colors.textSecondary, marginTop: 4, fontSize: 13 },
+  courseMeta: { color: Colors.textMuted, marginTop: 4, fontSize: 12 },
+
+  section: { marginTop: Spacing.md },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.xs },
+  sectionTitle: { color: Colors.textSecondary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  emptyInline: { color: Colors.textMuted, fontSize: 13, fontStyle: 'italic' },
+  scheduleLine: { color: Colors.text, fontSize: 14, marginBottom: 2 },
+
+  instanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceLight,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    marginBottom: Spacing.xs,
+  },
+  instanceTime: { color: Colors.text, fontSize: 14, fontWeight: '600' },
+  instanceMeta: { color: Colors.textSecondary, fontSize: 12, marginTop: 4 },
+  fillBar: { height: 4, backgroundColor: Colors.border, borderRadius: 2, marginVertical: 4, overflow: 'hidden' },
+  fillInner: { height: '100%', borderRadius: 2 },
 });

@@ -9,6 +9,7 @@ import { notifyWaitlistIfSpotFree } from '../../../courses/waitlist';
 import { sendPushToUsers, sendPushToUser } from '../../../push/send';
 import { formatDateTimeDe, berlinLocalToUtcIso } from '../../../courses/rules';
 import { cancelInstanceAsSystem } from '../../../courses/actions';
+import { getPool } from '../../../storage';
 
 function requireTrainer(role: string) {
   if (role !== 'trainer' && role !== 'admin') {
@@ -28,12 +29,27 @@ export const createCourse = protectedProcedure
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);
+    // Single-Studio: wenn kein trainer_id mitgegeben wird, automatisch den
+    // (typischerweise einzigen) Trainer-User auflösen. Fallback = Caller.
+    let trainerId = input.trainer_id;
+    if (!trainerId) {
+      const pool = getPool();
+      if (pool) {
+        try {
+          const r = await pool.query(
+            `SELECT id::text AS id FROM users WHERE role='trainer' ORDER BY id ASC LIMIT 1`
+          );
+          trainerId = r.rows[0]?.id;
+        } catch {}
+      }
+      if (!trainerId) trainerId = ctx.user.userId;
+    }
     return coursesStore.create({
       name: input.name,
       description: input.description ?? null,
       duration_minutes: input.duration_minutes,
       max_participants: input.max_participants,
-      trainer_id: input.trainer_id ?? ctx.user.userId,
+      trainer_id: trainerId,
       category: input.category ?? null,
       is_active: true,
     });
