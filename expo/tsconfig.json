@@ -4,6 +4,7 @@
     "strict": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
+    "types": ["bun-types"],
     "paths": {
       "@/*": [
         "./*"

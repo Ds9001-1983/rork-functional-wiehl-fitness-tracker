@@ -43,7 +43,8 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   // Configure notification behavior for iOS foreground
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
     }),
