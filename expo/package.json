@@ -8,6 +8,7 @@
     "start-web-dev": "DEBUG=expo* bunx rork start -p u2isdzzpvkfpkfvw4dy7l --web --tunnel",
     "server": "bun backend-server.ts",
     "test": "bun test __tests__/",
+    "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/patch-metro-exports.js",
     "build-web": "node scripts/patch-metro-exports.js && bunx expo export --platform web",
     "build:ios-preview": "eas build --platform ios --profile preview",
