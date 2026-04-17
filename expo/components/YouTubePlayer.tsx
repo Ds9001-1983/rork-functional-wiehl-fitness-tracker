@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Image } from 'react-native';
+import { openExternalUrl } from '@/lib/open-url';
 import { Play, ExternalLink, WifiOff } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
@@ -50,7 +51,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
     return (
       <TouchableOpacity
         style={styles.fallbackButton}
-        onPress={() => Linking.openURL(videoUrl)}
+        onPress={() => { openExternalUrl(videoUrl); }}
       >
         <ExternalLink size={18} color={Colors.text} />
         <Text style={styles.fallbackText}>Video extern öffnen</Text>
@@ -104,7 +105,7 @@ export const YouTubePlayer: React.FC<YouTubePlayerProps> = ({
         if (Platform.OS === 'web') {
           setShowPlayer(true);
         } else {
-          Linking.openURL(videoUrl);
+          openExternalUrl(videoUrl);
         }
       }}
       activeOpacity={0.8}

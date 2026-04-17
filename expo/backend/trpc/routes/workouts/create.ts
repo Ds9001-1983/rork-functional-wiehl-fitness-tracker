@@ -34,24 +34,35 @@ export default protectedProcedure
       createdBy,
     });
 
-    // Stats aktualisieren: totalWorkouts + totalVolume
+    // Stats aktualisieren: totalWorkouts + totalVolume (atomarer Update)
     const pool = getPool();
     if (input.completed && pool) {
-      try {
-        const totalVolume = input.exercises.reduce((total, ex) =>
-          total + ex.sets.reduce((setTotal, s) => setTotal + (s.weight * s.reps), 0), 0
-        );
+      const userIdInt = Number.parseInt(input.userId, 10);
+      if (!Number.isFinite(userIdInt)) {
+        console.error('[Server] Stats update skipped — invalid userId:', input.userId);
+      } else {
+        const client = await pool.connect();
+        try {
+          const totalVolume = input.exercises.reduce((total, ex) =>
+            total + ex.sets.reduce((setTotal, s) => setTotal + (s.weight * s.reps), 0), 0
+          );
 
-        await pool.query(
-          `UPDATE users SET
-            total_workouts = COALESCE(total_workouts, 0) + 1,
-            total_volume = COALESCE(total_volume, 0) + $1
-          WHERE id = $2`,
-          [Math.round(totalVolume), parseInt(input.userId)]
-        );
-        console.log('[Server] Updated stats for user:', input.userId, 'volume:', totalVolume);
-      } catch (err) {
-        console.error('[Server] Stats update failed (non-blocking):', err);
+          await client.query('BEGIN');
+          await client.query(
+            `UPDATE users SET
+              total_workouts = COALESCE(total_workouts, 0) + 1,
+              total_volume = COALESCE(total_volume, 0) + $1
+            WHERE id = $2`,
+            [Math.round(totalVolume), userIdInt]
+          );
+          await client.query('COMMIT');
+          console.log('[Server] Updated stats for user:', input.userId, 'volume:', totalVolume);
+        } catch (err) {
+          try { await client.query('ROLLBACK'); } catch {}
+          console.error('[Server] Stats update failed (non-blocking):', err);
+        } finally {
+          client.release();
+        }
       }
     }
 

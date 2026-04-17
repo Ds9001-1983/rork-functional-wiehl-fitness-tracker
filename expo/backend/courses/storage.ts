@@ -198,37 +198,53 @@ function buildUpdate(patch: Record<string, any>, allowed: readonly string[]): { 
   return { fields, values };
 }
 
+// pg driver liefert DATE / TIMESTAMPTZ als Date-Objekt. Superjson reicht das 1:1
+// an den Client durch — ein Date in <Text>{date}</Text> crasht React (#31).
+// Daher alle Datums-Felder hier auf Strings normalisieren.
+function toIso(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString();
+  return typeof v === 'string' ? v : String(v);
+}
+function toDateOnly(v: unknown): string | null {
+  if (v == null) return null;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'string') return v.length >= 10 ? v.slice(0, 10) : v;
+  return String(v);
+}
+
 function mapCourseRow(r: any): Course {
   return {
     id: String(r.id), name: r.name, description: r.description,
     duration_minutes: r.duration_minutes, max_participants: r.max_participants,
     trainer_id: String(r.trainer_id), category: r.category,
-    is_active: r.is_active, created_at: r.created_at, updated_at: r.updated_at,
+    is_active: r.is_active, created_at: toIso(r.created_at)!, updated_at: toIso(r.updated_at)!,
   };
 }
 function mapScheduleRow(r: any): CourseSchedule {
   return { id: String(r.id), course_id: String(r.course_id), day_of_week: r.day_of_week,
     start_time: typeof r.start_time === 'string' ? r.start_time.slice(0, 5) : r.start_time,
-    valid_from: r.valid_from, valid_until: r.valid_until };
+    valid_from: toDateOnly(r.valid_from)!, valid_until: toDateOnly(r.valid_until) };
 }
 function mapInstanceRow(r: any): CourseInstance {
   return { id: String(r.id), course_id: String(r.course_id), schedule_id: r.schedule_id ? String(r.schedule_id) : null,
-    date: r.date, start_time: r.start_time, end_time: r.end_time, status: r.status, max_participants: r.max_participants };
+    date: toDateOnly(r.date)!, start_time: toIso(r.start_time)!, end_time: toIso(r.end_time)!,
+    status: r.status, max_participants: r.max_participants };
 }
 function mapBookingRow(r: any): Booking {
   return { id: String(r.id), instance_id: String(r.instance_id), user_id: String(r.user_id),
-    status: r.status, booked_at: r.booked_at, cancelled_at: r.cancelled_at, cancelled_by: r.cancelled_by,
-    no_show_marked_at: r.no_show_marked_at, no_show_marked_by: r.no_show_marked_by ? String(r.no_show_marked_by) : null,
-    reminder_sent_at: r.reminder_sent_at };
+    status: r.status, booked_at: toIso(r.booked_at)!, cancelled_at: toIso(r.cancelled_at), cancelled_by: r.cancelled_by,
+    no_show_marked_at: toIso(r.no_show_marked_at), no_show_marked_by: r.no_show_marked_by ? String(r.no_show_marked_by) : null,
+    reminder_sent_at: toIso(r.reminder_sent_at) };
 }
 function mapPenaltyRow(r: any): UserPenalty {
   return { user_id: String(r.user_id), no_show_count: r.no_show_count, is_blocked: r.is_blocked,
-    blocked_at: r.blocked_at, unblocked_at: r.unblocked_at,
+    blocked_at: toIso(r.blocked_at), unblocked_at: toIso(r.unblocked_at),
     unblocked_by: r.unblocked_by ? String(r.unblocked_by) : null };
 }
 function mapWaitlistRow(r: any): WaitlistEntry {
   return { id: String(r.id), instance_id: String(r.instance_id), user_id: String(r.user_id),
-    joined_at: r.joined_at, last_notified_at: r.last_notified_at ?? r.notified_at ?? null };
+    joined_at: toIso(r.joined_at)!, last_notified_at: toIso(r.last_notified_at ?? r.notified_at) };
 }
 
 // ---- Courses ----

@@ -41,23 +41,17 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app_user;
 EOF
 log_success "Database permissions set"
 
-# 3. .env Datei korrigieren
-log_info "Updating .env file..."
-cat > /var/www/fitness-app/.env <<'EOF'
-NODE_ENV=production
-BACKEND_PORT=3000
-DATABASE_URL=postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app
-JWT_SECRET=J5Kbw4LGHd79brs0MAfq9r4e63KSeQQkGmKQSqtFMzmQrVdk
-CORS_ORIGIN=https://app.functional-wiehl.de
-API_BASE_URL=https://app.functional-wiehl.de
-EXPO_PUBLIC_RORK_API_BASE_URL=https://app.functional-wiehl.de
-PGHOST=localhost
-PGPORT=5432
-PGUSER=app_user
-PGPASSWORD=LKW_Peter123
-PGDATABASE=fitness_app
-EOF
-log_success ".env file updated"
+# 3. .env Datei prüfen (NICHT überschreiben — Secrets bleiben auf dem Server)
+log_info "Checking .env file..."
+if [ ! -f /var/www/fitness-app/.env ]; then
+    log_error ".env fehlt unter /var/www/fitness-app/.env — bitte manuell anlegen (siehe .env.example)"
+fi
+for key in DATABASE_URL JWT_SECRET PGPASSWORD; do
+    if ! grep -q "^${key}=" /var/www/fitness-app/.env; then
+        log_error ".env ist unvollständig: ${key} fehlt"
+    fi
+done
+log_success ".env vorhanden und vollständig"
 
 # 4. Nginx Konfiguration erstellen
 log_info "Configuring Nginx..."
@@ -176,7 +170,6 @@ if systemctl is-active --quiet fitness-app; then
     log_success "🎉 Deployment complete!"
     echo ""
     echo "📱 Your app is available at: https://app.functional-wiehl.de"
-    echo "🔑 Trainer login: app@functional-wiehl.de / trainer123"
     echo ""
     echo "📊 Check logs with: journalctl -u fitness-app -f"
 else

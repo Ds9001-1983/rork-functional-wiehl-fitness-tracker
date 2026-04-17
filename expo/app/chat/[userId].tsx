@@ -32,7 +32,9 @@ export default function ChatScreen() {
     try {
       const data = await trpcClient.chat.list.query({ otherUserId });
       setMessages(data as ChatMessage[]);
-    } catch {}
+    } catch (err) {
+      console.error('[Chat] Nachrichten konnten nicht geladen werden:', err);
+    }
   }, [otherUserId]);
 
   // Load messages and poll

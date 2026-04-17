@@ -264,7 +264,6 @@ export const [GamificationProvider, useGamification] = createContextHook<Gamific
       const userId = await AsyncStorage.getItem('user').then(u => u ? JSON.parse(u).id : null);
       if (userId) {
         const syncInput = {
-          userId,
           xp: data.xp,
           level: data.level,
           badges: data.badges,

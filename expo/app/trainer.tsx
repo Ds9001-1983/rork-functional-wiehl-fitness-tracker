@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, Linking, PanResponder, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, PanResponder, Animated, Dimensions } from 'react-native';
+import { openExternalUrl } from '@/lib/open-url';
 import { Stack, router } from 'expo-router';
 import { UserPlus, Send, ClipboardList, Mail, User, Trash2, Phone, Users, Plus, X, Edit3, Calendar } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
@@ -77,16 +78,7 @@ Ihr Functional Wiehl Team`;
       const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       
       console.log('📧 Öffne E-Mail-Client für:', email);
-      
-      // E-Mail-Client öffnen
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (canOpen) {
-        await Linking.openURL(mailtoUrl);
-        return true;
-      } else {
-        console.warn('Kein E-Mail-Client verfügbar');
-        return false;
-      }
+      return await openExternalUrl(mailtoUrl);
     } catch (error) {
       console.error('Fehler beim E-Mail-Versand:', error);
       return false;

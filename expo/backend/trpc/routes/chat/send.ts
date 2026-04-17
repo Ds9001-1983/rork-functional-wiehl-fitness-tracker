@@ -1,5 +1,5 @@
 import { protectedProcedure } from '../../create-context';
-import { storage } from '../../../storage';
+import { storage, getPool } from '../../../storage';
 import { z } from 'zod';
 
 export default protectedProcedure
@@ -14,11 +14,13 @@ export default protectedProcedure
       input.message
     );
 
-    // Create notification for receiver
     try {
-      const allClients = await storage.clients.getAll();
-      const sender = allClients.find((c: any) => c.userId === ctx.user.userId || c.id === ctx.user.userId);
-      const senderName = sender?.name || 'Jemand';
+      let senderName = ctx.user.email.split('@')[0];
+      const pool = getPool();
+      if (pool) {
+        const r = await pool.query('SELECT name FROM users WHERE id = $1', [parseInt(ctx.user.userId)]);
+        if (r.rows[0]?.name) senderName = r.rows[0].name;
+      }
       const preview = input.message.length > 50 ? input.message.slice(0, 50) + '...' : input.message;
 
       await storage.notifications.create({

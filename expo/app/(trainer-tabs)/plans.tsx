@@ -197,7 +197,7 @@ export default function TrainerPlansScreen() {
       // Fallback: try one by one
       for (const clientId of selectedClientIds) {
         try {
-          await assignPlanToUser(selectedPlanId, clientId, true);
+          await assignPlanToUser(selectedPlanId, clientId);
           const name = clients.find(c => c.id === clientId)?.name || 'Unbekannt';
           successNames.push(name);
         } catch {

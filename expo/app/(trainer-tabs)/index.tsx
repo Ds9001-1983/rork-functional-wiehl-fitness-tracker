@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder } from 'react-native';
+import { openExternalUrl } from '@/lib/open-url';
 import { router } from 'expo-router';
 import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp, MessageSquare, BarChart3 } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
@@ -105,11 +106,7 @@ export default function TrainerClientsScreen() {
       setClientEmail('');
       setClientPhone('');
 
-      try {
-        await Linking.openURL(mailtoUrl);
-      } catch {
-        // Email client couldn't open, but client was created
-      }
+      await openExternalUrl(mailtoUrl);
     } catch (error: any) {
       const errorMsg = error?.message || '';
       const msg = errorMsg.includes('EMAIL_EXISTS') ? 'Diese E-Mail ist bereits registriert.' :

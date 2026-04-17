@@ -484,6 +484,18 @@ async function initializeTables() {
       )
     `);
 
+    // Expo Push tokens for native iOS push notifications
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS push_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, token)
+      )
+    `);
+
     // Chat messages for trainer-client communication
     await pool!.query(`
       CREATE TABLE IF NOT EXISTS chat_messages (
@@ -526,6 +538,7 @@ async function initializeTables() {
     `);
 
     await createIndexIfNotExists('idx_push_subscriptions_user_id', 'push_subscriptions (user_id)');
+    await createIndexIfNotExists('idx_push_tokens_user_id', 'push_tokens (user_id)');
     await createIndexIfNotExists('idx_chat_messages_participants', 'chat_messages (sender_id, receiver_id)');
     await createIndexIfNotExists('idx_chat_messages_receiver', 'chat_messages (receiver_id, read_at)');
     await createIndexIfNotExists('idx_mesocycles_client_id', 'mesocycles (client_id)');

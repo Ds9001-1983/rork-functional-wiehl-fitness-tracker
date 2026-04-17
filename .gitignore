@@ -5,3 +5,6 @@ expo-broken
 .env
 .expo
 package-lock.json
+expo/dist/
+expo/web-build/
+bun [0-9]*.lock

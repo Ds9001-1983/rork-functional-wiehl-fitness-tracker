@@ -7,10 +7,8 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Image,
   Switch,
-  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,14 +16,19 @@ import { Mail, Lock, MessageCircle } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius, Brand } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import StatusBanner from '@/components/StatusBanner';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { openExternalUrl } from '@/lib/open-url';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, resetPassword, isAuthenticated, clearStorage, user } = useAuth();
+  const { login, isAuthenticated, clearStorage, user } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [rememberPassword, setRememberPassword] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
+  const [showInviteDialog, setShowInviteDialog] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -54,29 +57,29 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    setStatusMessage(null);
     if (!email || !password) {
-      Alert.alert('Fehler', 'Bitte E-Mail und Passwort eingeben.');
+      setStatusMessage({ type: 'error', text: 'Bitte E-Mail und Passwort eingeben.' });
       return;
     }
     setIsLoading(true);
     try {
-      const user = await login(email, password);
-      // E-Mail merken, aber NIE das Passwort speichern
+      const loggedIn = await login(email, password);
       await AsyncStorage.setItem('savedEmail', email);
       await AsyncStorage.setItem('rememberPassword', rememberPassword ? 'true' : 'false');
       await AsyncStorage.removeItem('savedPassword');
-      if (!user) {
+      if (!loggedIn) {
         return;
       }
-      if (user.role === 'admin') {
+      if (loggedIn.role === 'admin') {
         router.replace('/(admin-tabs)');
         return;
       }
-      if (user.role === 'trainer') {
+      if (loggedIn.role === 'trainer') {
         router.replace('/(trainer-tabs)');
         return;
       }
-      if (user.role === 'client' && user.passwordChanged === false) {
+      if (loggedIn.role === 'client' && loggedIn.passwordChanged === false) {
         router.replace('/change-password');
       } else {
         router.replace('/(tabs)');
@@ -84,57 +87,41 @@ export default function LoginScreen() {
     } catch (e) {
       console.log('🚨 Login Fehler:', e);
       if (e instanceof Error && e.message === 'CONNECTION_FAILED') {
-        Alert.alert('Verbindungsfehler', 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung und versuche es erneut.');
+        setStatusMessage({ type: 'error', text: 'Keine Verbindung zum Server. Bitte überprüfe deine Internetverbindung und versuche es erneut.' });
       } else if (e instanceof Error && e.message === 'USER_NOT_INVITED') {
-        showNotInvitedAlert();
+        setShowInviteDialog(true);
       } else if (e instanceof Error && e.message === 'INVALID_PASSWORD') {
-        Alert.alert('Fehler', 'Falsches Passwort. Bitte verwende das Einmalpasswort, das dir der Trainer gegeben hat.');
+        setStatusMessage({ type: 'error', text: 'Falsches Passwort. Bitte verwende das Einmalpasswort, das dir der Trainer gegeben hat.' });
       } else {
-        Alert.alert('Fehler', 'Ungültige Anmeldedaten. Überprüfe E-Mail und Passwort.');
+        setStatusMessage({ type: 'error', text: 'Ungültige Anmeldedaten. Überprüfe E-Mail und Passwort.' });
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const showNotInvitedAlert = () => {
-    Alert.alert(
-      'Zugang nicht berechtigt',
-      'Um die App zu verwenden, muss dich ein Trainer einladen.',
-      [
-        {
-          text: 'Abbrechen',
-          style: 'cancel',
-        },
-        {
-          text: 'Trainer kontaktieren',
-          onPress: handleContactTrainer,
-        },
-      ]
-    );
-  };
-
-  const handleContactTrainer = () => {
+  const handleContactTrainer = async () => {
     const whatsappUrl = 'https://api.whatsapp.com/send/?phone=492262752717&text=Hallo%2C+ich+m%C3%B6chte+in+die+Trainingsplan+App.&type=phone_number&app_absent=0';
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Fehler', 'WhatsApp konnte nicht geöffnet werden.');
-    });
+    const ok = await openExternalUrl(whatsappUrl);
+    if (!ok) {
+      setStatusMessage({ type: 'error', text: 'WhatsApp konnte nicht geöffnet werden.' });
+    }
   };
 
-  const handleForgotPassword = async () => {
+  const handleForgotPassword = () => {
     if (!email) {
-      Alert.alert('E-Mail erforderlich', 'Bitte E-Mail-Adresse eingeben.');
+      setStatusMessage({ type: 'info', text: 'Bitte zuerst deine E-Mail-Adresse eingeben.' });
       return;
     }
-    Alert.alert('Passwort zurücksetzen', 'Bitte wende dich an deinen Trainer, um dein Passwort zurücksetzen zu lassen.');
+    setStatusMessage({ type: 'info', text: 'Bitte wende dich an deinen Trainer, um dein Passwort zurücksetzen zu lassen.' });
   };
 
   const handleClearStorage = async () => {
     try {
       await clearStorage();
-      Alert.alert('Storage gelöscht', 'Alle gespeicherten Daten wurden entfernt.');
+      setStatusMessage({ type: 'success', text: 'Storage gelöscht. Alle gespeicherten Daten wurden entfernt.' });
     } catch {
-      Alert.alert('Fehler', 'Storage konnte nicht gelöscht werden.');
+      setStatusMessage({ type: 'error', text: 'Storage konnte nicht gelöscht werden.' });
     }
   };
 
@@ -157,6 +144,14 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {statusMessage && (
+            <StatusBanner
+              type={statusMessage.type}
+              text={statusMessage.text}
+              onDismiss={() => setStatusMessage(null)}
+            />
+          )}
+
           <View style={styles.inputContainer}>
             <Mail size={20} color={Colors.textMuted} style={styles.inputIcon} />
             <TextInput
@@ -252,6 +247,19 @@ export default function LoginScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <ConfirmDialog
+        visible={showInviteDialog}
+        title="Zugang nicht berechtigt"
+        message="Um die App zu verwenden, muss dich ein Trainer einladen."
+        confirmText="Trainer kontaktieren"
+        cancelText="Abbrechen"
+        onConfirm={() => {
+          setShowInviteDialog(false);
+          handleContactTrainer();
+        }}
+        onCancel={() => setShowInviteDialog(false)}
+      />
     </SafeAreaView>
   );
 }

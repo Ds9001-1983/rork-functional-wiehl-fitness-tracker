@@ -5,6 +5,7 @@ import { TrendingUp, Calendar, Target, Flame, Dumbbell, BarChart3, ClipboardList
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
+import StatusBanner from '@/components/StatusBanner';
 
 interface WorkoutListItem {
   id: string;
@@ -34,6 +35,7 @@ export default function ClientProgressScreen() {
   const [clientName, setClientName] = useState('');
   const [clientWorkouts, setClientWorkouts] = useState<WorkoutListItem[]>([]);
   const [clientPlans, setClientPlans] = useState<PlanListItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!clientId) return;
@@ -50,12 +52,21 @@ export default function ClientProgressScreen() {
         if (client) setClientName(client.name);
 
         const [workouts, plans] = await Promise.all([
-          trpcClient.workouts.list.query({ userId: realUserId }).catch(() => []),
-          trpcClient.plans.list.query({ userId: realUserId }).catch(() => []),
+          trpcClient.workouts.list.query({ userId: realUserId }).catch((err) => {
+            console.error('[ClientProgress] Workouts-Load fehlgeschlagen:', err);
+            return [];
+          }),
+          trpcClient.plans.list.query({ userId: realUserId }).catch((err) => {
+            console.error('[ClientProgress] Plans-Load fehlgeschlagen:', err);
+            return [];
+          }),
         ]);
         setClientWorkouts((workouts as WorkoutListItem[]) || []);
         setClientPlans((plans as PlanListItem[]) || []);
-      } catch {}
+      } catch (err) {
+        console.error('[ClientProgress] Ladefehler:', err);
+        setLoadError('Die Kundendaten konnten nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.');
+      }
       setLoading(false);
     };
     load();
@@ -99,6 +110,11 @@ export default function ClientProgressScreen() {
       <Stack.Screen options={{ title: clientName || 'Fortschritt' }} />
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false}>
+          {loadError && (
+            <View style={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md }}>
+              <StatusBanner type="error" text={loadError} onDismiss={() => setLoadError(null)} />
+            </View>
+          )}
           <View style={styles.header}>
             <Text style={styles.title}>{clientName}</Text>
             <Text style={styles.subtitle}>Letzte 4 Wochen</Text>
