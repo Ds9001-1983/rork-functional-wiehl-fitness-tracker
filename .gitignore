@@ -7,4 +7,6 @@ expo-broken
 package-lock.json
 expo/dist/
 expo/web-build/
+expo/test-results/
+expo/playwright-report/
 bun [0-9]*.lock
