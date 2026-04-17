@@ -29,7 +29,7 @@ const getBaseUrl = () => {
   // Normalize function to remove trailing slashes and /api paths
   const normalize = (url: string) => url.replace(/\/$/, '').replace(/\/(api(\/trpc)?)$/, '');
 
-  const rawUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL ?? process.env.API_BASE_URL;
+  const rawUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL;
   if (rawUrl) {
     const normalized = normalize(rawUrl);
     console.log('[tRPC] Using normalized env URL:', rawUrl, '->', normalized);

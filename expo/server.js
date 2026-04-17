@@ -39,7 +39,7 @@ if (fs.existsSync(distPath)) {
   }));
   console.log('📁 Serving web build from dist/');
 } else {
-  console.log('⚠️  No web build found. Run "bunx rork export -p web" to build for web.');
+  console.log('⚠️  No web build found. Run "bunx expo export --platform web" to build for web.');
 }
 
 // Fallback for SPA routing - serve index.html for non-API routes

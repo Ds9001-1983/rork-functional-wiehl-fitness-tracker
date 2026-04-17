@@ -70,7 +70,7 @@ JWT_SECRET=ihr_geheimes_jwt_token_hier
 BACKEND_PORT=3000
 CORS_ORIGIN=https://ihre-domain.de
 API_BASE_URL=https://ihre-domain.de
-EXPO_PUBLIC_RORK_API_BASE_URL=https://ihre-domain.de
+EXPO_PUBLIC_API_BASE_URL=https://ihre-domain.de
 ```
 
 ## 6. Datenbank initialisieren

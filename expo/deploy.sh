@@ -9,7 +9,7 @@ pm2 delete fitness-app 2>/dev/null || echo "No existing process to delete"
 
 # Build web version
 echo "📦 Building web version..."
-bunx rork export -p web
+bunx expo export --platform web
 
 # Copy web build to nginx directory
 echo "📁 Copying web build to nginx directory..."

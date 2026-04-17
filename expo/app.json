@@ -38,7 +38,7 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://app.functional-wiehl.de/"
         }
       ],
       [
@@ -55,7 +55,7 @@
     },
     "extra": {
       "router": {
-        "origin": "https://rork.com/"
+        "origin": "https://app.functional-wiehl.de/"
       },
       "eas": {
         "projectId": "62406811-431e-485a-b0f9-3abade28ca00"

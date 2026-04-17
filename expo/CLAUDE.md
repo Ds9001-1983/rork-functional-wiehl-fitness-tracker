@@ -33,7 +33,7 @@ bun run build:ios-preview   # iOS Preview-Build via EAS (TestFlight/intern)
 bun run build:ios-prod      # iOS Production-Build via EAS (App Store)
 bun run submit:ios          # iOS App Store Submit via EAS
 bun run deploy              # Vollstaendiges Web-Deployment (deploy.sh)
-bun run start               # Expo Dev-Server mit Tunnel (rork CLI)
+bun run start               # Expo Dev-Server mit Tunnel
 bun run start-web           # Expo Web Dev-Server mit Tunnel
 bun run start-web-dev       # Web Dev-Server mit Debug-Logging
 ```
@@ -252,7 +252,7 @@ JWT_SECRET=random_string
 # URLs
 CORS_ORIGIN=https://app.functional-wiehl.de
 API_BASE_URL=https://app.functional-wiehl.de/api
-EXPO_PUBLIC_RORK_API_BASE_URL=https://app.functional-wiehl.de
+EXPO_PUBLIC_API_BASE_URL=https://app.functional-wiehl.de
 
 # Optional: E-Mail (Passwort-Reset)
 RESEND_API_KEY=...
