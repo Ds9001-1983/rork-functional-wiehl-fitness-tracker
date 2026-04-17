@@ -18,6 +18,8 @@ function requireTrainer(role: string) {
 }
 
 // ---- Courses ----
+const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+
 export const createCourse = protectedProcedure
   .input(z.object({
     name: z.string().min(1),
@@ -26,6 +28,7 @@ export const createCourse = protectedProcedure
     max_participants: z.number().int().positive(),
     trainer_id: z.string().optional(),
     category: z.string().optional(),
+    color: hexColorSchema.nullable().optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);
@@ -51,6 +54,7 @@ export const createCourse = protectedProcedure
       max_participants: input.max_participants,
       trainer_id: trainerId,
       category: input.category ?? null,
+      color: input.color ?? null,
       is_active: true,
     });
   });
@@ -63,6 +67,7 @@ export const updateCourse = protectedProcedure
     max_participants: z.number().int().positive().optional(),
     trainer_id: z.string().optional(),
     category: z.string().nullable().optional(),
+    color: hexColorSchema.nullable().optional(),
     is_active: z.boolean().optional(),
   }))
   .mutation(async ({ ctx, input }) => {
@@ -71,6 +76,28 @@ export const updateCourse = protectedProcedure
     const updated = await coursesStore.update(id, patch);
     if (!updated) throw new TRPCError({ code: 'NOT_FOUND' });
     return updated;
+  });
+
+export const hardDeleteCourse = protectedProcedure
+  .input(z.object({ id: z.string().regex(/^\d+$/) }))
+  .mutation(async ({ ctx, input }) => {
+    requireTrainer(ctx.user.role);
+    const course = await coursesStore.getById(input.id);
+    if (!course) throw new TRPCError({ code: 'NOT_FOUND', message: 'Kurs nicht gefunden' });
+    // Zukünftige, geplante Termine absagen (inkl. Push an Teilnehmer)
+    const nowMs = Date.now();
+    const instances = await instancesStore.listByCourse(input.id);
+    for (const i of instances) {
+      if (i.status === 'scheduled' && new Date(i.start_time).getTime() > nowMs) {
+        try {
+          await cancelInstanceAsSystem(i.id, 'Kurs wurde gelöscht');
+        } catch (err) {
+          console.error('[hardDeleteCourse] cancel failed for instance', i.id, err);
+        }
+      }
+    }
+    const ok = await coursesStore.delete(input.id);
+    return { success: ok };
   });
 
 export const listCourses = protectedProcedure

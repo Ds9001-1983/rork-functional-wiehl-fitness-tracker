@@ -44,6 +44,7 @@ export const getSchedule = protectedProcedure
         course: {
           id: i.course.id, name: i.course.name, description: i.course.description,
           duration_minutes: i.course.duration_minutes, category: i.course.category,
+          color: i.course.color ?? null,
           trainer_name: trainerCache.get(i.course.trainer_id) ?? '',
         },
         booked,

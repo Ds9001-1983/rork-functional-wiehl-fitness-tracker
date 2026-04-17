@@ -12,6 +12,7 @@ export interface Course {
   max_participants: number;
   trainer_id: string;
   category: string | null;
+  color: string | null; // Hex-Farbe inkl. # für Kalender-Kacheln
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -101,11 +102,13 @@ export async function initCourseTables() {
         max_participants INTEGER NOT NULL,
         trainer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         category VARCHAR(100),
+        color VARCHAR(7),
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await pool.query(`ALTER TABLE courses ADD COLUMN IF NOT EXISTS color VARCHAR(7)`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS course_schedules (
         id SERIAL PRIMARY KEY,
@@ -224,6 +227,7 @@ function mapCourseRow(r: any): Course {
     id: String(r.id), name: r.name, description: r.description,
     duration_minutes: r.duration_minutes, max_participants: r.max_participants,
     trainer_id: String(r.trainer_id), category: r.category,
+    color: r.color ?? null,
     is_active: r.is_active, created_at: toIso(r.created_at)!, updated_at: toIso(r.updated_at)!,
   };
 }
@@ -277,10 +281,10 @@ export const coursesStore = {
     const pool = needDb();
     if (pool) {
       const r = await pool.query(
-        `INSERT INTO courses (name, description, duration_minutes, max_participants, trainer_id, category, is_active)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        `INSERT INTO courses (name, description, duration_minutes, max_participants, trainer_id, category, color, is_active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
         [data.name, data.description, data.duration_minutes, data.max_participants,
-         parseInt(data.trainer_id), data.category, data.is_active]
+         parseInt(data.trainer_id), data.category, data.color ?? null, data.is_active]
       );
       return mapCourseRow(r.rows[0]);
     }
@@ -290,7 +294,7 @@ export const coursesStore = {
   async update(id: string, patch: Partial<Omit<Course, 'id'>>): Promise<Course | null> {
     const pool = needDb();
     if (pool) {
-      const allowed = ['name', 'description', 'duration_minutes', 'max_participants', 'trainer_id', 'category', 'is_active'] as const;
+      const allowed = ['name', 'description', 'duration_minutes', 'max_participants', 'trainer_id', 'category', 'color', 'is_active'] as const;
       const normalized = { ...patch, trainer_id: patch.trainer_id ? parseInt(patch.trainer_id as any) : patch.trainer_id } as any;
       const { fields, values } = buildUpdate(normalized, allowed);
       if (!fields.length) return this.getById(id);
@@ -302,6 +306,22 @@ export const coursesStore = {
     if (idx < 0) return null;
     mem.courses[idx] = { ...mem.courses[idx], ...patch, updated_at: now() };
     return mem.courses[idx];
+  },
+  async delete(id: string): Promise<boolean> {
+    const pool = needDb();
+    if (pool) {
+      const r = await pool.query('DELETE FROM courses WHERE id=$1', [parseInt(id)]);
+      return (r.rowCount ?? 0) > 0;
+    }
+    const before = mem.courses.length;
+    mem.courses = mem.courses.filter(c => c.id !== id);
+    // Cascade in-memory räumen
+    mem.schedules = mem.schedules.filter(s => s.course_id !== id);
+    const affectedInstIds = mem.instances.filter(i => i.course_id === id).map(i => i.id);
+    mem.instances = mem.instances.filter(i => i.course_id !== id);
+    mem.bookings = mem.bookings.filter(b => !affectedInstIds.includes(b.instance_id));
+    mem.waitlist = mem.waitlist.filter(w => !affectedInstIds.includes(w.instance_id));
+    return mem.courses.length < before;
   },
 };
 

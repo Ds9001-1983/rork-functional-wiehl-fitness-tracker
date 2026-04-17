@@ -4,6 +4,7 @@ import { Server, Database, Clock, RefreshCw, Wifi, WifiOff } from 'lucide-react-
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
+import { getAppVersion } from '@/lib/app-version';
 
 interface SystemStatus {
   serverUptime: number;
@@ -121,7 +122,7 @@ export default function AdminSystemScreen() {
         <Text style={styles.cardTitle}>App-Informationen</Text>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Version</Text>
-          <Text style={styles.infoValue}>1.0.0</Text>
+          <Text style={styles.infoValue}>{getAppVersion()}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Framework</Text>

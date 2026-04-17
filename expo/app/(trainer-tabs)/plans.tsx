@@ -12,7 +12,6 @@ import type { WorkoutExercise, WorkoutPlan } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { PlanPdfExport } from '@/components/PlanPdfExport';
-import { AiPlanPreview } from '@/components/AiPlanPreview';
 
 export default function TrainerPlansScreen() {
   const { user } = useAuth();
@@ -330,34 +329,6 @@ export default function TrainerPlansScreen() {
           <ClipboardList size={18} color={Colors.text} />
           <Text style={styles.primaryButtonText}>Neues Training planen</Text>
         </TouchableOpacity>
-        <View style={{ height: Spacing.sm }} />
-        <AiPlanPreview
-          onCreatePlan={async (days) => {
-            for (const day of days) {
-              const exercises: WorkoutExercise[] = day.exercises.map(ex => ({
-                id: Math.random().toString(36).substring(2, 9),
-                exerciseId: ex.exerciseId,
-                sets: Array.from({ length: ex.sets }, () => ({
-                  id: Math.random().toString(36).substring(2, 9),
-                  reps: ex.reps,
-                  weight: 0,
-                  completed: false,
-                  type: 'normal' as const,
-                })),
-              }));
-              try {
-                await createWorkoutPlan({
-                  name: day.name,
-                  description: `KI-generierter Plan`,
-                  exercises,
-                  createdBy: user?.id || '',
-                  assignedTo: [],
-                });
-              } catch {}
-            }
-            setStatusMessage({ type: 'success', text: `${days.length} KI-Pläne erstellt!` });
-          }}
-        />
       </View>
 
       {/* Trainingsplaene */}

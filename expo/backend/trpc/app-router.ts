@@ -173,6 +173,7 @@ export const appRouter = createTRPCRouter({
       updateCourse: coursesAdmin.updateCourse,
       listCourses: coursesAdmin.listCourses,
       deleteCourse: coursesAdmin.deleteCourse,
+      hardDeleteCourse: coursesAdmin.hardDeleteCourse,
       createSchedule: coursesAdmin.createSchedule,
       listSchedules: coursesAdmin.listSchedules,
       updateSchedule: coursesAdmin.updateSchedule,

@@ -42,3 +42,20 @@ export const BorderRadius = {
   xl: 24,
   full: 9999,
 } as const;
+
+// Farb-Palette für Admin-Kurs-Farbwahl.
+// 10 visuell gut unterscheidbare Farben, passen zum Dark-Theme.
+export const CoursePalette: readonly { name: string; value: string }[] = [
+  { name: 'Orange', value: '#FF6B35' },
+  { name: 'Rot',    value: '#E53935' },
+  { name: 'Rosa',   value: '#EC407A' },
+  { name: 'Lila',   value: '#AB47BC' },
+  { name: 'Blau',   value: '#1E88E5' },
+  { name: 'Türkis', value: '#26C6DA' },
+  { name: 'Grün',   value: '#43A047' },
+  { name: 'Oliv',   value: '#9E9D24' },
+  { name: 'Gelb',   value: '#FBC02D' },
+  { name: 'Grau',   value: '#78909C' },
+] as const;
+
+export const DEFAULT_COURSE_COLOR = CoursePalette[0].value;

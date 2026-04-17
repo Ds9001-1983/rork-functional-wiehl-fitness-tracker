@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
+import { getAppVersion } from '@/lib/app-version';
 
 export default function AdminProfileScreen() {
   const router = useRouter();
@@ -125,7 +126,7 @@ export default function AdminProfileScreen() {
           <Text style={styles.sectionTitle}>Über</Text>
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>App Version</Text>
-            <Text style={styles.aboutValue}>1.0.0</Text>
+            <Text style={styles.aboutValue}>{getAppVersion()}</Text>
           </View>
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>Gym</Text>

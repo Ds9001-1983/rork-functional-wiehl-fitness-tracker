@@ -12,6 +12,7 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { getAppVersion } from '@/lib/app-version';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -115,7 +116,7 @@ export default function ProfileScreen() {
           
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>App Version</Text>
-            <Text style={styles.aboutValue}>1.0.0</Text>
+            <Text style={styles.aboutValue}>{getAppVersion()}</Text>
           </View>
           
           <View style={styles.aboutItem}>

@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated, Dimensions, PanResponder } from 'react-native';
 import { openExternalUrl } from '@/lib/open-url';
 import { router } from 'expo-router';
-import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp, MessageSquare, BarChart3 } from 'lucide-react-native';
+import { UserPlus, User, Mail, Phone, Trash2, Users, Calendar, Target, Activity, ChevronDown, ChevronUp, MessageSquare, BarChart3, ClipboardList } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -238,16 +238,28 @@ export default function TrainerClientsScreen() {
         )}
       </View>
 
-      {/* Training planen */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Training planen</Text>
-          <TouchableOpacity style={styles.scheduleButton} onPress={() => router.push('/schedule-training')}>
-            <Calendar size={18} color={Colors.text} />
-            <Text style={styles.scheduleButtonText}>Planen</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.cardDescription}>Wähle einen Kunden und erstelle geplante Trainings mit Kalender-Integration.</Text>
+      {/* Training planen + Trainingspläne anzeigen */}
+      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
+        <TouchableOpacity
+          style={[styles.card, { flex: 1, margin: 0, alignItems: 'center', paddingVertical: Spacing.lg }]}
+          onPress={() => router.push('/schedule-training')}
+        >
+          <Calendar size={24} color={Colors.accent} />
+          <Text style={[styles.cardTitle, { marginTop: Spacing.sm, textAlign: 'center' }]}>Training planen</Text>
+          <Text style={[styles.cardDescription, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>
+            Für einen Kunden anlegen
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.card, { flex: 1, margin: 0, alignItems: 'center', paddingVertical: Spacing.lg }]}
+          onPress={() => router.push('/(trainer-tabs)/plans' as any)}
+        >
+          <ClipboardList size={24} color={Colors.accent} />
+          <Text style={[styles.cardTitle, { marginTop: Spacing.sm, textAlign: 'center' }]}>Trainingspläne</Text>
+          <Text style={[styles.cardDescription, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>
+            Vorlagen anzeigen & zusenden
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Kundenliste */}

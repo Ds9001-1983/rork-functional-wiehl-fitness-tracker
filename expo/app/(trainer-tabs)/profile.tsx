@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
+import { getAppVersion } from '@/lib/app-version';
 
 export default function TrainerProfileScreen() {
   const router = useRouter();
@@ -142,7 +143,7 @@ export default function TrainerProfileScreen() {
           <Text style={styles.sectionTitle}>Über</Text>
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>App Version</Text>
-            <Text style={styles.aboutValue}>1.0.0</Text>
+            <Text style={styles.aboutValue}>{getAppVersion()}</Text>
           </View>
           <View style={styles.aboutItem}>
             <Text style={styles.aboutLabel}>Gym</Text>
