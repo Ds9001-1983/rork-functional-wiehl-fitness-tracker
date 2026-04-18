@@ -1,6 +1,6 @@
 import { Tabs, Redirect } from "expo-router";
 import { BarChart3, Users, Calendar, User, MessageSquare, Bell } from "lucide-react-native";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { useColors } from "@/hooks/use-colors";
@@ -65,33 +65,35 @@ function AdminHeaderRight() {
   );
 }
 
+const renderAdminHeaderRight = () => <AdminHeaderRight />;
+
 export default function AdminTabLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const Colors = useColors();
+
+  const screenOptions = useMemo(() => ({
+    tabBarActiveTintColor: Colors.tabBarActive,
+    tabBarInactiveTintColor: Colors.tabBarInactive,
+    tabBarStyle: {
+      backgroundColor: Colors.tabBar,
+      borderTopColor: Colors.border,
+    },
+    headerStyle: {
+      backgroundColor: Colors.primary,
+    },
+    headerTintColor: Colors.text,
+    headerTitleStyle: {
+      fontWeight: '600' as const,
+    },
+    headerRight: renderAdminHeaderRight,
+  }), [Colors]);
 
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/login" />;
   if (user?.role !== 'admin') return <Redirect href="/(tabs)" />;
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors.tabBarActive,
-        tabBarInactiveTintColor: Colors.tabBarInactive,
-        tabBarStyle: {
-          backgroundColor: Colors.tabBar,
-          borderTopColor: Colors.border,
-        },
-        headerStyle: {
-          backgroundColor: Colors.primary,
-        },
-        headerTintColor: Colors.text,
-        headerTitleStyle: {
-          fontWeight: '600' as const,
-        },
-        headerRight: () => <AdminHeaderRight />,
-      }}
-    >
+    <Tabs screenOptions={screenOptions}>
       <Tabs.Screen
         name="index"
         options={{
