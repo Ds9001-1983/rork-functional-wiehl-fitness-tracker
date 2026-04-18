@@ -67,5 +67,47 @@ export default protectedProcedure
     }
 
     console.log('[Server] Created workout:', workout.id, 'for user:', input.userId);
+
+    // Wenn Trainer einem Kunden ein Training zuweist: Notification + Push
+    if (createdBy && input.userId !== ctx.user.userId) {
+      try {
+        await storage.notifications.create({
+          userId: input.userId,
+          title: 'Neues Training',
+          body: `Dein Trainer hat dir ein Training zugewiesen: "${input.name}".`,
+          type: 'system',
+          data: { type: 'workout_assigned', workoutId: workout.id },
+        });
+      } catch (err) {
+        console.error('[Server] in-app notification failed for user', input.userId, err);
+      }
+
+      try {
+        const pushToken = await storage.pushTokens.getByUserId(input.userId);
+        if (pushToken) {
+          const response = await fetch('https://exp.host/--/api/v2/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: pushToken,
+              sound: 'default',
+              title: 'Neues Training!',
+              body: `Dein Trainer hat dir "${input.name}" zugewiesen.`,
+              data: { type: 'workout_assigned', workoutId: workout.id },
+            }),
+          });
+          if (!response.ok) {
+            console.error('[Server] Expo Push API error:', response.status);
+          } else {
+            console.log('[Server] Push notification sent to user', input.userId);
+          }
+        } else {
+          console.log('[Server] No push token for user', input.userId);
+        }
+      } catch (err) {
+        console.error('[Server] Push notification failed for user', input.userId, err);
+      }
+    }
+
     return workout;
   });

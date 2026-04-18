@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { Calendar, Clock, User, Users, CheckCircle, ArrowLeft, Plus, Repeat, ChevronDown, CheckSquare, Square, Dumbbell, Target } from 'lucide-react-native';
+import { User, Users, CheckCircle, ArrowLeft, Plus, Dumbbell, Clock, CheckSquare, Square } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -14,29 +14,11 @@ export default function ScheduleTrainingScreen() {
   const { clients } = useClients();
   const { createWorkout } = useWorkouts();
   const params = useLocalSearchParams<{ clientId?: string }>();
-  
+
   const [selectedClientId, setSelectedClientId] = useState<string>(params.clientId || '');
-
   const [planName, setPlanName] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
 
-  const [isRecurring, setIsRecurring] = useState<boolean>(false);
-  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
-  const [recurringEndDate, setRecurringEndDate] = useState<string>('');
-  const [showWeekdaySelector, setShowWeekdaySelector] = useState<boolean>(false);
-  
-  const weekdays = [
-    { id: 1, name: 'Montag', short: 'Mo' },
-    { id: 2, name: 'Dienstag', short: 'Di' },
-    { id: 3, name: 'Mittwoch', short: 'Mi' },
-    { id: 4, name: 'Donnerstag', short: 'Do' },
-    { id: 5, name: 'Freitag', short: 'Fr' },
-    { id: 6, name: 'Samstag', short: 'Sa' },
-    { id: 0, name: 'Sonntag', short: 'So' }
-  ];
-  
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   
   const selectedClient = useMemo(() => 
@@ -68,27 +50,6 @@ export default function ScheduleTrainingScreen() {
   };
   
 
-  const generateRecurringDates = (startDate: string, endDate: string, weekdays: number[]): Date[] => {
-    const dates: Date[] = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    // Beginne mit dem Startdatum
-    let current = new Date(start);
-    
-    while (current <= end) {
-      const dayOfWeek = current.getDay();
-      if (weekdays.includes(dayOfWeek)) {
-        const trainingDate = new Date(current);
-        trainingDate.setHours(12, 0, 0, 0); // Set to noon as default
-        dates.push(new Date(trainingDate));
-      }
-      current.setDate(current.getDate() + 1);
-    }
-    
-    return dates;
-  };
-  
   const toggleExercise = (exerciseId: string) => {
     setSelectedExercises(prev => 
       prev.includes(exerciseId) 
@@ -102,52 +63,18 @@ export default function ScheduleTrainingScreen() {
       Alert.alert('Fehler', 'Bitte einen Kunden auswählen');
       return;
     }
-    
+
     if (!planName.trim()) {
       Alert.alert('Fehler', 'Bitte einen Plannamen eingeben');
       return;
     }
-    
+
     if (selectedExercises.length === 0) {
       Alert.alert('Fehler', 'Bitte mindestens eine Übung auswählen');
       return;
     }
-    
-    if (isRecurring) {
-      if (selectedWeekdays.length === 0) {
-        Alert.alert('Fehler', 'Bitte mindestens einen Wochentag auswählen');
-        return;
-      }
-      
-      if (!recurringEndDate) {
-        Alert.alert('Fehler', 'Bitte ein Enddatum für die Wiederholung eingeben');
-        return;
-      }
-    }
-    
+
     try {
-      let trainingDates: Date[] = [];
-      
-      if (isRecurring) {
-        // Wiederkehrende Termine generieren
-        trainingDates = generateRecurringDates(
-          selectedDate,
-          recurringEndDate,
-          selectedWeekdays
-        );
-      } else {
-        // Einzeltermin
-        const trainingDate = new Date(selectedDate);
-        trainingDate.setHours(12, 0, 0, 0); // Set to noon as default
-        trainingDates = [trainingDate];
-      }
-      
-      if (trainingDates.length === 0) {
-        Alert.alert('Fehler', 'Keine gültigen Trainingstermine gefunden');
-        return;
-      }
-      
-      // Erstelle Übungen basierend auf der Auswahl
       const workoutExercises = selectedExercises.map((exerciseId, index) => ({
         id: `ex_${Date.now()}_${index}`,
         exerciseId,
@@ -156,75 +83,42 @@ export default function ScheduleTrainingScreen() {
             id: `set_${Date.now()}_${index}_1`,
             reps: 10,
             weight: 20,
-            completed: false
-          }
+            completed: false,
+          },
         ],
-        notes: ''
+        notes: '',
       }));
-      
-      // Automatischer Trainingsname basierend auf Plan und Kunde
+
       const autoTrainingName = `${planName} - ${selectedClient!.name}`;
-      
-      // Alle Trainings erstellen
-      for (const trainingDate of trainingDates) {
-        const workout: Omit<Workout, 'id'> = {
-          name: autoTrainingName,
-          date: trainingDate.toISOString(),
-          exercises: workoutExercises,
-          completed: false,
-          userId: selectedClientId,
-          createdBy: user?.id,
-        };
-        
-        await createWorkout(workout);
-      }
-      
-      // Erfolgs-Nachricht
-      const message = isRecurring 
-        ? `${trainingDates.length} Trainingstermine wurden für ${selectedClient!.name} geplant.`
-        : `Das Training wurde für ${selectedClient!.name} am ${new Date(selectedDate).toLocaleDateString('de-DE')} geplant.`;
-      
+      const workout: Omit<Workout, 'id'> = {
+        name: autoTrainingName,
+        date: new Date().toISOString(),
+        exercises: workoutExercises,
+        completed: false,
+        userId: selectedClientId,
+        createdBy: user?.id,
+      };
+
+      await createWorkout(workout);
+
       Alert.alert(
-        '✅ Training(s) geplant!',
-        message + `\n\n${selectedExercises.length} Übungen wurden hinzugefügt.`,
+        '✅ Training zugewiesen!',
+        `${selectedClient!.name} wurde das Training "${planName}" zugewiesen (${selectedExercises.length} Übungen). Der Kunde bekommt eine Benachrichtigung.`,
         [
-          { 
-            text: 'Zurück zum Trainer Center', 
-            onPress: () => router.push('/trainer')
-          }
+          {
+            text: 'Zurück zum Trainer Center',
+            onPress: () => router.push('/trainer'),
+          },
         ]
       );
-      
-      // Felder zurücksetzen
+
       setSelectedClientId('');
       setPlanName('');
       setSelectedExercises([]);
-      setSelectedDate(new Date().toISOString().split('T')[0]);
-      setIsRecurring(false);
-      setSelectedWeekdays([]);
-      setRecurringEndDate('');
-      
     } catch (error) {
-      console.error('Fehler beim Planen des Trainings:', error);
-      Alert.alert('Fehler', 'Training konnte nicht geplant werden. Bitte versuchen Sie es erneut.');
+      console.error('Fehler beim Zuweisen des Trainings:', error);
+      Alert.alert('Fehler', 'Training konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut.');
     }
-  };
-  
-  const toggleWeekday = (dayId: number) => {
-    setSelectedWeekdays(prev => 
-      prev.includes(dayId) 
-        ? prev.filter(id => id !== dayId)
-        : [...prev, dayId]
-    );
-  };
-  
-  const getSelectedWeekdaysText = () => {
-    if (selectedWeekdays.length === 0) return 'Wochentage auswählen';
-    const selectedNames = weekdays
-      .filter(day => selectedWeekdays.includes(day.id))
-      .map(day => day.short)
-      .join(', ');
-    return selectedNames;
   };
   
   if (!isTrainer) {
@@ -393,128 +287,11 @@ export default function ScheduleTrainingScreen() {
           </View>
         )}
         
-        {/* Datum */}
-        {selectedClientId && planName.trim() && selectedExercises.length > 0 && (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>4. Datum festlegen</Text>
-              <Calendar size={20} color={Colors.accent} />
-            </View>
-            
-            {/* Wiederholung Toggle */}
-            <TouchableOpacity 
-              style={styles.recurringToggle}
-              onPress={() => setIsRecurring(!isRecurring)}
-            >
-              <View style={styles.recurringToggleContent}>
-                <Repeat size={18} color={isRecurring ? Colors.accent : Colors.textSecondary} />
-                <Text style={[
-                  styles.recurringToggleText,
-                  isRecurring && styles.recurringToggleTextActive
-                ]}>
-                  Wiederkehrendes Training
-                </Text>
-              </View>
-              <View style={[
-                styles.toggleSwitch,
-                isRecurring && styles.toggleSwitchActive
-              ]}>
-                <View style={[
-                  styles.toggleKnob,
-                  isRecurring && styles.toggleKnobActive
-                ]} />
-              </View>
-            </TouchableOpacity>
-            
-            {!isRecurring ? (
-              // Einzeltermin
-              <View style={styles.fullWidth}>
-                <Text style={styles.label}>Datum</Text>
-                <View style={styles.row}>
-                  <Calendar size={18} color={Colors.textSecondary} />
-                  <TextInput
-                    value={selectedDate}
-                    onChangeText={setSelectedDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textMuted}
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-            ) : (
-              // Wiederkehrende Termine
-              <View style={styles.recurringContainer}>
-                <View style={styles.fullWidth}>
-                  <Text style={styles.label}>Wochentage</Text>
-                  <TouchableOpacity 
-                    style={styles.weekdaySelector}
-                    onPress={() => setShowWeekdaySelector(!showWeekdaySelector)}
-                  >
-                    <Text style={[
-                      styles.weekdaySelectorText,
-                      selectedWeekdays.length === 0 && styles.weekdaySelectorPlaceholder
-                    ]}>
-                      {getSelectedWeekdaysText()}
-                    </Text>
-                    <ChevronDown 
-                      size={18} 
-                      color={Colors.textSecondary} 
-                      style={[
-                        styles.weekdaySelectorIcon,
-                        showWeekdaySelector && styles.weekdaySelectorIconRotated
-                      ]}
-                    />
-                  </TouchableOpacity>
-                  
-                  {showWeekdaySelector && (
-                    <View style={styles.weekdayOptions}>
-                      {weekdays.map((day) => (
-                        <TouchableOpacity
-                          key={day.id}
-                          style={[
-                            styles.weekdayOption,
-                            selectedWeekdays.includes(day.id) && styles.weekdayOptionSelected
-                          ]}
-                          onPress={() => toggleWeekday(day.id)}
-                        >
-                          <Text style={[
-                            styles.weekdayOptionText,
-                            selectedWeekdays.includes(day.id) && styles.weekdayOptionTextSelected
-                          ]}>
-                            {day.name}
-                          </Text>
-                          {selectedWeekdays.includes(day.id) && (
-                            <CheckCircle size={16} color={Colors.text} />
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.fullWidth}>
-                  <Text style={styles.label}>Enddatum</Text>
-                  <View style={styles.row}>
-                    <Calendar size={18} color={Colors.textSecondary} />
-                    <TextInput
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor={Colors.textMuted}
-                      value={recurringEndDate}
-                      onChangeText={setRecurringEndDate}
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-        )}
-
         {/* Zusammenfassung & Bestätigung */}
         {selectedClientId && planName.trim() && selectedExercises.length > 0 && (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>5. Zusammenfassung</Text>
+              <Text style={styles.cardTitle}>4. Zusammenfassung</Text>
               <CheckCircle size={20} color={Colors.accent} />
             </View>
             
@@ -531,36 +308,15 @@ export default function ScheduleTrainingScreen() {
                 <Text style={styles.summaryLabel}>Übungen:</Text>
                 <Text style={styles.summaryValue}>{selectedExercises.length} ausgewählt</Text>
               </View>
-              {!isRecurring ? (
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Datum:</Text>
-                  <Text style={styles.summaryValue}>
-                    {new Date(selectedDate).toLocaleDateString('de-DE')}
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Zeitraum:</Text>
-                    <Text style={styles.summaryValue}>
-                      {new Date(selectedDate).toLocaleDateString('de-DE')} - {recurringEndDate ? new Date(recurringEndDate).toLocaleDateString('de-DE') : 'Nicht festgelegt'}
-                    </Text>
-                  </View>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Wochentage:</Text>
-                    <Text style={styles.summaryValue}>{getSelectedWeekdaysText()}</Text>
-                  </View>
-                </>
-              )}
             </View>
-            
-            <TouchableOpacity 
-              style={styles.scheduleButton} 
+
+            <TouchableOpacity
+              style={styles.scheduleButton}
               onPress={handleScheduleTraining}
             >
-              <Calendar size={18} color={Colors.text} />
+              <CheckCircle size={18} color={Colors.text} />
               <Text style={styles.scheduleButtonText}>
-                {isRecurring ? 'Wiederkehrende Trainings erstellen' : 'Trainingsplan erstellen'}
+                Trainingsplan zuweisen
               </Text>
             </TouchableOpacity>
           </View>
