@@ -280,25 +280,6 @@ async function initializeTables() {
     `);
 
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS clients (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255),
-        phone VARCHAR(50),
-        role VARCHAR(20) DEFAULT 'client',
-        join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        starter_password VARCHAR(255),
-        avatar TEXT,
-        total_workouts INTEGER DEFAULT 0,
-        total_volume REAL DEFAULT 0,
-        current_streak INTEGER DEFAULT 0,
-        longest_streak INTEGER DEFAULT 0,
-        personal_records JSONB DEFAULT '{}'
-      )
-    `);
-
-    await pool.query(`
       CREATE TABLE IF NOT EXISTS invitations (
         code VARCHAR(50) PRIMARY KEY,
         name VARCHAR(255),
@@ -442,11 +423,6 @@ async function initializeTables() {
       } catch (_) { /* column might already exist */ }
     };
 
-    await addColumnIfNotExists('clients', 'email', 'VARCHAR(255)');
-    await addColumnIfNotExists('clients', 'role', "VARCHAR(20) DEFAULT 'client'");
-    await addColumnIfNotExists('clients', 'starter_password', 'VARCHAR(255)');
-    await addColumnIfNotExists('clients', 'avatar', 'TEXT');
-
     // Performance indexes
     const createIndexIfNotExists = async (name: string, sql: string) => {
       try {
@@ -462,7 +438,6 @@ async function initializeTables() {
     await createIndexIfNotExists('idx_notifications_read', 'notifications (user_id, read)');
     await createIndexIfNotExists('idx_body_measurements_user_id', 'body_measurements (user_id)');
     await createIndexIfNotExists('idx_routines_user_id', 'routines (user_id)');
-    await createIndexIfNotExists('idx_clients_user_id', 'clients (user_id)');
     await createIndexIfNotExists('idx_plans_created_by', 'workout_plans (created_by)');
     await createIndexIfNotExists('idx_plans_template_id', 'workout_plans (template_id)');
     await createIndexIfNotExists('idx_plans_assigned_user_id', 'workout_plans (assigned_user_id)');
@@ -1844,8 +1819,6 @@ export const storage = {
           await pool.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
           await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
-          // clients-Tabelle wird nach Merge nicht mehr gebraucht, aber gelöscht für sauberen Cleanup (falls noch Legacy-Row)
-          await pool.query(`DELETE FROM clients WHERE user_id = $1::integer`, [userId]).catch(() => {});
           await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
           console.log(`[Storage] DSGVO: All data deleted for user ${userId}`);
           return true;
