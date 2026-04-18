@@ -12,7 +12,7 @@ import { Play, ClipboardList, Dumbbell, Calendar } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 
 const dayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
@@ -20,6 +20,7 @@ export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { workoutPlans, activeWorkout, startWorkout, endWorkout } = useWorkouts();
+  const { exercises: exerciseDb, categoryName } = useExercises();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
@@ -32,11 +33,7 @@ export default function PlanDetailScreen() {
   const getExerciseCategory = (exerciseId: string) => {
     const ex = exerciseDb.find(e => e.id === exerciseId);
     if (!ex) return '';
-    const categories: Record<string, string> = {
-      chest: 'Brust', back: 'Rücken', legs: 'Beine', shoulders: 'Schultern',
-      arms: 'Arme', core: 'Core', cardio: 'Cardio', 'full-body': 'Ganzkörper',
-    };
-    return categories[ex.category] || ex.category;
+    return categoryName(ex.category);
   };
 
   const handleStart = () => {

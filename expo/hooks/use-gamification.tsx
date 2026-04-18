@@ -14,7 +14,6 @@ import {
   LEVEL_NAMES,
 } from '@/types/gamification';
 import { badges } from '@/data/badges';
-import { exercises as exerciseDb } from '@/data/exercises';
 
 const STORAGE_KEY = 'gamification';
 const DEFAULT_TONE = 'motivator';

@@ -20,7 +20,7 @@ import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useAuth } from '@/hooks/use-auth';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 
 const WEEKDAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -28,6 +28,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { workouts, workoutPlans, startWorkout } = useWorkouts();
+  const { exercises: exerciseDb } = useExercises();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 

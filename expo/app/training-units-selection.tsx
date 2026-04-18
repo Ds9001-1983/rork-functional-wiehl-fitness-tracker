@@ -6,13 +6,14 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import type { Exercise } from '@/types/workout';
 
 export default function TrainingUnitsSelectionScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { workoutPlans, updateWorkoutPlan } = useWorkouts();
+  const { exercises } = useExercises();
   const params = useLocalSearchParams<{
     clientId: string;
     planId: string;
@@ -43,7 +44,7 @@ export default function TrainingUnitsSelectionScreen() {
       grouped[exercise.category].push(exercise);
     });
     return grouped;
-  }, []);
+  }, [exercises]);
   
   const categoryNames: Record<string, string> = {
     chest: '🏋️ Brust',

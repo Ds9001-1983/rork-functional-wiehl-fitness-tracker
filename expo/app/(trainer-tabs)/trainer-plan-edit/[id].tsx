@@ -5,7 +5,7 @@ import { Plus, X, Save, Dumbbell, Search, Check } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import type { WorkoutExercise, WorkoutSet } from '@/types/workout';
 
 interface Plan {
@@ -20,6 +20,7 @@ interface Plan {
 export default function TrainerPlanEditScreen() {
   const { id: planId } = useLocalSearchParams<{ id: string }>();
   const Colors = useColors();
+  const { exercises: exerciseDb } = useExercises();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const router = useRouter();
 

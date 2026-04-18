@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { Printer } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import { WorkoutPlan } from '@/types/workout';
 
 interface PlanPdfExportProps {
@@ -13,6 +13,7 @@ interface PlanPdfExportProps {
 
 export const PlanPdfExport: React.FC<PlanPdfExportProps> = ({ plan, clientName }) => {
   const Colors = useColors();
+  const { exercises: exerciseDb } = useExercises();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const handleExport = () => {

@@ -7,7 +7,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import type { WorkoutExercise, WorkoutPlan } from '@/types/workout';
 import StatusBanner from '@/components/StatusBanner';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -17,6 +17,7 @@ export default function TrainerPlansScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { createWorkoutPlan, assignPlanToUser, instantiatePlan, updateWorkoutPlan, deletePlan, duplicatePlan, workoutPlans, setCurrentUserId } = useWorkouts();
+  const { exercises: exerciseDb } = useExercises();
 
   useEffect(() => {
     if (user?.id) setCurrentUserId(user.id);

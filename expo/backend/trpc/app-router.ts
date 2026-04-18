@@ -63,6 +63,7 @@ import registerPushToken from "./routes/push/register";
 import * as coursesAdmin from "./routes/courses/admin";
 import * as coursesTrainer from "./routes/courses/trainer";
 import * as coursesCustomer from "./routes/courses/customer";
+import * as exercisesRouter from "./routes/exercises/router";
 
 export const appRouter = createTRPCRouter({
   example: createTRPCRouter({
@@ -166,6 +167,17 @@ export const appRouter = createTRPCRouter({
   }),
   push: createTRPCRouter({
     register: registerPushToken,
+  }),
+  exerciseCategories: createTRPCRouter({
+    list: exercisesRouter.listCategories,
+    create: exercisesRouter.createCategory,
+    update: exercisesRouter.updateCategory,
+  }),
+  exercises: createTRPCRouter({
+    list: exercisesRouter.listExercises,
+    create: exercisesRouter.createExercise,
+    update: exercisesRouter.updateExercise,
+    toggleActive: exercisesRouter.toggleExerciseActive,
   }),
   courses: createTRPCRouter({
     admin: createTRPCRouter({

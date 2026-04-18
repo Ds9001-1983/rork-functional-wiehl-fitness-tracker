@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Modal 
 import { Sparkles, X, ChevronDown, ChevronUp, Dumbbell, Check } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import { trpcClient } from '@/lib/trpc';
 
 interface AiPlanPreviewProps {
@@ -12,6 +12,7 @@ interface AiPlanPreviewProps {
 
 export const AiPlanPreview: React.FC<AiPlanPreviewProps> = ({ onCreatePlan }) => {
   const Colors = useColors();
+  const { exercises: exerciseDb } = useExercises();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
 
   const [showModal, setShowModal] = useState(false);

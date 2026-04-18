@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { BarChart3, Users, Dumbbell, Activity } from 'lucide-react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
+import { BarChart3, Users, Dumbbell, Activity, Calendar, AlertTriangle, ChevronRight } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
@@ -105,6 +106,26 @@ export default function AdminDashboardScreen() {
         </View>
       </View>
 
+      {/* Verwaltung */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Verwaltung</Text>
+        <TouchableOpacity style={styles.manageRow} onPress={() => router.push('/admin-exercises' as any)}>
+          <Dumbbell size={20} color={Colors.accent} />
+          <Text style={styles.manageLabel}>Übungen & Kategorien</Text>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.manageRow} onPress={() => router.push('/admin-courses')}>
+          <Calendar size={20} color={Colors.accent} />
+          <Text style={styles.manageLabel}>Kurse</Text>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.manageRow} onPress={() => router.push('/admin-penalties')}>
+          <AlertTriangle size={20} color={Colors.accent} />
+          <Text style={styles.manageLabel}>No-Show Verwaltung</Text>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </TouchableOpacity>
+      </View>
+
       {/* Recent Activity */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Letzte Aktivitäten</Text>
@@ -148,4 +169,6 @@ const createStyles = (Colors: any) => StyleSheet.create({
   activityInfo: { flex: 1 },
   activityName: { fontSize: 14, color: Colors.text, fontWeight: '500' },
   activityDate: { fontSize: 12, color: Colors.textMuted },
+  manageRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  manageLabel: { flex: 1, fontSize: 15, color: Colors.text, fontWeight: '500' },
 });

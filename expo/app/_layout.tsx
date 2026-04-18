@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { WorkoutProvider } from "@/hooks/use-workouts";
 import { ClientsProvider } from "@/hooks/use-clients";
 import { CoursesProvider } from "@/hooks/use-courses";
+import { ExercisesProvider } from "@/hooks/use-exercises";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { trpc, trpcReactClient } from "@/lib/trpc";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -62,6 +63,7 @@ function RootLayoutNav() {
       <Stack.Screen name="admin-courses" options={{ title: 'Kursverwaltung' }} />
       <Stack.Screen name="admin-course-detail" options={{ title: 'Kurs' }} />
       <Stack.Screen name="admin-penalties" options={{ title: 'No-Show Verwaltung' }} />
+      <Stack.Screen name="admin-exercises" options={{ title: 'Übungsverwaltung' }} />
     </Stack>
   );
 }
@@ -80,9 +82,11 @@ export default function RootLayout() {
               <ClientsProvider>
                 <WorkoutProvider>
                   <CoursesProvider>
-                    <ErrorBoundary>
-                      <RootLayoutNav />
-                    </ErrorBoundary>
+                    <ExercisesProvider>
+                      <ErrorBoundary>
+                        <RootLayoutNav />
+                      </ErrorBoundary>
+                    </ExercisesProvider>
                   </CoursesProvider>
                 </WorkoutProvider>
               </ClientsProvider>

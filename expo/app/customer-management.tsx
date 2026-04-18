@@ -6,7 +6,6 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises as exerciseData } from '@/data/exercises';
 
 import type { User as UserType } from '@/types/workout';
 

@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import { Search, X, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
-import { exercises, exerciseCategories } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { Exercise } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
 
 export default function ExercisesScreen() {
   const { activeWorkout, addExerciseToWorkout } = useWorkouts();
+  const { exercises, categories: exerciseCategories } = useExercises();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
@@ -75,12 +76,12 @@ export default function ExercisesScreen() {
         </TouchableOpacity>
         {exerciseCategories.map((category) => (
           <TouchableOpacity
-            key={category.id}
-            style={[styles.categoryChip, selectedCategory === category.id && styles.categoryChipActive]}
-            onPress={() => setSelectedCategory(category.id)}
+            key={category.slug}
+            style={[styles.categoryChip, selectedCategory === category.slug && styles.categoryChipActive]}
+            onPress={() => setSelectedCategory(category.slug)}
           >
-            <Text style={styles.categoryIcon}>{category.icon}</Text>
-            <Text style={[styles.categoryChipText, selectedCategory === category.id && styles.categoryChipTextActive]}>
+            {category.icon ? <Text style={styles.categoryIcon}>{category.icon}</Text> : null}
+            <Text style={[styles.categoryChipText, selectedCategory === category.slug && styles.categoryChipTextActive]}>
               {category.name}
             </Text>
           </TouchableOpacity>

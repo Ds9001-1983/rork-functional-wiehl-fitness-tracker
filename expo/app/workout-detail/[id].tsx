@@ -12,7 +12,7 @@ import { Clock, Dumbbell, TrendingUp, Trophy, ChevronLeft, Repeat, Trash2, Edit3
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises as exerciseDb } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import { calculate1RM } from '@/types/workout';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +21,7 @@ export default function WorkoutDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { workouts, deleteWorkout, repeatWorkout, updateWorkout } = useWorkouts();
+  const { exercises: exerciseDb } = useExercises();
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

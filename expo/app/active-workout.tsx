@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Save, Timer, X } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
 import type { WorkoutSet } from '@/types/workout';
@@ -24,6 +24,7 @@ const REST_DEFAULT_SECONDS = 90;
 export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const { activeWorkout, updateSet, addSet, removeSet, saveWorkout, endWorkout } = useWorkouts();
+  const { exercises } = useExercises();
   const [, forceUpdate] = useState(0);
   const [finishModalVisible, setFinishModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

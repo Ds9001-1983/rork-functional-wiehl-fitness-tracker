@@ -10,11 +10,12 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { StatsCard } from '@/components/StatsCard';
-import { exercises as exerciseData } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 
 export default function StatsScreen() {
   const { user } = useAuth();
   const { setCurrentUserId, getWorkoutHistory } = useWorkouts();
+  const { exercises: exerciseData } = useExercises();
 
   useEffect(() => {
     if (user?.id) {
@@ -63,7 +64,7 @@ export default function StatsScreen() {
       })
       .sort((a, b) => b.weight - a.weight)
       .slice(0, 5);
-  }, [userWorkouts]);
+  }, [userWorkouts, exerciseData]);
 
   return (
     <View style={styles.container}>

@@ -42,6 +42,26 @@ export interface StoredInvitation {
   createdAt: string;
 }
 
+export interface StoredExerciseCategory {
+  slug: string;
+  name: string;
+  icon?: string;
+  orderIndex: number;
+  active: boolean;
+}
+
+export interface StoredExercise {
+  id: string;
+  name: string;
+  category: string;
+  muscleGroups: string[];
+  equipment?: string;
+  instructions?: string;
+  videoUrl?: string;
+  active: boolean;
+  createdBy?: string;
+}
+
 export interface StoredWorkout {
   id: string;
   userId: string;
@@ -529,9 +549,40 @@ async function initializeTables() {
     await addColumnIfNotExists('workout_plans', 'customized_fields', "JSONB DEFAULT '[]'");
     await addColumnIfNotExists('workout_plans', 'assigned_user_id', 'VARCHAR(50)');
 
-    // Seed default studio and users
+    // Exercise catalog (editable by admin)
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS exercise_categories (
+        slug VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        icon VARCHAR(10),
+        order_index INTEGER DEFAULT 0,
+        active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool!.query(`
+      CREATE TABLE IF NOT EXISTS exercises (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        category VARCHAR(50) REFERENCES exercise_categories(slug) ON DELETE SET NULL,
+        muscle_groups JSONB DEFAULT '[]',
+        equipment VARCHAR(255),
+        instructions TEXT,
+        video_url VARCHAR(500),
+        active BOOLEAN DEFAULT TRUE,
+        created_by VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await createIndexIfNotExists('idx_exercises_category', 'exercises (category)');
+    await createIndexIfNotExists('idx_exercises_active', 'exercises (active)');
+
+    // Seed default studio, users, and exercise catalog
     await seedDefaultStudio();
     await seedDefaultUsers();
+    await seedExerciseCatalog();
 
     console.log('[Storage] Database tables initialized');
   } catch (err) {
@@ -553,6 +604,62 @@ async function seedDefaultStudio() {
     }
   } catch (err) {
     console.error('[Storage] Could not seed default studio:', err);
+  }
+}
+
+const DEFAULT_EXERCISE_CATEGORIES: Array<{ slug: string; name: string; icon: string }> = [
+  { slug: 'chest', name: 'Brust', icon: '💪' },
+  { slug: 'back', name: 'Rücken', icon: '🔙' },
+  { slug: 'legs', name: 'Beine', icon: '🦵' },
+  { slug: 'shoulders', name: 'Schultern', icon: '🤷' },
+  { slug: 'arms', name: 'Arme', icon: '💪' },
+  { slug: 'core', name: 'Core', icon: '🎯' },
+  { slug: 'cardio', name: 'Cardio', icon: '🏃' },
+  { slug: 'full-body', name: 'Ganzkörper', icon: '🏋️' },
+];
+
+const DEFAULT_EXERCISES: Array<Omit<StoredExercise, 'active'>> = [
+  { id: 'bench-press', name: 'Bankdrücken', category: 'chest', equipment: 'Langhantel', muscleGroups: ['Brust', 'Trizeps', 'Schultern'], instructions: 'Lege dich auf die Bank, greife die Stange schulterbreit und drücke sie kontrolliert nach oben.' },
+  { id: 'incline-dumbbell-press', name: 'Schrägbankdrücken mit Kurzhanteln', category: 'chest', equipment: 'Kurzhanteln', muscleGroups: ['Obere Brust', 'Schultern', 'Trizeps'] },
+  { id: 'cable-fly', name: 'Kabelzug Fliegende', category: 'chest', equipment: 'Kabelzug', muscleGroups: ['Brust'] },
+  { id: 'deadlift', name: 'Kreuzheben', category: 'back', equipment: 'Langhantel', muscleGroups: ['Unterer Rücken', 'Gesäß', 'Beinbeuger', 'Trapez'] },
+  { id: 'pull-up', name: 'Klimmzüge', category: 'back', equipment: 'Klimmzugstange', muscleGroups: ['Latissimus', 'Bizeps', 'Mittlerer Rücken'] },
+  { id: 'barbell-row', name: 'Langhantelrudern', category: 'back', equipment: 'Langhantel', muscleGroups: ['Latissimus', 'Mittlerer Rücken', 'Bizeps'] },
+  { id: 'squat', name: 'Kniebeuge', category: 'legs', equipment: 'Langhantel', muscleGroups: ['Quadrizeps', 'Gesäß', 'Beinbeuger'] },
+  { id: 'leg-press', name: 'Beinpresse', category: 'legs', equipment: 'Beinpresse', muscleGroups: ['Quadrizeps', 'Gesäß'] },
+  { id: 'romanian-deadlift', name: 'Rumänisches Kreuzheben', category: 'legs', equipment: 'Langhantel', muscleGroups: ['Beinbeuger', 'Gesäß', 'Unterer Rücken'] },
+  { id: 'overhead-press', name: 'Schulterdrücken', category: 'shoulders', equipment: 'Langhantel', muscleGroups: ['Schultern', 'Trizeps'] },
+  { id: 'lateral-raise', name: 'Seitheben', category: 'shoulders', equipment: 'Kurzhanteln', muscleGroups: ['Seitliche Schultern'] },
+  { id: 'barbell-curl', name: 'Langhantel Curls', category: 'arms', equipment: 'Langhantel', muscleGroups: ['Bizeps'] },
+  { id: 'tricep-dips', name: 'Dips', category: 'arms', equipment: 'Dip-Station', muscleGroups: ['Trizeps', 'Untere Brust'] },
+  { id: 'plank', name: 'Plank', category: 'core', equipment: 'Körpergewicht', muscleGroups: ['Core', 'Bauch'] },
+  { id: 'hanging-leg-raise', name: 'Beinheben hängend', category: 'core', equipment: 'Klimmzugstange', muscleGroups: ['Untere Bauchmuskeln', 'Hüftbeuger'] },
+];
+
+async function seedExerciseCatalog() {
+  if (!pool) return;
+  try {
+    // Seed categories
+    for (let i = 0; i < DEFAULT_EXERCISE_CATEGORIES.length; i++) {
+      const cat = DEFAULT_EXERCISE_CATEGORIES[i];
+      await pool.query(
+        `INSERT INTO exercise_categories (slug, name, icon, order_index, active)
+         VALUES ($1, $2, $3, $4, TRUE)
+         ON CONFLICT (slug) DO NOTHING`,
+        [cat.slug, cat.name, cat.icon, i]
+      );
+    }
+    // Seed exercises
+    for (const ex of DEFAULT_EXERCISES) {
+      await pool.query(
+        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, active)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+         ON CONFLICT (id) DO NOTHING`,
+        [ex.id, ex.name, ex.category, JSON.stringify(ex.muscleGroups), ex.equipment ?? null, ex.instructions ?? null]
+      );
+    }
+  } catch (err) {
+    console.error('[Storage] Could not seed exercise catalog:', err);
   }
 }
 
@@ -870,6 +977,149 @@ export const storage = {
         return true;
       }
       return false;
+    },
+  },
+
+  exerciseCategories: {
+    list: async (includeInactive = false): Promise<StoredExerciseCategory[]> => {
+      if (useDatabase && pool) {
+        try {
+          const where = includeInactive ? '' : 'WHERE active = TRUE';
+          const result = await pool.query(
+            `SELECT slug, name, icon, order_index as "orderIndex", active
+             FROM exercise_categories ${where}
+             ORDER BY order_index ASC, name ASC`
+          );
+          return result.rows;
+        } catch (err) {
+          console.error('[Storage] DB query failed for exercise_categories:', err);
+          return [];
+        }
+      }
+      return DEFAULT_EXERCISE_CATEGORIES.map((c, i) => ({
+        slug: c.slug,
+        name: c.name,
+        icon: c.icon,
+        orderIndex: i,
+        active: true,
+      }));
+    },
+
+    create: async (input: { slug: string; name: string; icon?: string; orderIndex?: number }): Promise<StoredExerciseCategory> => {
+      if (!useDatabase || !pool) {
+        throw new Error('Database required for exercise category creation');
+      }
+      const result = await pool.query(
+        `INSERT INTO exercise_categories (slug, name, icon, order_index, active)
+         VALUES ($1, $2, $3, $4, TRUE)
+         RETURNING slug, name, icon, order_index as "orderIndex", active`,
+        [input.slug, input.name, input.icon ?? null, input.orderIndex ?? 0]
+      );
+      return result.rows[0];
+    },
+
+    update: async (slug: string, patch: { name?: string; icon?: string | null; orderIndex?: number; active?: boolean }): Promise<boolean> => {
+      if (!useDatabase || !pool) return false;
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+      if (patch.name !== undefined) { sets.push(`name = $${idx++}`); values.push(patch.name); }
+      if (patch.icon !== undefined) { sets.push(`icon = $${idx++}`); values.push(patch.icon); }
+      if (patch.orderIndex !== undefined) { sets.push(`order_index = $${idx++}`); values.push(patch.orderIndex); }
+      if (patch.active !== undefined) { sets.push(`active = $${idx++}`); values.push(patch.active); }
+      if (sets.length === 0) return false;
+      sets.push(`updated_at = NOW()`);
+      values.push(slug);
+      const result = await pool.query(
+        `UPDATE exercise_categories SET ${sets.join(', ')} WHERE slug = $${idx}`,
+        values
+      );
+      return (result.rowCount ?? 0) > 0;
+    },
+  },
+
+  exercises: {
+    list: async (includeInactive = false): Promise<StoredExercise[]> => {
+      if (useDatabase && pool) {
+        try {
+          const where = includeInactive ? '' : 'WHERE active = TRUE';
+          const result = await pool.query(
+            `SELECT id, name, category, muscle_groups as "muscleGroups",
+                    equipment, instructions, video_url as "videoUrl",
+                    active, created_by as "createdBy"
+             FROM exercises ${where}
+             ORDER BY category ASC, name ASC`
+          );
+          return result.rows;
+        } catch (err) {
+          console.error('[Storage] DB query failed for exercises:', err);
+          return [];
+        }
+      }
+      return DEFAULT_EXERCISES.map((e) => ({ ...e, active: true }));
+    },
+
+    create: async (input: {
+      id: string;
+      name: string;
+      category: string;
+      muscleGroups: string[];
+      equipment?: string;
+      instructions?: string;
+      videoUrl?: string;
+      createdBy?: string;
+    }): Promise<StoredExercise> => {
+      if (!useDatabase || !pool) {
+        throw new Error('Database required for exercise creation');
+      }
+      const result = await pool.query(
+        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, video_url, active, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8)
+         RETURNING id, name, category, muscle_groups as "muscleGroups",
+                   equipment, instructions, video_url as "videoUrl",
+                   active, created_by as "createdBy"`,
+        [
+          input.id,
+          input.name,
+          input.category,
+          JSON.stringify(input.muscleGroups),
+          input.equipment ?? null,
+          input.instructions ?? null,
+          input.videoUrl ?? null,
+          input.createdBy ?? null,
+        ]
+      );
+      return result.rows[0];
+    },
+
+    update: async (id: string, patch: {
+      name?: string;
+      category?: string;
+      muscleGroups?: string[];
+      equipment?: string | null;
+      instructions?: string | null;
+      videoUrl?: string | null;
+      active?: boolean;
+    }): Promise<boolean> => {
+      if (!useDatabase || !pool) return false;
+      const sets: string[] = [];
+      const values: unknown[] = [];
+      let idx = 1;
+      if (patch.name !== undefined) { sets.push(`name = $${idx++}`); values.push(patch.name); }
+      if (patch.category !== undefined) { sets.push(`category = $${idx++}`); values.push(patch.category); }
+      if (patch.muscleGroups !== undefined) { sets.push(`muscle_groups = $${idx++}`); values.push(JSON.stringify(patch.muscleGroups)); }
+      if (patch.equipment !== undefined) { sets.push(`equipment = $${idx++}`); values.push(patch.equipment); }
+      if (patch.instructions !== undefined) { sets.push(`instructions = $${idx++}`); values.push(patch.instructions); }
+      if (patch.videoUrl !== undefined) { sets.push(`video_url = $${idx++}`); values.push(patch.videoUrl); }
+      if (patch.active !== undefined) { sets.push(`active = $${idx++}`); values.push(patch.active); }
+      if (sets.length === 0) return false;
+      sets.push(`updated_at = NOW()`);
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE exercises SET ${sets.join(', ')} WHERE id = $${idx}`,
+        values
+      );
+      return (result.rowCount ?? 0) > 0;
     },
   },
 

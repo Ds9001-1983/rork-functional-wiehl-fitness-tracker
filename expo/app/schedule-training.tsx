@@ -6,13 +6,14 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
-import { exercises } from '@/data/exercises';
+import { useExercises } from '@/hooks/use-exercises';
 import type { Workout, Exercise } from '@/types/workout';
 
 export default function ScheduleTrainingScreen() {
   const { user } = useAuth();
   const { clients } = useClients();
   const { createWorkout } = useWorkouts();
+  const { exercises, categories } = useExercises();
   const params = useLocalSearchParams<{ clientId?: string }>();
 
   const [selectedClientId, setSelectedClientId] = useState<string>(params.clientId || '');
@@ -20,12 +21,12 @@ export default function ScheduleTrainingScreen() {
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
-  
-  const selectedClient = useMemo(() => 
-    clients.find(c => c.id === selectedClientId), 
+
+  const selectedClient = useMemo(() =>
+    clients.find(c => c.id === selectedClientId),
     [clients, selectedClientId]
   );
-  
+
   // Gruppiere Übungen nach Kategorien
   const exercisesByCategory = useMemo(() => {
     const grouped: Record<string, Exercise[]> = {};
@@ -36,18 +37,15 @@ export default function ScheduleTrainingScreen() {
       grouped[exercise.category].push(exercise);
     });
     return grouped;
-  }, []);
-  
-  const categoryNames: Record<string, string> = {
-    chest: '🏋️ Brust',
-    back: '💪 Rücken',
-    legs: '🦵 Beine',
-    shoulders: '🤲 Schultern',
-    arms: '💪 Arme',
-    core: '🔥 Core',
-    cardio: '❤️ Cardio',
-    'full-body': '🏃 Ganzkörper'
-  };
+  }, [exercises]);
+
+  const categoryNames = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((c) => {
+      map[c.slug] = c.icon ? `${c.icon} ${c.name}` : c.name;
+    });
+    return map;
+  }, [categories]);
   
 
   const toggleExercise = (exerciseId: string) => {
