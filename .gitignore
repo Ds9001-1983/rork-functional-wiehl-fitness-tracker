@@ -10,3 +10,5 @@ expo/web-build/
 expo/test-results/
 expo/playwright-report/
 bun [0-9]*.lock
+.DS_Store
+**/.DS_Store
