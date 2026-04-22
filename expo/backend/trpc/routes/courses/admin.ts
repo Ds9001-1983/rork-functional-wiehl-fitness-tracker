@@ -25,7 +25,7 @@ export const createCourse = protectedProcedure
     name: z.string().min(1),
     description: z.string().optional(),
     duration_minutes: z.number().int().positive(),
-    max_participants: z.number().int().positive(),
+    max_participants: z.number().int().nonnegative(),
     trainer_id: z.string().optional(),
     category: z.string().optional(),
     color: hexColorSchema.nullable().optional(),
@@ -64,7 +64,7 @@ export const updateCourse = protectedProcedure
     name: z.string().optional(),
     description: z.string().nullable().optional(),
     duration_minutes: z.number().int().positive().optional(),
-    max_participants: z.number().int().positive().optional(),
+    max_participants: z.number().int().nonnegative().optional(),
     trainer_id: z.string().optional(),
     category: z.string().nullable().optional(),
     color: hexColorSchema.nullable().optional(),
@@ -183,7 +183,7 @@ export const createInstance = protectedProcedure
     course_id: z.string().regex(/^\d+$/),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // Europe/Berlin-Datum
     time: z.string().regex(/^\d{2}:\d{2}$/),
-    max_participants: z.number().int().positive().optional(),
+    max_participants: z.number().int().nonnegative().optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);

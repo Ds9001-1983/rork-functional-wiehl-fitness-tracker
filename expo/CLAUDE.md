@@ -52,7 +52,6 @@ app/                        # Expo Router Screens (File-based routing)
   workout-detail/[id].tsx   # Workout-Detail-Ansicht
   plan-detail/[id].tsx      # Plan-Detail-Ansicht
   routines.tsx              # Routinen-Verwaltung (sortierbar, Server-Sync)
-  onboarding.tsx            # 3-Schritt Wizard (Ziel, Level, Trainingstage) + Auto-Routing
   leaderboard.tsx           # Rangliste nach XP
   challenges.tsx            # Challenges-System
   body-measurements.tsx     # Koerpermasse-Tracking + Trends

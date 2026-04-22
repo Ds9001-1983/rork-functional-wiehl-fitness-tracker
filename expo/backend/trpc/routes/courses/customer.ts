@@ -49,6 +49,7 @@ export const getSchedule = protectedProcedure
         },
         booked,
         available: i.max_participants - booked,
+        unlimited: i.max_participants === 0,
         isBookedByMe: !!mine,
         myBookingId: mine?.id ?? null,
         onWaitlist: !!onWaitlist,

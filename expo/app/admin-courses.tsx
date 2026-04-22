@@ -148,7 +148,7 @@ export default function AdminCoursesScreen() {
             <TextInput style={styles.input} placeholder="Name" placeholderTextColor={Colors.textMuted} value={form.name} onChangeText={v => setForm({ ...form, name: v })} />
             <TextInput style={[styles.input, { height: 80 }]} multiline placeholder="Beschreibung" placeholderTextColor={Colors.textMuted} value={form.description} onChangeText={v => setForm({ ...form, description: v })} />
             <TextInput style={styles.input} placeholder="Dauer (Minuten)" keyboardType="numeric" placeholderTextColor={Colors.textMuted} value={form.duration_minutes} onChangeText={v => setForm({ ...form, duration_minutes: v })} />
-            <TextInput style={styles.input} placeholder="Max. Teilnehmer" keyboardType="numeric" placeholderTextColor={Colors.textMuted} value={form.max_participants} onChangeText={v => setForm({ ...form, max_participants: v })} />
+            <TextInput style={styles.input} placeholder="Max. Teilnehmer (0 = unbegrenzt)" keyboardType="numeric" placeholderTextColor={Colors.textMuted} value={form.max_participants} onChangeText={v => setForm({ ...form, max_participants: v })} />
             <TextInput style={styles.input} placeholder="Kategorie (optional)" placeholderTextColor={Colors.textMuted} value={form.category} onChangeText={v => setForm({ ...form, category: v })} />
 
             <Text style={styles.label}>Farbe</Text>
