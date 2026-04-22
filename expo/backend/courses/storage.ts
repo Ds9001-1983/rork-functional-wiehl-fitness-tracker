@@ -786,10 +786,12 @@ export async function bookWithLock(instanceId: string, userId: string): Promise<
       const cntR = await client.query(`SELECT COUNT(*)::int as c FROM bookings WHERE instance_id=$1 AND status='booked'`, [parseInt(instanceId)]);
       const booked = cntR.rows[0].c;
       const max = instR.rows[0].max_participants;
-      // existing (inaktiv) wird durch ON CONFLICT zu 'booked' — muss in die Kapazitätsprüfung
-      const projected = booked + 1;
-      if (projected > max) {
-        await client.query('ROLLBACK'); return { ok: false, reason: 'full' };
+      // max === 0 → unbegrenzt, keine Kapazitätsprüfung
+      if (max > 0) {
+        const projected = booked + 1;
+        if (projected > max) {
+          await client.query('ROLLBACK'); return { ok: false, reason: 'full' };
+        }
       }
       const ins = await client.query(
         `INSERT INTO bookings (instance_id, user_id, status, booked_at) VALUES ($1,$2,'booked',NOW())
@@ -809,7 +811,7 @@ export async function bookWithLock(instanceId: string, userId: string): Promise<
   const inst = mem.instances.find(i => i.id === instanceId);
   if (!inst || inst.status !== 'scheduled') return { ok: false, reason: 'full' };
   const active = mem.bookings.filter(b => b.instance_id === instanceId && b.status === 'booked');
-  if (active.length >= inst.max_participants) return { ok: false, reason: 'full' };
+  if (inst.max_participants > 0 && active.length >= inst.max_participants) return { ok: false, reason: 'full' };
   if (active.find(b => b.user_id === userId)) return { ok: false, reason: 'already_booked' };
   const existing = mem.bookings.find(b => b.instance_id === instanceId && b.user_id === userId);
   if (existing) {

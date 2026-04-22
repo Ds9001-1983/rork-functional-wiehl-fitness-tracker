@@ -54,7 +54,8 @@ function getContrastColor(hex: string | null): string {
 }
 
 function CourseGridTile({ item, width, onPress }: { item: ScheduleItem; width: number; onPress: () => void }) {
-  const isFull = item.available <= 0;
+  const unlimited = (item as any).unlimited === true;
+  const isFull = !unlimited && item.available <= 0;
   const rawColor = (item.course as any).color ?? null;
   const bg = rawColor ?? Colors.surface;
   const fg = getContrastColor(rawColor);
@@ -66,6 +67,10 @@ function CourseGridTile({ item, width, onPress }: { item: ScheduleItem; width: n
     state === 'booked' ? 'Gebucht' :
     state === 'waitlist' ? 'Warteliste' :
     state === 'full' ? 'Voll' : null;
+
+  const capacityText = unlimited
+    ? 'Unbegrenzt'
+    : isFull ? 'Voll' : `${item.available}/${item.instance.max_participants} frei`;
 
   return (
     <Pressable
@@ -82,7 +87,7 @@ function CourseGridTile({ item, width, onPress }: { item: ScheduleItem; width: n
         {item.course.duration_minutes} Min
       </Text>
       <Text style={[styles.gridMeta, { color: fgMuted }]} numberOfLines={1}>
-        {isFull ? 'Voll' : `${item.available}/${item.instance.max_participants} frei`}
+        {capacityText}
       </Text>
       {badgeText && (
         <View style={[styles.gridBadge, { backgroundColor: overlay }]}>
@@ -190,7 +195,9 @@ export default function CoursesScreen() {
   }, []);
 
   const openAction = useCallback((item: ScheduleItem) => {
-    const state = item.isBookedByMe ? 'booked' : item.onWaitlist ? 'waitlist' : item.available <= 0 ? 'full' : 'free';
+    const unlimited = (item as any).unlimited === true;
+    const isFull = !unlimited && item.available <= 0;
+    const state = item.isBookedByMe ? 'booked' : item.onWaitlist ? 'waitlist' : isFull ? 'full' : 'free';
     const timeStr = formatTimeDe(item.instance.start_time);
     if (state === 'booked') {
       confirmAlert(
