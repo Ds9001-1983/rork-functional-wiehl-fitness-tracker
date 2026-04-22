@@ -24,6 +24,7 @@ interface WorkoutState {
   isLoading: boolean;
   currentUserId: string | null;
   setCurrentUserId: (userId: string | null) => void;
+  refreshWorkouts: () => Promise<void>;
   startWorkout: (planId?: string) => void;
   endWorkout: () => void;
   addExerciseToWorkout: (exerciseId: string) => void;
@@ -426,6 +427,7 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     isLoading,
     currentUserId,
     setCurrentUserId,
+    refreshWorkouts: loadData,
     startWorkout,
     endWorkout,
     addExerciseToWorkout,
@@ -445,5 +447,5 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
     repeatWorkout,
     saveRoutine,
     updateWorkout,
-  }), [workouts, workoutPlans, activeWorkout, isLoading, currentUserId, startWorkout, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, saveWorkout, getWorkoutHistory, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, deletePlan, deleteWorkout, duplicatePlan, instantiatePlan, repeatWorkout, saveRoutine, updateWorkout]);
+  }), [workouts, workoutPlans, activeWorkout, isLoading, currentUserId, loadData, startWorkout, endWorkout, addExerciseToWorkout, updateSet, addSet, removeSet, saveWorkout, getWorkoutHistory, createWorkout, createWorkoutPlan, updateWorkoutPlan, assignPlanToUser, deletePlan, deleteWorkout, duplicatePlan, instantiatePlan, repeatWorkout, saveRoutine, updateWorkout]);
 });

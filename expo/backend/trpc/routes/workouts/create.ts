@@ -66,7 +66,7 @@ export default protectedProcedure
       }
     }
 
-    console.log('[Server] Created workout:', workout.id, 'for user:', input.userId);
+    console.log('[Server] Created workout:', workout.id, 'for user:', input.userId, 'exercises:', input.exercises.length);
 
     // Wenn Trainer einem Kunden ein Training zuweist: Notification + Push
     if (createdBy && input.userId !== ctx.user.userId) {
