@@ -14,6 +14,7 @@ export interface Course {
   category: string | null;
   color: string | null; // Hex-Farbe inkl. # für Kalender-Kacheln
   is_active: boolean;
+  booking_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +110,7 @@ export async function initCourseTables() {
       )
     `);
     await pool.query(`ALTER TABLE courses ADD COLUMN IF NOT EXISTS color VARCHAR(7)`);
+    await pool.query(`ALTER TABLE courses ADD COLUMN IF NOT EXISTS booking_enabled BOOLEAN NOT NULL DEFAULT TRUE`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS course_schedules (
         id SERIAL PRIMARY KEY,
@@ -228,7 +230,9 @@ function mapCourseRow(r: any): Course {
     duration_minutes: r.duration_minutes, max_participants: r.max_participants,
     trainer_id: String(r.trainer_id), category: r.category,
     color: r.color ?? null,
-    is_active: r.is_active, created_at: toIso(r.created_at)!, updated_at: toIso(r.updated_at)!,
+    is_active: r.is_active,
+    booking_enabled: r.booking_enabled !== false,
+    created_at: toIso(r.created_at)!, updated_at: toIso(r.updated_at)!,
   };
 }
 function mapScheduleRow(r: any): CourseSchedule {
@@ -281,10 +285,10 @@ export const coursesStore = {
     const pool = needDb();
     if (pool) {
       const r = await pool.query(
-        `INSERT INTO courses (name, description, duration_minutes, max_participants, trainer_id, category, color, is_active)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        `INSERT INTO courses (name, description, duration_minutes, max_participants, trainer_id, category, color, is_active, booking_enabled)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
         [data.name, data.description, data.duration_minutes, data.max_participants,
-         parseInt(data.trainer_id), data.category, data.color ?? null, data.is_active]
+         parseInt(data.trainer_id), data.category, data.color ?? null, data.is_active, data.booking_enabled]
       );
       return mapCourseRow(r.rows[0]);
     }
@@ -294,7 +298,7 @@ export const coursesStore = {
   async update(id: string, patch: Partial<Omit<Course, 'id'>>): Promise<Course | null> {
     const pool = needDb();
     if (pool) {
-      const allowed = ['name', 'description', 'duration_minutes', 'max_participants', 'trainer_id', 'category', 'color', 'is_active'] as const;
+      const allowed = ['name', 'description', 'duration_minutes', 'max_participants', 'trainer_id', 'category', 'color', 'is_active', 'booking_enabled'] as const;
       const normalized = { ...patch, trainer_id: patch.trainer_id ? parseInt(patch.trainer_id as any) : patch.trainer_id } as any;
       const { fields, values } = buildUpdate(normalized, allowed);
       if (!fields.length) return this.getById(id);
@@ -765,15 +769,24 @@ export const waitlistStore = {
 };
 
 // ---- Booking with race-condition safety ----
-export async function bookWithLock(instanceId: string, userId: string): Promise<{ ok: true; booking: Booking } | { ok: false; reason: 'full' | 'already_booked' }> {
+export async function bookWithLock(instanceId: string, userId: string): Promise<{ ok: true; booking: Booking } | { ok: false; reason: 'full' | 'already_booked' | 'disabled' }> {
   const pool = needDb();
   if (pool) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const instR = await client.query('SELECT id, max_participants, status FROM course_instances WHERE id=$1 FOR UPDATE', [parseInt(instanceId)]);
+      const instR = await client.query(
+        `SELECT ci.id, ci.max_participants, ci.status, c.booking_enabled
+         FROM course_instances ci
+         JOIN courses c ON c.id = ci.course_id
+         WHERE ci.id=$1 FOR UPDATE OF ci`,
+        [parseInt(instanceId)]
+      );
       if (!instR.rows[0] || instR.rows[0].status !== 'scheduled') {
         await client.query('ROLLBACK'); return { ok: false, reason: 'full' };
+      }
+      if (instR.rows[0].booking_enabled === false) {
+        await client.query('ROLLBACK'); return { ok: false, reason: 'disabled' };
       }
       // Sperre evtl. vorhandenen (cancelled/no_show) Record des Users, damit paralleles Re-Booking nicht überbucht.
       const existingR = await client.query(
@@ -810,6 +823,8 @@ export async function bookWithLock(instanceId: string, userId: string): Promise<
   // in-memory (single-threaded)
   const inst = mem.instances.find(i => i.id === instanceId);
   if (!inst || inst.status !== 'scheduled') return { ok: false, reason: 'full' };
+  const courseMem = mem.courses.find(c => c.id === inst.course_id);
+  if (courseMem && courseMem.booking_enabled === false) return { ok: false, reason: 'disabled' };
   const active = mem.bookings.filter(b => b.instance_id === instanceId && b.status === 'booked');
   if (inst.max_participants > 0 && active.length >= inst.max_participants) return { ok: false, reason: 'full' };
   if (active.find(b => b.user_id === userId)) return { ok: false, reason: 'already_booked' };

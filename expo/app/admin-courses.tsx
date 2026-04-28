@@ -11,7 +11,7 @@ import { TrainerOnly } from '@/components/TrainerOnly';
 interface Course {
   id: string; name: string; description: string | null; duration_minutes: number;
   max_participants: number; trainer_id: string; category: string | null;
-  color: string | null; is_active: boolean;
+  color: string | null; is_active: boolean; booking_enabled: boolean;
 }
 
 export default function AdminCoursesScreen() {
@@ -21,10 +21,10 @@ export default function AdminCoursesScreen() {
   const [editing, setEditing] = useState<Course | null>(null);
   const [form, setForm] = useState<{
     name: string; description: string; duration_minutes: string; max_participants: string;
-    category: string; color: string; is_active: boolean;
+    category: string; color: string; is_active: boolean; booking_enabled: boolean;
   }>({
     name: '', description: '', duration_minutes: '60', max_participants: '10',
-    category: '', color: DEFAULT_COURSE_COLOR, is_active: true,
+    category: '', color: DEFAULT_COURSE_COLOR, is_active: true, booking_enabled: true,
   });
 
   const load = useCallback(async () => {
@@ -39,7 +39,7 @@ export default function AdminCoursesScreen() {
     setEditing(null);
     setForm({
       name: '', description: '', duration_minutes: '60', max_participants: '10',
-      category: '', color: DEFAULT_COURSE_COLOR, is_active: true,
+      category: '', color: DEFAULT_COURSE_COLOR, is_active: true, booking_enabled: true,
     });
     setModalOpen(true);
   };
@@ -49,7 +49,8 @@ export default function AdminCoursesScreen() {
     setForm({
       name: c.name, description: c.description ?? '',
       duration_minutes: String(c.duration_minutes), max_participants: String(c.max_participants),
-      category: c.category ?? '', color: c.color ?? DEFAULT_COURSE_COLOR, is_active: c.is_active,
+      category: c.category ?? '', color: c.color ?? DEFAULT_COURSE_COLOR,
+      is_active: c.is_active, booking_enabled: c.booking_enabled !== false,
     });
     setModalOpen(true);
   };
@@ -57,13 +58,14 @@ export default function AdminCoursesScreen() {
   const save = async () => {
     if (!form.name.trim()) { infoAlert('Fehler', 'Name erforderlich'); return; }
     const dur = parseInt(form.duration_minutes); const max = parseInt(form.max_participants);
-    if (!dur || !max) { infoAlert('Fehler', 'Dauer und Teilnehmer müssen Zahlen sein'); return; }
+    if (!dur || isNaN(max)) { infoAlert('Fehler', 'Dauer und Teilnehmer müssen Zahlen sein'); return; }
     try {
       if (editing) {
         await trpcClient.courses.admin.updateCourse.mutate({
           id: editing.id, name: form.name, description: form.description || null,
           duration_minutes: dur, max_participants: max,
           category: form.category || null, color: form.color, is_active: form.is_active,
+          booking_enabled: form.booking_enabled,
         });
         setModalOpen(false); await load();
       } else {
@@ -71,6 +73,7 @@ export default function AdminCoursesScreen() {
           name: form.name, description: form.description || undefined,
           duration_minutes: dur, max_participants: max,
           category: form.category || undefined, color: form.color,
+          booking_enabled: form.booking_enabled,
         });
         setModalOpen(false);
         await load();
@@ -123,8 +126,12 @@ export default function AdminCoursesScreen() {
           <View key={c.id} style={styles.card}>
             <View style={[styles.colorBar, { backgroundColor: c.color ?? Colors.border }]} />
             <Pressable style={{ flex: 1 }} onPress={() => router.push(`/admin-course-detail?id=${c.id}`)}>
-              <Text style={[styles.name, !c.is_active && { opacity: 0.5 }]}>{c.name} {!c.is_active && '(inaktiv)'}</Text>
-              <Text style={styles.meta}>{c.duration_minutes} min · max {c.max_participants}{c.category ? ' · ' + c.category : ''}</Text>
+              <Text style={[styles.name, !c.is_active && { opacity: 0.5 }]}>
+                {c.name} {!c.is_active && '(inaktiv)'} {c.is_active && c.booking_enabled === false && '(nicht buchbar)'}
+              </Text>
+              <Text style={styles.meta}>
+                {c.duration_minutes} min · {c.max_participants === 0 ? 'unbegrenzt' : `max ${c.max_participants}`}{c.category ? ' · ' + c.category : ''}
+              </Text>
             </Pressable>
             <Pressable onPress={() => openEdit(c)}><Text style={styles.link}>Bearbeiten</Text></Pressable>
             <Pressable onPress={() => softDelete(c)} hitSlop={6}><Text style={[styles.link, { color: Colors.textMuted }]}>⏻</Text></Pressable>
@@ -167,6 +174,15 @@ export default function AdminCoursesScreen() {
               ))}
             </View>
 
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: Colors.text }}>Buchung aktiv</Text>
+                <Text style={{ color: Colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                  Aus = im Kalender sichtbar, aber nicht buchbar
+                </Text>
+              </View>
+              <Switch value={form.booking_enabled} onValueChange={v => setForm({ ...form, booking_enabled: v })} />
+            </View>
             {editing && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
                 <Text style={{ color: Colors.text }}>Aktiv</Text>

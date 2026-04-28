@@ -50,6 +50,7 @@ export const getSchedule = protectedProcedure
         booked,
         available: i.max_participants - booked,
         unlimited: i.max_participants === 0,
+        bookingEnabled: i.course.booking_enabled !== false,
         isBookedByMe: !!mine,
         myBookingId: mine?.id ?? null,
         onWaitlist: !!onWaitlist,
@@ -73,10 +74,11 @@ export const book = protectedProcedure
 
     const res = await bookWithLock(input.instance_id, ctx.user.userId);
     if (!res.ok) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: res.reason === 'full' ? 'Kurs ist ausgebucht' : 'Du hast diesen Kurs bereits gebucht',
-      });
+      const msg =
+        res.reason === 'full' ? 'Kurs ist ausgebucht'
+        : res.reason === 'disabled' ? 'Dieser Kurs ist nicht buchbar.'
+        : 'Du hast diesen Kurs bereits gebucht';
+      throw new TRPCError({ code: 'BAD_REQUEST', message: msg });
     }
     const course = await coursesStore.getById(inst.course_id);
     if (course) {
@@ -141,6 +143,10 @@ export const joinWaitlist = protectedProcedure
   .mutation(async ({ ctx, input }) => {
     const inst = await instancesStore.getById(input.instance_id);
     if (!inst || inst.status !== 'scheduled') throw new TRPCError({ code: 'NOT_FOUND' });
+    const courseForWl = await coursesStore.getById(inst.course_id);
+    if (courseForWl && courseForWl.booking_enabled === false) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Dieser Kurs ist nicht buchbar.' });
+    }
     if (!isInSevenDayWindow(new Date(inst.start_time))) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Außerhalb des Buchungsfensters' });
     }

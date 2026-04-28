@@ -55,6 +55,7 @@ function getContrastColor(hex: string | null): string {
 
 function CourseGridTile({ item, width, onPress }: { item: ScheduleItem; width: number; onPress: () => void }) {
   const unlimited = (item as any).unlimited === true;
+  const bookingEnabled = (item as any).bookingEnabled !== false;
   const isFull = !unlimited && item.available <= 0;
   const rawColor = (item.course as any).color ?? null;
   const bg = rawColor ?? Colors.surface;
@@ -62,15 +63,22 @@ function CourseGridTile({ item, width, onPress }: { item: ScheduleItem; width: n
   const fgMuted = fg === '#FFFFFF' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)';
   const overlay = fg === '#FFFFFF' ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.3)';
 
-  const state = item.isBookedByMe ? 'booked' : item.onWaitlist ? 'waitlist' : isFull ? 'full' : 'free';
+  const state = item.isBookedByMe ? 'booked'
+    : item.onWaitlist ? 'waitlist'
+    : !bookingEnabled ? 'disabled'
+    : isFull ? 'full'
+    : 'free';
   const badgeText =
     state === 'booked' ? 'Gebucht' :
     state === 'waitlist' ? 'Warteliste' :
+    state === 'disabled' ? 'Nicht buchbar' :
     state === 'full' ? 'Voll' : null;
 
-  const capacityText = unlimited
-    ? 'Unbegrenzt'
-    : isFull ? 'Voll' : `${item.available}/${item.instance.max_participants} frei`;
+  const capacityText = !bookingEnabled
+    ? 'Nicht buchbar'
+    : unlimited
+      ? 'Unbegrenzt'
+      : isFull ? 'Voll' : `${item.available}/${item.instance.max_participants} frei`;
 
   return (
     <Pressable
@@ -196,9 +204,18 @@ export default function CoursesScreen() {
 
   const openAction = useCallback((item: ScheduleItem) => {
     const unlimited = (item as any).unlimited === true;
+    const bookingEnabled = (item as any).bookingEnabled !== false;
     const isFull = !unlimited && item.available <= 0;
-    const state = item.isBookedByMe ? 'booked' : item.onWaitlist ? 'waitlist' : isFull ? 'full' : 'free';
+    const state = item.isBookedByMe ? 'booked'
+      : item.onWaitlist ? 'waitlist'
+      : !bookingEnabled ? 'disabled'
+      : isFull ? 'full'
+      : 'free';
     const timeStr = formatTimeDe(item.instance.start_time);
+    if (state === 'disabled') {
+      infoAlert('Nicht buchbar', `${item.course.name} · ${timeStr}\n\nDieser Kurs ist nur zur Information sichtbar.`);
+      return;
+    }
     if (state === 'booked') {
       confirmAlert(
         'Buchung stornieren?',
@@ -285,7 +302,7 @@ export default function CoursesScreen() {
             </Pressable>
           </View>
         </View>
-        <Text style={styles.subHeader}>7 Tage ab heute · zum Scrollen wischen</Text>
+        <Text style={styles.subHeader}>Buchbar bis 7 Tage im Voraus · zum Scrollen wischen</Text>
 
         {isBlocked && (
           <View style={styles.blockedBanner}>

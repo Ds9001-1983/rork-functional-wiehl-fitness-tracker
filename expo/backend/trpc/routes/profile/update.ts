@@ -10,9 +10,8 @@ export default protectedProcedure
     avatar: z.string().max(500000).optional(),
   }))
   .mutation(async ({ ctx, input }) => {
-    const updated = await storage.clients.updateProfile(ctx.user.userId, input);
-
-    if (!updated) {
+    const result = await storage.clients.updateProfile(ctx.user.userId, input);
+    if (!result.ok) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'USER_NOT_FOUND' });
     }
     return { success: true };

@@ -18,6 +18,8 @@ interface ClientsState {
   inviteClient: (payload: { name?: string; email?: string }) => Promise<Invitation>;
   addClient: (client: Omit<User, 'id' | 'joinDate' | 'role'> & { id?: string; phone?: string; starterPassword?: string; passwordChanged?: boolean }) => Promise<User>;
   removeClient: (userId: string) => Promise<void>;
+  updateClient: (id: string, updates: { name?: string; email?: string; phone?: string }) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() => {
@@ -150,6 +152,13 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
     }
   }, [clients]);
 
+  const updateClient = useCallback(async (id: string, updates: { name?: string; email?: string; phone?: string }) => {
+    await trpcClient.clients.update.mutate({ id, ...updates });
+    const next = clients.map(c => c.id === id ? { ...c, ...updates } : c);
+    setClients(next);
+    await AsyncStorage.setItem('clients', JSON.stringify(next));
+  }, [clients]);
+
   const removeClient = useCallback(async (userId: string) => {
     try {
       await trpcClient.clients.delete.mutate({ id: userId });
@@ -175,5 +184,7 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
     inviteClient,
     addClient,
     removeClient,
-  }), [clients, invitations, isLoading, inviteClient, addClient, removeClient]);
+    updateClient,
+    refresh: loadData,
+  }), [clients, invitations, isLoading, inviteClient, addClient, removeClient, updateClient, loadData]);
 });

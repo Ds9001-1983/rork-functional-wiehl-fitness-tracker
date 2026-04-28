@@ -340,28 +340,20 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [workoutPlans]);
 
   const assignPlanToUser = useCallback(async (planId: string, userId: string) => {
+    // Backend erzeugt jetzt eine eigenständige Instance (templateId=planId, assignedUserId=userId).
+    // Das Template bleibt unverändert.
     try {
-      await trpcClient.plans.assign.mutate({ planId, userId });
-      console.log('[Workouts] Plan', planId, 'an User', userId, 'zugewiesen (+ Push-Notification)');
+      const r = await trpcClient.plans.assign.mutate({ planId, userId }) as any;
+      console.log('[Workouts] Plan', planId, '→ Instance', r?.instance?.id, 'für User', userId);
+      if (r?.instance) {
+        const next = [...workoutPlans, r.instance as WorkoutPlan];
+        setWorkoutPlans(next);
+        await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+      }
     } catch (error) {
       console.error('[Workouts] Server assignPlan fehlgeschlagen:', error);
+      throw error;
     }
-
-    // Lokalen State aktualisieren
-    const plan = workoutPlans.find(p => p.id === planId);
-    if (!plan) return;
-
-    const updatedPlan = {
-      ...plan,
-      assignedTo: [...(plan.assignedTo || []), userId],
-    };
-
-    const updatedPlans = workoutPlans.map(p =>
-      p.id === planId ? updatedPlan : p
-    );
-
-    setWorkoutPlans(updatedPlans);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(updatedPlans));
   }, [workoutPlans]);
 
   const deletePlan = useCallback(async (planId: string) => {
@@ -388,8 +380,13 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   }, [workoutPlans]);
 
   const instantiatePlan = useCallback(async (planId: string, userIds: string[]) => {
-    await trpcClient.plans.instantiate.mutate({ templateId: planId, userIds });
-  }, []);
+    const r = await trpcClient.plans.instantiate.mutate({ templateId: planId, userIds }) as any;
+    if (r?.instances?.length) {
+      const next = [...workoutPlans, ...(r.instances as WorkoutPlan[])];
+      setWorkoutPlans(next);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+    }
+  }, [workoutPlans]);
 
   const repeatWorkout = useCallback((workoutId: string) => {
     const previous = workouts.find(w => w.id === workoutId);

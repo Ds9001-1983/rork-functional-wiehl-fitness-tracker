@@ -131,15 +131,15 @@ export default function TrainerPlansScreen() {
     ? exerciseDb.filter(e =>
         e.name.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
         e.muscleGroups.some(mg => mg.toLowerCase().includes(exerciseSearch.toLowerCase()))
-      ).slice(0, 8)
-    : [];
+      )
+    : exerciseDb;
 
   const filteredEditExercises = editExerciseSearch.length > 0
     ? exerciseDb.filter(e =>
         e.name.toLowerCase().includes(editExerciseSearch.toLowerCase()) ||
         e.muscleGroups.some(mg => mg.toLowerCase().includes(editExerciseSearch.toLowerCase()))
-      ).slice(0, 8)
-    : [];
+      )
+    : exerciseDb;
 
   const handleCreatePlan = async () => {
     if (!planName.trim()) {
@@ -324,11 +324,11 @@ export default function TrainerPlansScreen() {
         </View>
       )}
 
-      {/* Training planen Button */}
+      {/* Plan zuweisen Button */}
       <View style={styles.card}>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/schedule-training')}>
+        <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/customer-management')}>
           <ClipboardList size={18} color={Colors.text} />
-          <Text style={styles.primaryButtonText}>Neues Training planen</Text>
+          <Text style={styles.primaryButtonText}>Vorlage einem Kunden zuweisen</Text>
         </TouchableOpacity>
       </View>
 

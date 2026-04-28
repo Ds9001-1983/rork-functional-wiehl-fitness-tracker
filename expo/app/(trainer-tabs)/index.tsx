@@ -242,12 +242,12 @@ export default function TrainerClientsScreen() {
       <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
         <TouchableOpacity
           style={[styles.card, { flex: 1, margin: 0, alignItems: 'center', paddingVertical: Spacing.lg }]}
-          onPress={() => router.push('/schedule-training')}
+          onPress={() => router.push('/customer-management')}
         >
           <Calendar size={24} color={Colors.accent} />
           <Text style={[styles.cardTitle, { marginTop: Spacing.sm, textAlign: 'center' }]}>Training planen</Text>
           <Text style={[styles.cardDescription, { textAlign: 'center', marginTop: 4 }]} numberOfLines={2}>
-            Für einen Kunden anlegen
+            Kunde wählen, dann zuweisen
           </Text>
         </TouchableOpacity>
         <TouchableOpacity

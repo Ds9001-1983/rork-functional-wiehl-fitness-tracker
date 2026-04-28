@@ -29,6 +29,7 @@ export const createCourse = protectedProcedure
     trainer_id: z.string().optional(),
     category: z.string().optional(),
     color: hexColorSchema.nullable().optional(),
+    booking_enabled: z.boolean().optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);
@@ -56,6 +57,7 @@ export const createCourse = protectedProcedure
       category: input.category ?? null,
       color: input.color ?? null,
       is_active: true,
+      booking_enabled: input.booking_enabled ?? true,
     });
   });
 
@@ -69,6 +71,7 @@ export const updateCourse = protectedProcedure
     category: z.string().nullable().optional(),
     color: hexColorSchema.nullable().optional(),
     is_active: z.boolean().optional(),
+    booking_enabled: z.boolean().optional(),
   }))
   .mutation(async ({ ctx, input }) => {
     requireTrainer(ctx.user.role);

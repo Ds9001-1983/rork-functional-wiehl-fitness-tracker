@@ -54,7 +54,6 @@ function RootLayoutNav() {
       <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
       <Stack.Screen name="trainer" options={{ title: 'Trainer Center' }} />
       <Stack.Screen name="change-password" options={{ title: 'Passwort ändern' }} />
-      <Stack.Screen name="schedule-training" options={{ title: 'Training planen' }} />
       <Stack.Screen name="customer-management" options={{ title: 'Kundenverwaltung' }} />
       <Stack.Screen name="training-units-selection" options={{ title: 'Trainingseinheiten auswählen' }} />
       <Stack.Screen name="my-bookings" options={{ title: 'Meine Buchungen' }} />

@@ -1,28 +1,20 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal, PanResponder, Animated, Dimensions } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, PanResponder, Animated, Dimensions } from 'react-native';
 import { openExternalUrl } from '@/lib/open-url';
 import { Stack, router } from 'expo-router';
-import { UserPlus, Send, ClipboardList, Mail, User, Trash2, Phone, Users, Plus, X, Edit3, Calendar } from 'lucide-react-native';
+import { UserPlus, ClipboardList, Mail, User, Trash2, Phone, Users, Calendar, ChevronRight } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
-import { useWorkouts } from '@/hooks/use-workouts';
-import type { WorkoutPlan, WorkoutExercise } from '@/types/workout';
 
 export default function TrainerCenterScreen() {
   const { user } = useAuth();
   const { clients, addClient, removeClient } = useClients();
-  const { createWorkoutPlan, assignPlanToUser, workoutPlans } = useWorkouts();
 
   const [clientFirstName, setClientFirstName] = useState<string>('');
   const [clientLastName, setClientLastName] = useState<string>('');
   const [clientEmail, setClientEmail] = useState<string>('');
   const [clientPhone, setClientPhone] = useState<string>('');
-  const [planName, setPlanName] = useState<string>('');
-  const [planDesc, setPlanDesc] = useState<string>('');
-  const [selectedClientId, setSelectedClientId] = useState<string>('');
-  const [showCreatePlanModal, setShowCreatePlanModal] = useState<boolean>(false);
-  const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
   const [swipedClientId, setSwipedClientId] = useState<string | null>(null);
   const [deleteHoldProgress, setDeleteHoldProgress] = useState<number>(0);
   const [isHolding, setIsHolding] = useState<boolean>(false);
@@ -33,11 +25,6 @@ export default function TrainerCenterScreen() {
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const screenWidth = Dimensions.get('window').width;
   const swipeThreshold = screenWidth * 0.3;
-
-  const sampleExercises: WorkoutExercise[] = useMemo(() => ([
-    { id: 'e1', exerciseId: 'bench_press', sets: [{ id: 's1', reps: 8, weight: 60, completed: false }] },
-    { id: 'e2', exerciseId: 'overhead_press', sets: [{ id: 's2', reps: 6, weight: 40, completed: false }] },
-  ]), []);
 
   const generateStarterPassword = (): string => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -184,45 +171,6 @@ Ihr Functional Wiehl Team`;
         Alert.alert('Fehler', 'Kunde konnte nicht erstellt werden. Bitte versuchen Sie es erneut.');
       }
     }
-  };
-
-  const handleCreatePlan = async () => {
-    if (!isTrainer) {
-      Alert.alert('Keine Berechtigung', 'Nur Trainer können Pläne erstellen');
-      return;
-    }
-    
-    if (!planName.trim()) {
-      Alert.alert('Fehler', 'Bitte Planname eingeben');
-      return;
-    }
-    
-    const plan: Omit<WorkoutPlan, 'id'> = {
-      name: planName.trim(),
-      description: planDesc.trim() || 'Individueller Trainingsplan',
-      exercises: sampleExercises,
-      createdBy: user?.id ?? 'trainer',
-      schedule: [{ dayOfWeek: 2, time: '18:00' }],
-    };
-    await createWorkoutPlan(plan);
-    Alert.alert('Erfolgreich', `Trainingsplan "${plan.name}" wurde erstellt`);
-    setPlanName('');
-    setPlanDesc('');
-    setShowCreatePlanModal(false);
-  };
-
-  const handleAssignPlan = async (planId: string) => {
-    if (!selectedClientId) {
-      Alert.alert('Fehler', 'Bitte einen Kunden auswählen');
-      return;
-    }
-    
-    await assignPlanToUser(planId, selectedClientId);
-    const client = clients.find(c => c.id === selectedClientId);
-    const plan = workoutPlans.find(p => p.id === planId);
-    Alert.alert('Erfolgreich', `Plan "${plan?.name}" wurde ${client?.name} zugewiesen`);
-    setSelectedClientId('');
-    setShowAssignModal(false);
   };
 
   const getSwipeAnimation = (clientId: string) => {
@@ -414,59 +362,32 @@ Ihr Functional Wiehl Team`;
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Training planen</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.scheduleTrainingButton}
-              onPress={() => router.push('/schedule-training')}
+              onPress={() => router.push('/customer-management')}
             >
               <Calendar size={18} color={Colors.text} />
-              <Text style={styles.scheduleTrainingButtonText}>Training planen</Text>
+              <Text style={styles.scheduleTrainingButtonText}>Kunde wählen</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.cardDescription}>
-            Wählen Sie einen Kunden aus und erstellen Sie ein geplantes Training mit automatischer Kalender-Integration.
+            Wählen Sie einen Kunden aus und weisen Sie eine Trainingsplan-Vorlage als persönliche Kopie zu.
           </Text>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
+        <TouchableOpacity
+          style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: Spacing.md }]}
+          onPress={() => router.push('/(trainer-tabs)/plans' as any)}
+        >
+          <ClipboardList size={24} color={Colors.accent} />
+          <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle}>Trainingspläne verwalten</Text>
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => setShowCreatePlanModal(true)}
-            >
-              <Plus size={18} color={Colors.text} />
-            </TouchableOpacity>
+            <Text style={styles.cardDescription}>
+              Vorlagen erstellen, bearbeiten und Kunden zuweisen.
+            </Text>
           </View>
-          
-          {workoutPlans.length === 0 ? (
-            <View style={styles.emptyState}>
-              <ClipboardList size={32} color={Colors.textMuted} />
-              <Text style={styles.emptyText}>Noch keine Trainingspläne erstellt</Text>
-              <Text style={styles.emptySubtext}>Erstellen Sie Ihren ersten Plan</Text>
-            </View>
-          ) : (
-            <View style={styles.plansList}>
-              {workoutPlans.map((plan) => (
-                <View key={plan.id} style={styles.planCard}>
-                  <View style={styles.planInfo}>
-                    <Text style={styles.planName}>{plan.name}</Text>
-                    <Text style={styles.planDesc}>{plan.description}</Text>
-                    <Text style={styles.planMeta}>{plan.exercises.length} Übungen</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.assignButton}
-                    onPress={() => {
-                      setSelectedClientId('');
-                      setShowAssignModal(true);
-                    }}
-                  >
-                    <Send size={16} color={Colors.accent} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
+          <ChevronRight size={20} color={Colors.textMuted} />
+        </TouchableOpacity>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -554,141 +475,6 @@ Ihr Functional Wiehl Team`;
           )}
         </View>
         
-        {/* Plan erstellen Modal */}
-        <Modal
-          visible={showCreatePlanModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Neuen Trainingsplan erstellen</Text>
-              <TouchableOpacity onPress={() => setShowCreatePlanModal(false)}>
-                <X size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.modalContent}>
-              <View style={styles.row}>
-                <ClipboardList size={18} color={Colors.textSecondary} />
-                <TextInput
-                  testID="plan-name"
-                  value={planName}
-                  onChangeText={setPlanName}
-                  placeholder="Planname (z.B. Oberkörper Push) *"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.input}
-                />
-              </View>
-              <View style={styles.row}>
-                <Edit3 size={18} color={Colors.textSecondary} />
-                <TextInput
-                  testID="plan-desc"
-                  value={planDesc}
-                  onChangeText={setPlanDesc}
-                  placeholder="Beschreibung (optional)"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.input}
-                  multiline
-                />
-              </View>
-              
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={styles.cancelButton} 
-                  onPress={() => setShowCreatePlanModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Abbrechen</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  testID="create-plan" 
-                  style={styles.primaryButton} 
-                  onPress={handleCreatePlan}
-                >
-                  <ClipboardList size={18} color={Colors.text} />
-                  <Text style={styles.primaryButtonText}>Plan erstellen</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
-        </Modal>
-        
-        {/* Plan zuweisen Modal */}
-        <Modal
-          visible={showAssignModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Plan einem Kunden zuweisen</Text>
-              <TouchableOpacity onPress={() => setShowAssignModal(false)}>
-                <X size={24} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.modalContent}>
-              {clients.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Users size={32} color={Colors.textMuted} />
-                  <Text style={styles.emptyText}>Keine Kunden vorhanden</Text>
-                  <Text style={styles.emptySubtext}>Legen Sie zuerst einen Kunden an</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.sectionTitle}>Kunde auswählen:</Text>
-                  <View style={styles.clientSelector}>
-                    {clients.map((client) => (
-                      <TouchableOpacity
-                        key={client.id}
-                        testID={`select-client-${client.id}`}
-                        style={[
-                          styles.clientOption,
-                          selectedClientId === client.id && styles.clientOptionSelected
-                        ]}
-                        onPress={() => setSelectedClientId(selectedClientId === client.id ? '' : client.id)}
-                      >
-                        <Users size={16} color={selectedClientId === client.id ? Colors.text : Colors.textSecondary} />
-                        <View style={styles.clientOptionInfo}>
-                          <Text style={[
-                            styles.clientOptionText,
-                            selectedClientId === client.id && styles.clientOptionTextSelected
-                          ]}>
-                            {client.name}
-                          </Text>
-                          {client.phone && (
-                            <Text style={styles.clientOptionPhone}>📱 {client.phone}</Text>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  
-                  {selectedClientId && workoutPlans.length > 0 && (
-                    <>
-                      <Text style={styles.sectionTitle}>Trainingsplan auswählen:</Text>
-                      <View style={styles.planSelector}>
-                        {workoutPlans.map((plan) => (
-                          <TouchableOpacity
-                            key={plan.id}
-                            style={styles.planSelectorItem}
-                            onPress={() => handleAssignPlan(plan.id)}
-                          >
-                            <View style={styles.planSelectorInfo}>
-                              <Text style={styles.planSelectorName}>{plan.name}</Text>
-                              <Text style={styles.planSelectorDesc}>{plan.description}</Text>
-                            </View>
-                            <Send size={16} color={Colors.accent} />
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </>
-                  )}
-                </>
-              )}
-            </ScrollView>
-          </View>
-        </Modal>
       </ScrollView>
     </>
   );

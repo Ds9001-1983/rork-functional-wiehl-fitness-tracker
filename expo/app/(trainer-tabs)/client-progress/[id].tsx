@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
-import { TrendingUp, Calendar, Target, Flame, Dumbbell, BarChart3, ClipboardList, ChevronRight, History } from 'lucide-react-native';
+import { TrendingUp, Calendar, Target, Flame, Dumbbell, BarChart3, ClipboardList, ChevronRight, History, Plus, X, Search } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
 import StatusBanner from '@/components/StatusBanner';
+import { confirmAlert, infoAlert } from '@/lib/alert';
 
 interface WorkoutListItem {
   id: string;
@@ -33,44 +34,91 @@ export default function ClientProgressScreen() {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<any>(null);
   const [clientName, setClientName] = useState('');
+  const [realUserId, setRealUserId] = useState<string | null>(null);
   const [clientWorkouts, setClientWorkouts] = useState<WorkoutListItem[]>([]);
   const [clientPlans, setClientPlans] = useState<PlanListItem[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!clientId) return;
-    const load = async () => {
-      try {
-        // Erst Clients laden, um den echten user_id zu ermitteln (clientId ist die clients.id, nicht users.id)
-        const [progressData, clients] = await Promise.all([
-          trpcClient.clients.progress.query({ clientId }),
-          trpcClient.clients.list.query(),
-        ]);
-        setProgress(progressData);
-        const client = (clients as any[]).find((c: any) => c.id === clientId || c.userId === clientId);
-        const realUserId = client?.userId || clientId;
-        if (client) setClientName(client.name);
+  // Plan-zuweisen Modal
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [templates, setTemplates] = useState<PlanListItem[]>([]);
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [assigning, setAssigning] = useState(false);
 
-        const [workouts, plans] = await Promise.all([
-          trpcClient.workouts.list.query({ userId: realUserId }).catch((err) => {
-            console.error('[ClientProgress] Workouts-Load fehlgeschlagen:', err);
-            return [];
-          }),
-          trpcClient.plans.list.query({ userId: realUserId }).catch((err) => {
-            console.error('[ClientProgress] Plans-Load fehlgeschlagen:', err);
-            return [];
-          }),
-        ]);
-        setClientWorkouts((workouts as WorkoutListItem[]) || []);
-        setClientPlans((plans as PlanListItem[]) || []);
-      } catch (err) {
-        console.error('[ClientProgress] Ladefehler:', err);
-        setLoadError('Die Kundendaten konnten nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.');
-      }
-      setLoading(false);
-    };
-    load();
+  const load = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      const [progressData, clients] = await Promise.all([
+        trpcClient.clients.progress.query({ clientId }),
+        trpcClient.clients.list.query(),
+      ]);
+      setProgress(progressData);
+      const client = (clients as any[]).find((c: any) => c.id === clientId || c.userId === clientId);
+      const userId = client?.userId || clientId;
+      setRealUserId(userId);
+      if (client) setClientName(client.name);
+
+      const [workouts, plans] = await Promise.all([
+        trpcClient.workouts.list.query({ userId }).catch((err) => {
+          console.error('[ClientProgress] Workouts-Load fehlgeschlagen:', err);
+          return [];
+        }),
+        trpcClient.plans.list.query({ userId }).catch((err) => {
+          console.error('[ClientProgress] Plans-Load fehlgeschlagen:', err);
+          return [];
+        }),
+      ]);
+      setClientWorkouts((workouts as WorkoutListItem[]) || []);
+      setClientPlans((plans as PlanListItem[]) || []);
+    } catch (err) {
+      console.error('[ClientProgress] Ladefehler:', err);
+      setLoadError('Die Kundendaten konnten nicht geladen werden. Bitte Verbindung prüfen und erneut versuchen.');
+    }
+    setLoading(false);
   }, [clientId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openAssignModal = useCallback(async () => {
+    setShowAssignModal(true);
+    setTemplateSearch('');
+    try {
+      // Eigene Plans des Trainers (Templates und Instances), filtern auf Templates
+      const all = (await trpcClient.plans.list.query({})) as PlanListItem[];
+      setTemplates(all.filter(p => !p.isInstance));
+    } catch (err) {
+      console.error('[ClientProgress] Templates-Load fehlgeschlagen:', err);
+      setTemplates([]);
+    }
+  }, []);
+
+  const filteredTemplates = useMemo(() => {
+    const q = templateSearch.trim().toLowerCase();
+    if (!q) return templates;
+    return templates.filter(t => t.name.toLowerCase().includes(q));
+  }, [templates, templateSearch]);
+
+  const assignTemplate = useCallback((templateId: string, templateName: string) => {
+    if (!realUserId) return;
+    confirmAlert(
+      'Plan zuweisen?',
+      `"${templateName}" wird ${clientName} als persönliche Kopie zugewiesen. Du kannst sie danach individuell anpassen, ohne das Original zu verändern.`,
+      async () => {
+        setAssigning(true);
+        try {
+          await trpcClient.plans.instantiate.mutate({ templateId, userIds: [realUserId] });
+          setShowAssignModal(false);
+          await load();
+          infoAlert('Zugewiesen', `${clientName} hat den Plan "${templateName}" erhalten.`);
+        } catch (e: any) {
+          infoAlert('Fehler', e?.message || 'Zuweisung fehlgeschlagen.');
+        } finally {
+          setAssigning(false);
+        }
+      },
+      { confirmLabel: 'Zuweisen' },
+    );
+  }, [realUserId, clientName, load]);
 
   const getComplianceColor = (rate: number) => {
     if (rate >= 80) return Colors.success;
@@ -160,26 +208,34 @@ export default function ClientProgressScreen() {
               {clientPlans.length === 0 ? (
                 <Text style={styles.tileEmpty}>Keine Pläne zugewiesen.</Text>
               ) : (
-                clientPlans.slice(0, 3).map((p) => (
-                  <TouchableOpacity
-                    key={p.id}
-                    style={styles.tileItem}
-                    onPress={() => router.push(`/trainer-plan-edit/${p.id}` as any)}
-                  >
-                    <ClipboardList size={14} color={Colors.accent} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.tileItemTitle} numberOfLines={1}>{p.name}</Text>
-                      <Text style={styles.tileItemMeta}>
-                        {p.exercises ? `${(p.exercises as unknown[]).length} Übungen` : ''}
-                      </Text>
-                    </View>
-                    <ChevronRight size={14} color={Colors.textMuted} />
-                  </TouchableOpacity>
-                ))
+                clientPlans.slice(0, 3).map((p) => {
+                  const exCount = p.exercises ? (p.exercises as unknown[]).length : 0;
+                  const tag = p.isInstance ? 'Persönlich' : 'Vorlage';
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.tileItem}
+                      onPress={() => router.push(`/trainer-plan-edit/${p.id}` as any)}
+                    >
+                      <ClipboardList size={14} color={Colors.accent} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.tileItemTitle} numberOfLines={1}>{p.name}</Text>
+                        <Text style={styles.tileItemMeta}>
+                          {exCount} Übungen · {tag}
+                        </Text>
+                      </View>
+                      <ChevronRight size={14} color={Colors.textMuted} />
+                    </TouchableOpacity>
+                  );
+                })
               )}
               {clientPlans.length > 3 && (
                 <Text style={styles.tileMore}>+ {clientPlans.length - 3} weitere</Text>
               )}
+              <TouchableOpacity style={styles.assignBtn} onPress={openAssignModal}>
+                <Plus size={14} color={Colors.text} />
+                <Text style={styles.assignBtnText}>Plan zuweisen</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -318,6 +374,60 @@ export default function ClientProgressScreen() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+
+        {/* Plan zuweisen Modal */}
+        <Modal visible={showAssignModal} animationType="slide" transparent onRequestClose={() => setShowAssignModal(false)}>
+          <View style={styles.modalBg}>
+            <View style={styles.modal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Plan zuweisen</Text>
+                <TouchableOpacity onPress={() => setShowAssignModal(false)}>
+                  <X size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.modalHint}>Wähle eine Vorlage. Sie wird als persönliche Kopie für {clientName} erstellt.</Text>
+              <View style={styles.searchRow}>
+                <Search size={18} color={Colors.textSecondary} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={templateSearch}
+                  onChangeText={setTemplateSearch}
+                  placeholder="Vorlage suchen…"
+                  placeholderTextColor={Colors.textMuted}
+                />
+              </View>
+              <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+                {filteredTemplates.length === 0 ? (
+                  <Text style={styles.emptyCardText}>Keine Vorlagen gefunden.</Text>
+                ) : (
+                  filteredTemplates.map((t) => {
+                    const exCount = t.exercises ? (t.exercises as unknown[]).length : 0;
+                    return (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={styles.pickRow}
+                        onPress={() => assignTemplate(t.id, t.name)}
+                        disabled={assigning}
+                      >
+                        <ClipboardList size={16} color={Colors.accent} />
+                        <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                          <Text style={styles.pickName}>{t.name}</Text>
+                          <Text style={styles.pickMeta}>{exCount} Übungen</Text>
+                        </View>
+                        <Plus size={16} color={Colors.textSecondary} />
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
+              </ScrollView>
+              {assigning && (
+                <View style={{ paddingTop: Spacing.sm, alignItems: 'center' }}>
+                  <ActivityIndicator color={Colors.accent} />
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
       </View>
     </>
   );
@@ -365,4 +475,16 @@ const createStyles = (Colors: any) => StyleSheet.create({
   tileItemTitle: { fontSize: 13, fontWeight: '500' as const, color: Colors.text },
   tileItemMeta: { fontSize: 11, color: Colors.textMuted, marginTop: 1 },
   tileMore: { fontSize: 11, color: Colors.accent, marginTop: Spacing.xs, fontStyle: 'italic' as const },
+  assignBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.sm, paddingVertical: Spacing.sm, backgroundColor: Colors.accent, borderRadius: BorderRadius.sm },
+  assignBtnText: { color: Colors.text, fontSize: 13, fontWeight: '700' as const },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: Spacing.md },
+  modal: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, maxWidth: 560, alignSelf: 'center' as const, width: '100%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  modalTitle: { fontSize: 18, fontWeight: '700' as const, color: Colors.text },
+  modalHint: { fontSize: 12, color: Colors.textSecondary, marginBottom: Spacing.sm, lineHeight: 16 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceLight, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.sm, marginBottom: Spacing.sm, gap: Spacing.sm },
+  searchInput: { flex: 1, padding: Spacing.sm, color: Colors.text, fontSize: 14 },
+  pickRow: { flexDirection: 'row', alignItems: 'center', padding: Spacing.sm, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  pickName: { color: Colors.text, fontSize: 14, fontWeight: '500' as const },
+  pickMeta: { color: Colors.textMuted, fontSize: 11, marginTop: 2 },
 });

@@ -1,22 +1,24 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { Search, User, TrendingUp, Plus, X, Eye, Activity, Award, Target } from 'lucide-react-native';
+import { Search, User, X, Eye, Activity, Target, Pencil, KeyRound } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
-import { useWorkouts } from '@/hooks/use-workouts';
+import { trpcClient } from '@/lib/trpc';
+import { confirmAlert, infoAlert } from '@/lib/alert';
 
 import type { User as UserType } from '@/types/workout';
 
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
-  const { clients } = useClients();
-  const { workouts } = useWorkouts();
+  const { clients, updateClient } = useClients();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedClient, setSelectedClient] = useState<UserType | null>(null);
-  const [showClientDetails, setShowClientDetails] = useState<boolean>(false);
+  const [editClient, setEditClient] = useState<UserType | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; email: string; phone: string }>({ name: '', email: '', phone: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [resendingPw, setResendingPw] = useState(false);
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
 
@@ -30,39 +32,66 @@ export default function CustomerManagementScreen() {
     );
   }, [clients, searchQuery]);
 
-  // Echte Workout-Daten des Kunden
-  const getClientWorkouts = (clientId: string) => {
-    return workouts
-      .filter(w => w.userId === clientId && w.completed)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
-  };
-
-  const getClientPerformance = (clientId: string) => {
-    const clientWorkouts = workouts.filter(w => w.userId === clientId && w.completed);
-    const totalWorkouts = clientWorkouts.length;
-    const totalVolume = clientWorkouts.reduce((total, w) =>
-      total + w.exercises.reduce((wt, ex) =>
-        wt + ex.sets.reduce((st, s) => st + (s.weight * s.reps), 0), 0), 0);
-    return { totalWorkouts, totalVolume };
-  };
-
-
-
-  const handleCreatePlanForClient = () => {
-    if (!selectedClient) {
-      Alert.alert('Fehler', 'Kein Kunde ausgewählt');
-      return;
-    }
-
-    // Navigate to schedule-training with pre-selected client
-    setShowClientDetails(false);
-    router.push(`/schedule-training?clientId=${selectedClient.id}`);
-  };
-
   const openClientDetails = (client: UserType) => {
     // Navigate to the trainer-tabs client-progress screen (with the two tiles + metrics)
     router.push(`/(trainer-tabs)/client-progress/${client.id}` as any);
+  };
+
+  const openEdit = (client: UserType) => {
+    setEditClient(client);
+    setEditForm({ name: client.name, email: client.email, phone: client.phone ?? '' });
+  };
+
+  const closeEdit = () => {
+    setEditClient(null);
+    setSavingEdit(false);
+    setResendingPw(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editClient) return;
+    const name = editForm.name.trim();
+    const email = editForm.email.trim();
+    const phone = editForm.phone.trim();
+    if (!name) { infoAlert('Fehler', 'Name darf nicht leer sein.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { infoAlert('Fehler', 'Bitte gültige E-Mail-Adresse eingeben.'); return; }
+    setSavingEdit(true);
+    try {
+      await updateClient(editClient.id, {
+        name: name !== editClient.name ? name : undefined,
+        email: email !== editClient.email ? email : undefined,
+        phone: phone !== (editClient.phone ?? '') ? phone : undefined,
+      });
+      closeEdit();
+    } catch (e: any) {
+      infoAlert('Fehler', e?.message || 'Speichern fehlgeschlagen.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const resendStarterPassword = () => {
+    if (!editClient) return;
+    confirmAlert(
+      'Neues Starter-Passwort senden?',
+      `Ein neues Starter-Passwort wird generiert und an ${editForm.email.trim() || editClient.email} gemailt. Das alte Passwort funktioniert danach nicht mehr.`,
+      async () => {
+        setResendingPw(true);
+        try {
+          const r = await trpcClient.clients.resendStarterPassword.mutate({ id: editClient.id });
+          if (r.emailSent) {
+            infoAlert('Gesendet', `E-Mail mit dem neuen Starter-Passwort wurde an ${r.email} verschickt.`);
+          } else {
+            infoAlert('Passwort generiert', `Neues Starter-Passwort: ${r.password}\n\nVersand per E-Mail nicht möglich. Bitte manuell weitergeben.`);
+          }
+        } catch (e: any) {
+          infoAlert('Fehler', e?.message || 'Konnte Passwort nicht erneuern.');
+        } finally {
+          setResendingPw(false);
+        }
+      },
+      { confirmLabel: 'Senden' },
+    );
   };
 
   if (!isTrainer) {
@@ -108,147 +137,126 @@ export default function CustomerManagementScreen() {
             </View>
           ) : (
             filteredClients.map((client) => (
-              <TouchableOpacity
-                key={client.id}
-                style={styles.clientCard}
-                onPress={() => openClientDetails(client)}
-              >
-                <View style={styles.clientHeader}>
-                  <View style={styles.clientAvatar}>
-                    <User size={24} color={Colors.text} />
-                  </View>
-                  <View style={styles.clientInfo}>
-                    <Text style={styles.clientName}>{client.name}</Text>
-                    <Text style={styles.clientEmail}>{client.email}</Text>
-                    {client.phone && (
-                      <Text style={styles.clientPhone}>📱 {client.phone}</Text>
-                    )}
-                  </View>
-                  <View style={styles.clientStats}>
-                    <View style={styles.statItem}>
-                      <Activity size={14} color={Colors.accent} />
-                      <Text style={styles.statText}>{client.stats?.totalWorkouts || 0}</Text>
+              <View key={client.id} style={styles.clientCard}>
+                <TouchableOpacity onPress={() => openClientDetails(client)}>
+                  <View style={styles.clientHeader}>
+                    <View style={styles.clientAvatar}>
+                      <User size={24} color={Colors.text} />
                     </View>
-                    <View style={styles.statItem}>
-                      <Target size={14} color={Colors.accent} />
-                      <Text style={styles.statText}>{client.stats?.currentStreak || 0}</Text>
+                    <View style={styles.clientInfo}>
+                      <Text style={styles.clientName}>{client.name}</Text>
+                      <Text style={styles.clientEmail}>{client.email}</Text>
+                      {client.phone && (
+                        <Text style={styles.clientPhone}>📱 {client.phone}</Text>
+                      )}
+                    </View>
+                    <View style={styles.clientStats}>
+                      <View style={styles.statItem}>
+                        <Activity size={14} color={Colors.accent} />
+                        <Text style={styles.statText}>{client.stats?.totalWorkouts || 0}</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Target size={14} color={Colors.accent} />
+                        <Text style={styles.statText}>{client.stats?.currentStreak || 0}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-                
+                </TouchableOpacity>
+
                 <View style={styles.clientActions}>
-                  <View style={styles.actionButton}>
+                  <TouchableOpacity
+                    onPress={() => openClientDetails(client)}
+                    style={styles.actionButton}
+                    hitSlop={8}
+                  >
                     <Eye size={16} color={Colors.textSecondary} />
                     <Text style={styles.actionText}>Details ansehen</Text>
-                  </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => openEdit(client)}
+                    style={styles.actionButton}
+                    hitSlop={8}
+                  >
+                    <Pencil size={16} color={Colors.accent} />
+                    <Text style={[styles.actionText, { color: Colors.accent }]}>Bearbeiten</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
             ))
           )}
         </ScrollView>
 
-        {/* Client Details Modal */}
-        <Modal
-          visible={showClientDetails}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedClient?.name}
-              </Text>
-              <TouchableOpacity onPress={() => setShowClientDetails(false)}>
-                <X size={24} color={Colors.text} />
+        {/* Edit-Modal: Kunde bearbeiten + Starter-Passwort neu senden */}
+        <Modal visible={!!editClient} animationType="slide" transparent onRequestClose={closeEdit}>
+          <View style={styles.editBackdrop}>
+            <View style={styles.editCard}>
+              <View style={styles.editHeader}>
+                <Text style={styles.editTitle}>Kunde bearbeiten</Text>
+                <TouchableOpacity onPress={closeEdit} hitSlop={8}>
+                  <X size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.editLabel}>Name</Text>
+              <TextInput
+                value={editForm.name}
+                onChangeText={v => setEditForm({ ...editForm, name: v })}
+                placeholder="Name"
+                placeholderTextColor={Colors.textMuted}
+                style={styles.editInput}
+              />
+
+              <Text style={styles.editLabel}>E-Mail</Text>
+              <TextInput
+                value={editForm.email}
+                onChangeText={v => setEditForm({ ...editForm, email: v })}
+                placeholder="E-Mail"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={styles.editInput}
+              />
+
+              <Text style={styles.editLabel}>Telefon</Text>
+              <TextInput
+                value={editForm.phone}
+                onChangeText={v => setEditForm({ ...editForm, phone: v })}
+                placeholder="Telefon (optional)"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="phone-pad"
+                style={styles.editInput}
+              />
+
+              <TouchableOpacity
+                style={[styles.editPrimary, savingEdit && { opacity: 0.6 }]}
+                onPress={saveEdit}
+                disabled={savingEdit || resendingPw}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator color={Colors.text} />
+                ) : (
+                  <Text style={styles.editPrimaryText}>Speichern</Text>
+                )}
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.editSecondary, resendingPw && { opacity: 0.6 }]}
+                onPress={resendStarterPassword}
+                disabled={savingEdit || resendingPw}
+              >
+                <KeyRound size={16} color={Colors.accent} />
+                {resendingPw ? (
+                  <ActivityIndicator color={Colors.accent} style={{ marginLeft: Spacing.sm }} />
+                ) : (
+                  <Text style={styles.editSecondaryText}>Starter-Passwort neu senden</Text>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.editHint}>
+                Generiert ein neues Starter-Passwort und mailt es an die oben hinterlegte E-Mail. Bei Tippfehler in der E-Mail vorher Speichern.
+              </Text>
             </View>
-
-            <ScrollView style={styles.modalContent}>
-              {selectedClient && (
-                <>
-                  {/* Client Info */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Kontaktdaten</Text>
-                    <View style={styles.infoCard}>
-                      <Text style={styles.infoLabel}>E-Mail:</Text>
-                      <Text style={styles.infoValue}>{selectedClient.email}</Text>
-                      {selectedClient.phone && (
-                        <>
-                          <Text style={styles.infoLabel}>Telefon:</Text>
-                          <Text style={styles.infoValue}>{selectedClient.phone}</Text>
-                        </>
-                      )}
-                      <Text style={styles.infoLabel}>Mitglied seit:</Text>
-                      <Text style={styles.infoValue}>
-                        {new Date(selectedClient.joinDate).toLocaleDateString('de-DE')}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Performance Overview */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Leistungsübersicht</Text>
-                    <View style={styles.performanceGrid}>
-                      <View style={styles.performanceCard}>
-                        <Activity size={20} color={Colors.accent} />
-                        <Text style={styles.performanceValue}>
-                          {getClientPerformance(selectedClient.id).totalWorkouts}
-                        </Text>
-                        <Text style={styles.performanceLabel}>Workouts</Text>
-                      </View>
-                      <View style={styles.performanceCard}>
-                        <TrendingUp size={20} color={Colors.accent} />
-                        <Text style={styles.performanceValue}>
-                          {`${(getClientPerformance(selectedClient.id).totalVolume / 1000).toFixed(1)}t`}
-                        </Text>
-                        <Text style={styles.performanceLabel}>Volumen</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Letzte Workouts */}
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Letzte Workouts</Text>
-                    {getClientWorkouts(selectedClient.id).length === 0 ? (
-                      <Text style={styles.visitNotes}>Noch keine Workouts absolviert.</Text>
-                    ) : (
-                      getClientWorkouts(selectedClient.id).map((workout) => (
-                        <View key={workout.id} style={styles.visitCard}>
-                          <View style={styles.visitHeader}>
-                            <Text style={styles.visitDate}>
-                              {new Date(workout.date).toLocaleDateString('de-DE')}
-                            </Text>
-                            <Text style={styles.visitType}>{workout.name}</Text>
-                          </View>
-                          <Text style={styles.visitDuration}>
-                            {workout.exercises.length} Übungen, {workout.exercises.reduce((t, ex) => t + ex.sets.length, 0)} Sätze
-                          </Text>
-                          {workout.duration && (
-                            <Text style={styles.visitNotes}>
-                              Dauer: {Math.round(workout.duration / 60000)} Min
-                            </Text>
-                          )}
-                        </View>
-                      ))
-                    )}
-                  </View>
-
-                  {/* Action Buttons */}
-                  <View style={styles.actionButtons}>
-                    <TouchableOpacity 
-                      style={styles.primaryButton}
-                      onPress={handleCreatePlanForClient}
-                    >
-                      <Plus size={18} color={Colors.text} />
-                      <Text style={styles.primaryButtonText}>Trainingsplan erstellen</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </ScrollView>
           </View>
         </Modal>
-
 
       </View>
     </>
@@ -375,15 +383,18 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   clientActions: {
+    flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
+    gap: Spacing.lg,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.xs,
   },
   actionText: {
     color: Colors.textSecondary,
@@ -627,5 +638,79 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 16,
     fontWeight: '500' as const,
+  },
+  editBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  editCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    maxWidth: 560,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  editHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  editTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  editLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+    marginTop: Spacing.sm,
+  },
+  editInput: {
+    backgroundColor: Colors.surfaceLight,
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    fontSize: 16,
+  },
+  editPrimary: {
+    backgroundColor: Colors.accent,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  editPrimaryText: {
+    color: Colors.text,
+    fontWeight: '700' as const,
+    fontSize: 16,
+  },
+  editSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  editSecondaryText: {
+    color: Colors.accent,
+    fontWeight: '600' as const,
+    fontSize: 15,
+  },
+  editHint: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    marginTop: Spacing.sm,
+    lineHeight: 16,
   },
 });

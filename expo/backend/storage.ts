@@ -3,6 +3,7 @@
 
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 export interface StoredUser {
   id: string;
@@ -946,37 +947,82 @@ export const storage = {
       return false;
     },
 
-    updateProfile: async (userId: string, updates: { name?: string; phone?: string; avatar?: string }): Promise<boolean> => {
+    regenerateStarterPassword: async (userId: string): Promise<{ ok: true; password: string; email: string; name: string } | { ok: false }> => {
+      // Cryptographically random, 8 chars, ohne mehrdeutige Zeichen (0/O, 1/I/l).
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const bytes = crypto.randomBytes(8);
+      let pw = '';
+      for (let i = 0; i < 8; i++) pw += alphabet[bytes[i] % alphabet.length];
+      const hash = await bcrypt.hash(pw, 10);
       if (useDatabase && pool) {
         try {
+          const r = await pool.query(
+            `UPDATE users SET password = $1, starter_password = $2, password_changed = FALSE
+             WHERE id = $3 RETURNING email, COALESCE(name, '') as name`,
+            [hash, pw, userId]
+          );
+          if (!r.rows[0]) return { ok: false };
+          return { ok: true, password: pw, email: r.rows[0].email, name: r.rows[0].name };
+        } catch (err) {
+          console.log('[Storage] DB regenerate starter password failed:', err);
+          return { ok: false };
+        }
+      }
+      const u = users.find(x => x.id === userId);
+      const c = clients.find(x => x.id === userId || x.userId === userId);
+      if (!u || !c) return { ok: false };
+      u.password = hash;
+      u.passwordChanged = false;
+      c.starterPassword = pw;
+      c.passwordChanged = false;
+      return { ok: true, password: pw, email: c.email, name: c.name };
+    },
+
+    updateProfile: async (userId: string, updates: { name?: string; phone?: string; avatar?: string; email?: string }): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'email_taken' }> => {
+      const newEmail = updates.email !== undefined ? updates.email.trim().toLowerCase() : undefined;
+      if (useDatabase && pool) {
+        try {
+          if (newEmail !== undefined) {
+            const dup = await pool.query(
+              `SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1`,
+              [newEmail, userId]
+            );
+            if (dup.rowCount && dup.rowCount > 0) return { ok: false, reason: 'email_taken' };
+          }
           const setClauses: string[] = [];
           const values: (string | number | boolean | null)[] = [];
           let idx = 1;
           if (updates.name !== undefined) { setClauses.push(`name = $${idx++}`); values.push(updates.name); }
           if (updates.phone !== undefined) { setClauses.push(`phone = $${idx++}`); values.push(updates.phone); }
           if (updates.avatar !== undefined) { setClauses.push(`avatar = $${idx++}`); values.push(updates.avatar); }
+          if (newEmail !== undefined) { setClauses.push(`email = $${idx++}`); values.push(newEmail); }
 
-          if (setClauses.length === 0) return false;
+          if (setClauses.length === 0) return { ok: false, reason: 'not_found' };
 
           values.push(userId);
           const result = await pool.query(
             `UPDATE users SET ${setClauses.join(', ')} WHERE id = $${idx}`,
             values
           );
-          return (result.rowCount ?? 0) > 0;
+          return (result.rowCount ?? 0) > 0 ? { ok: true } : { ok: false, reason: 'not_found' };
         } catch (err) {
           console.log('[Storage] DB update profile failed:', err);
         }
       }
 
+      if (newEmail !== undefined) {
+        const dup = clients.find(c => (c.id !== userId && c.userId !== userId) && c.email?.toLowerCase() === newEmail);
+        if (dup) return { ok: false, reason: 'email_taken' };
+      }
       const client = clients.find(c => c.id === userId || c.userId === userId);
       if (client) {
-        if (updates.name) client.name = updates.name;
-        if (updates.phone) client.phone = updates.phone;
-        if (updates.avatar) client.avatar = updates.avatar;
-        return true;
+        if (updates.name !== undefined) client.name = updates.name;
+        if (updates.phone !== undefined) client.phone = updates.phone;
+        if (updates.avatar !== undefined) client.avatar = updates.avatar;
+        if (newEmail !== undefined) client.email = newEmail;
+        return { ok: true };
       }
-      return false;
+      return { ok: false, reason: 'not_found' };
     },
   },
 

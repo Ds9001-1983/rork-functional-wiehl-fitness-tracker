@@ -4,6 +4,7 @@ import createClient from "./routes/clients/create";
 import listClients from "./routes/clients/list";
 import deleteClient from "./routes/clients/delete";
 import updateClient from "./routes/clients/update";
+import resendClientStarterPassword from "./routes/clients/resend-starter-password";
 import createInvitation from "./routes/invitations/create";
 import listInvitations from "./routes/invitations/list";
 import { loginProcedure } from "./routes/auth/login";
@@ -80,6 +81,7 @@ export const appRouter = createTRPCRouter({
     list: listClients,
     delete: deleteClient,
     update: updateClient,
+    resendStarterPassword: resendClientStarterPassword,
     progress: clientProgress,
   }),
   invitations: createTRPCRouter({
