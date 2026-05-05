@@ -408,7 +408,8 @@ export const instancesStore = {
       const r = await pool.query(
         `SELECT ci.*, c.id as c_id, c.name as c_name, c.description as c_description,
                 c.duration_minutes as c_duration_minutes, c.max_participants as c_max_participants,
-                c.trainer_id as c_trainer_id, c.category as c_category, c.is_active as c_is_active,
+                c.trainer_id as c_trainer_id, c.category as c_category,
+                c.color as c_color, c.is_active as c_is_active, c.booking_enabled as c_booking_enabled,
                 c.created_at as c_created_at, c.updated_at as c_updated_at
          FROM course_instances ci
          JOIN courses c ON c.id = ci.course_id
@@ -417,7 +418,8 @@ export const instancesStore = {
         ...mapInstanceRow(row),
         course: mapCourseRow({ id: row.c_id, name: row.c_name, description: row.c_description,
           duration_minutes: row.c_duration_minutes, max_participants: row.c_max_participants,
-          trainer_id: row.c_trainer_id, category: row.c_category, is_active: row.c_is_active,
+          trainer_id: row.c_trainer_id, category: row.c_category,
+          color: row.c_color, is_active: row.c_is_active, booking_enabled: row.c_booking_enabled,
           created_at: row.c_created_at, updated_at: row.c_updated_at }),
       }));
     }
@@ -520,7 +522,8 @@ export const instancesStore = {
            ci.status as ci_status, ci.max_participants as ci_max_participants,
            c.id as c_id, c.name as c_name, c.description as c_description,
            c.duration_minutes as c_duration_minutes, c.max_participants as c_max_participants,
-           c.trainer_id as c_trainer_id, c.category as c_category, c.is_active as c_is_active,
+           c.trainer_id as c_trainer_id, c.category as c_category,
+           c.color as c_color, c.is_active as c_is_active, c.booking_enabled as c_booking_enabled,
            c.created_at as c_created_at, c.updated_at as c_updated_at
          FROM bookings b
          JOIN course_instances ci ON ci.id = b.instance_id
@@ -540,7 +543,8 @@ export const instancesStore = {
           status: row.ci_status, max_participants: row.ci_max_participants }),
         course: mapCourseRow({ id: row.c_id, name: row.c_name, description: row.c_description,
           duration_minutes: row.c_duration_minutes, max_participants: row.c_max_participants,
-          trainer_id: row.c_trainer_id, category: row.c_category, is_active: row.c_is_active,
+          trainer_id: row.c_trainer_id, category: row.c_category,
+          color: row.c_color, is_active: row.c_is_active, booking_enabled: row.c_booking_enabled,
           created_at: row.c_created_at, updated_at: row.c_updated_at }),
       }));
     }

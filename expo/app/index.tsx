@@ -8,6 +8,10 @@ export default function IndexRedirect() {
   if (isLoading) return <LoadingScreen />;
   if (!isAuthenticated) return <Redirect href="/login" />;
 
+  if (user?.role === 'client' && user?.passwordChanged === false) {
+    return <Redirect href="/change-password" />;
+  }
+
   if (user?.role === 'admin') return <Redirect href="/(admin-tabs)" />;
   if (user?.role === 'trainer') return <Redirect href="/(trainer-tabs)" />;
   return <Redirect href="/(tabs)" />;

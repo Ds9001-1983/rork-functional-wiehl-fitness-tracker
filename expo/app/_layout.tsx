@@ -17,36 +17,28 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function RootLayoutNav() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+const DEFAULT_SCREEN_OPTIONS = {
+  headerBackTitle: "Zurück",
+  headerStyle: { backgroundColor: '#000000' },
+  headerTintColor: '#FFFFFF',
+} as const;
+
+function NotificationsBootstrap({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   useNotifications(user?.id ?? null);
+  return <>{children}</>;
+}
 
-  console.log('🔄 RootLayoutNav - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
-  
+function RootLayoutNav() {
+  const { isLoading } = useAuth();
+
   if (isLoading) {
-    return null; // Show loading or splash screen
+    return null;
   }
-  
-  // Kunden mit ungeändertem Starter-Passwort zur Passwort-Änderung weiterleiten
-  const needsPasswordChange = isAuthenticated && user?.role === 'client' && user?.passwordChanged === false;
-
-  const initialRoute = !isAuthenticated ? "login"
-    : needsPasswordChange ? "change-password"
-    : user?.role === 'admin' ? "(admin-tabs)"
-    : user?.role === 'trainer' ? "(trainer-tabs)"
-    : "(tabs)";
 
   return (
-    <Stack
-      initialRouteName={initialRoute}
-      screenOptions={{ 
-        headerBackTitle: "Zurück",
-        headerStyle: {
-          backgroundColor: '#000000',
-        },
-        headerTintColor: '#FFFFFF',
-      }}
-    >
+    <Stack screenOptions={DEFAULT_SCREEN_OPTIONS}>
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(trainer-tabs)" options={{ headerShown: false }} />
@@ -83,7 +75,9 @@ export default function RootLayout() {
                   <CoursesProvider>
                     <ExercisesProvider>
                       <ErrorBoundary>
-                        <RootLayoutNav />
+                        <NotificationsBootstrap>
+                          <RootLayoutNav />
+                        </NotificationsBootstrap>
                       </ErrorBoundary>
                     </ExercisesProvider>
                   </CoursesProvider>
