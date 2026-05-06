@@ -93,7 +93,7 @@ export function signJWT(payload: AuthUser): string {
     // Fallback: base64 encoded payload (not secure, for beta only)
     return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
-  return jwtModule.sign(payload, jwtSecret, { expiresIn: '7d' });
+  return jwtModule.sign(payload, jwtSecret, { expiresIn: '365d' });
 }
 
 export const signToken = signJWT;
