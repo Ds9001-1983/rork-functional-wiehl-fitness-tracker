@@ -1,7 +1,7 @@
 {
   "name": "expo-app",
   "main": "expo-router/entry",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "scripts": {
     "start": "expo start --tunnel",
     "start-web": "expo start --web --tunnel",
@@ -55,6 +55,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
+    "expo-updates": "^55.0.21",
     "expo-web-browser": "~15.0.10",
     "getenv": "^2.0.0",
     "hono": "4.9.6",

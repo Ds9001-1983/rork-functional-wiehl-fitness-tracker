@@ -5,6 +5,7 @@ import { Plus, X, Save, Dumbbell, Search, Check } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
+import { safeBack } from '@/lib/navigation';
 import { useExercises } from '@/hooks/use-exercises';
 import type { WorkoutExercise, WorkoutSet } from '@/types/workout';
 
@@ -116,7 +117,7 @@ export default function TrainerPlanEditScreen() {
         exercises: exerciseList,
       });
       Alert.alert('Gespeichert', 'Änderungen wurden übernommen.');
-      router.back();
+      safeBack(router);
     } catch (e: any) {
       Alert.alert('Fehler', e?.message || 'Speichern fehlgeschlagen.');
     }

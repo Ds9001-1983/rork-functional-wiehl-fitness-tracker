@@ -7,6 +7,7 @@ import { Stack, router } from 'expo-router';
 import { ArrowLeft, Plus, Pencil, X, Check, Tag, Dumbbell, Search } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { trpc } from '@/lib/trpc';
+import { safeBack } from '@/lib/navigation';
 import { useAuth } from '@/hooks/use-auth';
 
 type Tab = 'exercises' | 'categories';
@@ -78,7 +79,7 @@ export default function AdminExercisesScreen() {
         options={{
           title: 'Übungsverwaltung',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ padding: Spacing.sm }}>
+            <TouchableOpacity onPress={() => safeBack(router)} style={{ padding: Spacing.sm }}>
               <ArrowLeft size={24} color={Colors.text} />
             </TouchableOpacity>
           ),

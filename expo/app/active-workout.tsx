@@ -17,6 +17,8 @@ import { useWorkouts } from '@/hooks/use-workouts';
 import { useExercises } from '@/hooks/use-exercises';
 import { WorkoutSetRow } from '@/components/WorkoutSetRow';
 import { RestTimer } from '@/components/RestTimer';
+import { WorkoutDuration } from '@/components/WorkoutDuration';
+import { safeBack } from '@/lib/navigation';
 import type { WorkoutSet } from '@/types/workout';
 
 const REST_DEFAULT_SECONDS = 90;
@@ -25,21 +27,10 @@ export default function ActiveWorkoutScreen() {
   const router = useRouter();
   const { activeWorkout, updateSet, addSet, removeSet, saveWorkout, endWorkout } = useWorkouts();
   const { exercises } = useExercises();
-  const [, forceUpdate] = useState(0);
   const [finishModalVisible, setFinishModalVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [restTimerVisible, setRestTimerVisible] = useState(false);
   const [restTimerKey, setRestTimerKey] = useState(0);
-
-  // Timer aus Workout-Startzeit ableiten - überlebt App-Backgrounding/Crash
-  const duration = activeWorkout
-    ? Math.floor((Date.now() - new Date(activeWorkout.date).getTime()) / 1000)
-    : 0;
-
-  React.useEffect(() => {
-    const interval = setInterval(() => forceUpdate(n => n + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Pulsierender Punkt
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -54,16 +45,6 @@ export default function ActiveWorkoutScreen() {
     return () => pulse.stop();
   }, [pulseAnim]);
 
-  const formatDuration = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const openFinishModal = useCallback(() => {
     // Eigener Modal statt Alert.alert — löst Double-Tap-Bug auf Web + iOS
     // wenn zuvor ein TextInput Focus hatte.
@@ -73,7 +54,7 @@ export default function ActiveWorkoutScreen() {
   const doDiscard = useCallback(() => {
     setFinishModalVisible(false);
     endWorkout();
-    router.back();
+    safeBack(router);
   }, [endWorkout, router]);
 
   const doSave = useCallback(async () => {
@@ -83,7 +64,7 @@ export default function ActiveWorkoutScreen() {
       await saveWorkout();
       endWorkout();
       setFinishModalVisible(false);
-      router.back();
+      safeBack(router);
     } finally {
       setIsSaving(false);
     }
@@ -131,7 +112,7 @@ export default function ActiveWorkoutScreen() {
           <View style={styles.timerContainer}>
             <Animated.View style={[styles.timerDot, { opacity: pulseAnim }]} />
             <Timer size={18} color={Colors.accent} />
-            <Text style={styles.duration}>{formatDuration(duration)}</Text>
+            <WorkoutDuration startDate={activeWorkout.date} style={styles.duration} />
           </View>
         </View>
 

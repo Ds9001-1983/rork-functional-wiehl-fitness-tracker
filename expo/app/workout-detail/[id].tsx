@@ -13,6 +13,7 @@ import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useExercises } from '@/hooks/use-exercises';
+import { safeBack } from '@/lib/navigation';
 import { calculate1RM } from '@/types/workout';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,7 +39,7 @@ export default function WorkoutDetailScreen() {
         <Stack.Screen options={{ title: 'Workout Details' }} />
         <View style={styles.centered}>
           <Text style={styles.centeredText}>Workout nicht gefunden</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => safeBack(router)}>
             <Text style={styles.backBtnText}>Zurück</Text>
           </TouchableOpacity>
         </View>
@@ -105,7 +106,7 @@ export default function WorkoutDetailScreen() {
         options={{
           title: workout.name,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ padding: Spacing.xs }}>
+            <TouchableOpacity onPress={() => safeBack(router)} style={{ padding: Spacing.xs }}>
               <ChevronLeft size={24} color={Colors.text} />
             </TouchableOpacity>
           ),
@@ -310,7 +311,7 @@ export default function WorkoutDetailScreen() {
         onConfirm={async () => {
           setShowDeleteConfirm(false);
           await deleteWorkout(workout.id);
-          router.back();
+          safeBack(router);
         }}
         onCancel={() => setShowDeleteConfirm(false)}
       />

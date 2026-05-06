@@ -5,6 +5,7 @@ import { Lock, ArrowLeft, Check } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { trpcClient } from '@/lib/trpc';
+import { safeBack } from '@/lib/navigation';
 import StatusBanner from '@/components/StatusBanner';
 
 export default function ResetPasswordScreen() {
@@ -66,7 +67,7 @@ export default function ResetPasswordScreen() {
     <>
       <Stack.Screen options={{ title: 'Passwort zurücksetzen' }} />
       <View style={styles.container}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeBack(router, '/login')}>
           <ArrowLeft size={20} color={Colors.text} />
           <Text style={styles.backText}>Zurück</Text>
         </TouchableOpacity>

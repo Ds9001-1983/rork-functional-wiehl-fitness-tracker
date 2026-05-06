@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
 import { useExercises } from '@/hooks/use-exercises';
+import { safeBack } from '@/lib/navigation';
 import type { Exercise } from '@/types/workout';
 
 export default function TrainingUnitsSelectionScreen() {
@@ -139,7 +140,7 @@ export default function TrainingUnitsSelectionScreen() {
         options={{ 
           title: 'Trainingseinheiten auswählen',
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity onPress={() => safeBack(router)} style={styles.backButton}>
               <ArrowLeft size={24} color={Colors.text} />
             </TouchableOpacity>
           )

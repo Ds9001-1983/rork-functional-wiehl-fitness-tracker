@@ -1,8 +1,9 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { User } from '@/types/workout';
-import { trpcClient, setCachedToken } from '@/lib/trpc';
+import { trpcClient, setCachedToken, onAuthExpired, offAuthExpired } from '@/lib/trpc';
 
 interface AuthState {
   user: User | null;
@@ -17,6 +18,7 @@ interface AuthState {
 }
 
 export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -52,6 +54,21 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
     loadUser();
   }, [loadUser]);
 
+  // Globaler Auth-Expired-Handler: wenn der Server UNAUTHORIZED zurückgibt
+  // (Token abgelaufen / JWT_SECRET rotiert), Storage räumen und User auf null setzen.
+  // RootLayoutNav rendert dann via app/index.tsx automatisch nach /login.
+  useEffect(() => {
+    const handler = () => {
+      console.log('[Auth] Auth expired — clearing session');
+      AsyncStorage.multiRemove(['user', 'authToken']).catch(() => {});
+      setCachedToken(null);
+      queryClient.clear();
+      setUser(null);
+    };
+    onAuthExpired(handler);
+    return () => offAuthExpired(handler);
+  }, [queryClient]);
+
   const login = useCallback(async (email: string, password: string): Promise<User | null> => {
     try {
       console.log('🔄 Attempting login with backend for:', email);
@@ -79,6 +96,9 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
           AsyncStorage.setItem('authToken', result.token),
         ]);
         setCachedToken(result.token);
+        // Cache vom vorherigen User/anonymen Zustand komplett verwerfen,
+        // sonst zeigt die App nach Re-Login alte/leere gecachte Daten.
+        queryClient.clear();
         setUser(result.user);
         return result.user;
       }
@@ -106,7 +126,7 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
       }
       throw new Error('INVALID_CREDENTIALS');
     }
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     try {
@@ -116,16 +136,18 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         AsyncStorage.removeItem('authToken'),
       ]);
       setCachedToken(null);
+      queryClient.clear();
       console.log('✅ Logout: Benutzerdaten erfolgreich entfernt');
       setUser(null);
       console.log('✅ Logout: User State zurückgesetzt');
     } catch (error) {
       console.error('❌ Logout Fehler:', error);
       setCachedToken(null);
+      queryClient.clear();
       setUser(null);
       throw error;
     }
-  }, []);
+  }, [queryClient]);
 
   const updatePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     if (!user) return;

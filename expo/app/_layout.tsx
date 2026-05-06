@@ -23,6 +23,20 @@ const DEFAULT_SCREEN_OPTIONS = {
   headerTintColor: '#FFFFFF',
 } as const;
 
+const HIDDEN_HEADER = { headerShown: false } as const;
+const OPT_ACTIVE_WORKOUT = { title: 'Aktives Workout' } as const;
+const OPT_TRAINER = { title: 'Trainer Center' } as const;
+const OPT_CHANGE_PW = { title: 'Passwort ändern' } as const;
+const OPT_CUSTOMER_MGMT = { title: 'Kundenverwaltung' } as const;
+const OPT_TRAINING_UNITS = { title: 'Trainingseinheiten auswählen' } as const;
+const OPT_MY_BOOKINGS = { title: 'Meine Buchungen' } as const;
+const OPT_TRAINER_COURSES = { title: 'Meine Kurse' } as const;
+const OPT_TRAINER_PARTICIPANTS = { title: 'Teilnehmer' } as const;
+const OPT_ADMIN_COURSES = { title: 'Kursverwaltung' } as const;
+const OPT_ADMIN_COURSE_DETAIL = { title: 'Kurs' } as const;
+const OPT_ADMIN_PENALTIES = { title: 'No-Show Verwaltung' } as const;
+const OPT_ADMIN_EXERCISES = { title: 'Übungsverwaltung' } as const;
+
 function NotificationsBootstrap({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   useNotifications(user?.id ?? null);
@@ -38,23 +52,23 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={DEFAULT_SCREEN_OPTIONS}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(trainer-tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin-tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="active-workout" options={{ title: 'Aktives Workout' }} />
-      <Stack.Screen name="trainer" options={{ title: 'Trainer Center' }} />
-      <Stack.Screen name="change-password" options={{ title: 'Passwort ändern' }} />
-      <Stack.Screen name="customer-management" options={{ title: 'Kundenverwaltung' }} />
-      <Stack.Screen name="training-units-selection" options={{ title: 'Trainingseinheiten auswählen' }} />
-      <Stack.Screen name="my-bookings" options={{ title: 'Meine Buchungen' }} />
-      <Stack.Screen name="trainer-courses" options={{ title: 'Meine Kurse' }} />
-      <Stack.Screen name="trainer-course-participants" options={{ title: 'Teilnehmer' }} />
-      <Stack.Screen name="admin-courses" options={{ title: 'Kursverwaltung' }} />
-      <Stack.Screen name="admin-course-detail" options={{ title: 'Kurs' }} />
-      <Stack.Screen name="admin-penalties" options={{ title: 'No-Show Verwaltung' }} />
-      <Stack.Screen name="admin-exercises" options={{ title: 'Übungsverwaltung' }} />
+      <Stack.Screen name="index" options={HIDDEN_HEADER} />
+      <Stack.Screen name="login" options={HIDDEN_HEADER} />
+      <Stack.Screen name="(tabs)" options={HIDDEN_HEADER} />
+      <Stack.Screen name="(trainer-tabs)" options={HIDDEN_HEADER} />
+      <Stack.Screen name="(admin-tabs)" options={HIDDEN_HEADER} />
+      <Stack.Screen name="active-workout" options={OPT_ACTIVE_WORKOUT} />
+      <Stack.Screen name="trainer" options={OPT_TRAINER} />
+      <Stack.Screen name="change-password" options={OPT_CHANGE_PW} />
+      <Stack.Screen name="customer-management" options={OPT_CUSTOMER_MGMT} />
+      <Stack.Screen name="training-units-selection" options={OPT_TRAINING_UNITS} />
+      <Stack.Screen name="my-bookings" options={OPT_MY_BOOKINGS} />
+      <Stack.Screen name="trainer-courses" options={OPT_TRAINER_COURSES} />
+      <Stack.Screen name="trainer-course-participants" options={OPT_TRAINER_PARTICIPANTS} />
+      <Stack.Screen name="admin-courses" options={OPT_ADMIN_COURSES} />
+      <Stack.Screen name="admin-course-detail" options={OPT_ADMIN_COURSE_DETAIL} />
+      <Stack.Screen name="admin-penalties" options={OPT_ADMIN_PENALTIES} />
+      <Stack.Screen name="admin-exercises" options={OPT_ADMIN_EXERCISES} />
     </Stack>
   );
 }
