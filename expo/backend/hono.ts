@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { trpcServer } from '@hono/trpc-server';
+import { bodyLimit } from 'hono/body-limit';
 import { appRouter } from './trpc/app-router.ts';
 import { createContext } from './trpc/create-context.ts';
 import { cors } from 'hono/cors';
@@ -16,6 +17,12 @@ app.use('/*', cors({
   origin: process.env.CORS_ORIGIN || '*',
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
+
+// Body size cap for tRPC mutations (raw iPhone photos up to ~10 MB; server resizes to <=400 KB)
+app.use('/trpc/*', bodyLimit({
+  maxSize: 10 * 1024 * 1024,
+  onError: (c) => c.json({ error: 'Datei zu groß. Maximal 10 MB pro Anfrage.' }, 413),
 }));
 
 // tRPC handler (mounted under /api in backend-server.ts, so this becomes /api/trpc/*)

@@ -59,6 +59,7 @@ export interface StoredExercise {
   equipment?: string;
   instructions?: string;
   videoUrl?: string;
+  imageData?: string | null;
   active: boolean;
   createdBy?: string;
 }
@@ -550,6 +551,9 @@ async function initializeTables() {
     await addColumnIfNotExists('workout_plans', 'customized_fields', "JSONB DEFAULT '[]'");
     await addColumnIfNotExists('workout_plans', 'assigned_user_id', 'VARCHAR(50)');
 
+    // Exercise image (4:5 portrait, normalized to <=400KB on server)
+    await addColumnIfNotExists('exercises', 'image_data', 'TEXT');
+
     // Exercise catalog (editable by admin)
     await pool!.query(`
       CREATE TABLE IF NOT EXISTS exercise_categories (
@@ -571,6 +575,7 @@ async function initializeTables() {
         equipment VARCHAR(255),
         instructions TEXT,
         video_url VARCHAR(500),
+        image_data TEXT,
         active BOOLEAN DEFAULT TRUE,
         created_by VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1092,6 +1097,7 @@ export const storage = {
           const result = await pool.query(
             `SELECT id, name, category, muscle_groups as "muscleGroups",
                     equipment, instructions, video_url as "videoUrl",
+                    image_data as "imageData",
                     active, created_by as "createdBy"
              FROM exercises ${where}
              ORDER BY category ASC, name ASC`
@@ -1113,16 +1119,18 @@ export const storage = {
       equipment?: string;
       instructions?: string;
       videoUrl?: string;
+      imageData?: string | null;
       createdBy?: string;
     }): Promise<StoredExercise> => {
       if (!useDatabase || !pool) {
         throw new Error('Database required for exercise creation');
       }
       const result = await pool.query(
-        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, video_url, active, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, $8)
+        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, video_url, image_data, active, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9)
          RETURNING id, name, category, muscle_groups as "muscleGroups",
                    equipment, instructions, video_url as "videoUrl",
+                   image_data as "imageData",
                    active, created_by as "createdBy"`,
         [
           input.id,
@@ -1132,6 +1140,7 @@ export const storage = {
           input.equipment ?? null,
           input.instructions ?? null,
           input.videoUrl ?? null,
+          input.imageData ?? null,
           input.createdBy ?? null,
         ]
       );
@@ -1145,6 +1154,7 @@ export const storage = {
       equipment?: string | null;
       instructions?: string | null;
       videoUrl?: string | null;
+      imageData?: string | null;
       active?: boolean;
     }): Promise<boolean> => {
       if (!useDatabase || !pool) return false;
@@ -1157,6 +1167,7 @@ export const storage = {
       if (patch.equipment !== undefined) { sets.push(`equipment = $${idx++}`); values.push(patch.equipment); }
       if (patch.instructions !== undefined) { sets.push(`instructions = $${idx++}`); values.push(patch.instructions); }
       if (patch.videoUrl !== undefined) { sets.push(`video_url = $${idx++}`); values.push(patch.videoUrl); }
+      if (patch.imageData !== undefined) { sets.push(`image_data = $${idx++}`); values.push(patch.imageData); }
       if (patch.active !== undefined) { sets.push(`active = $${idx++}`); values.push(patch.active); }
       if (sets.length === 0) return false;
       sets.push(`updated_at = NOW()`);

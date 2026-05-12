@@ -29,6 +29,7 @@ function useExercisesData() {
       category: e.category as Exercise['category'],
       equipment: e.equipment ?? undefined,
       videoUrl: e.videoUrl ?? undefined,
+      imageData: (e as { imageData?: string | null }).imageData ?? null,
       instructions: e.instructions ?? undefined,
       muscleGroups: e.muscleGroups ?? [],
     }));

@@ -4,6 +4,7 @@ export interface Exercise {
   category: 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'core' | 'cardio' | 'full-body';
   equipment?: string;
   videoUrl?: string;
+  imageData?: string | null;
   instructions?: string;
   muscleGroups: string[];
 }

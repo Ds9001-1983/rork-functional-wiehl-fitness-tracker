@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Modal, ActivityIndicator, Alert, Switch,
+  TextInput, Modal, ActivityIndicator, Alert, Switch, Image, Platform,
 } from 'react-native';
 import { Stack, router } from 'expo-router';
-import { ArrowLeft, Plus, Pencil, X, Check, Tag, Dumbbell, Search } from 'lucide-react-native';
+import { ArrowLeft, Plus, Pencil, X, Check, Tag, Dumbbell, Search, ImagePlus, Trash2 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { trpc } from '@/lib/trpc';
 import { safeBack } from '@/lib/navigation';
@@ -20,6 +21,7 @@ interface ExerciseRow {
   equipment?: string | null;
   instructions?: string | null;
   videoUrl?: string | null;
+  imageData?: string | null;
   active: boolean;
 }
 
@@ -270,10 +272,68 @@ function ExerciseEditModal(props: {
   const [equipment, setEquipment] = useState(exercise?.equipment ?? '');
   const [instructions, setInstructions] = useState(exercise?.instructions ?? '');
   const [videoUrl, setVideoUrl] = useState(exercise?.videoUrl ?? '');
+  const [imageData, setImageData] = useState<string | null>(exercise?.imageData ?? null);
+  const [imageDirty, setImageDirty] = useState(false);
+  const [pickingImage, setPickingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const createMut = trpc.exercises.create.useMutation();
   const updateMut = trpc.exercises.update.useMutation();
+
+  const pickImage = async () => {
+    setPickingImage(true);
+    try {
+      if (Platform.OS === 'web') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e: any) => {
+          const file = e.target.files?.[0];
+          if (!file) { setPickingImage(false); return; }
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.includes(',') ? result.split(',')[1] : result;
+            setImageData(base64);
+            setImageDirty(true);
+            setPickingImage(false);
+          };
+          reader.onerror = () => {
+            Alert.alert('Fehler', 'Bild konnte nicht gelesen werden.');
+            setPickingImage(false);
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+        return;
+      }
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Zugriff verweigert', 'Bitte erlaube den Zugriff auf die Fotobibliothek in den Einstellungen.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 5],
+        quality: 0.8,
+        base64: true,
+      });
+      if (!result.canceled && result.assets[0]?.base64) {
+        setImageData(result.assets[0].base64);
+        setImageDirty(true);
+      }
+    } catch (err) {
+      Alert.alert('Fehler', 'Bildauswahl fehlgeschlagen: ' + String((err as Error).message ?? err));
+    } finally {
+      setPickingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImageData(null);
+    setImageDirty(true);
+  };
 
   const save = async () => {
     if (!name.trim()) {
@@ -302,6 +362,7 @@ function ExerciseEditModal(props: {
           equipment: equipment.trim() || undefined,
           instructions: instructions.trim() || undefined,
           videoUrl: videoUrl.trim() || undefined,
+          imageData: imageData ?? undefined,
         });
       } else {
         await updateMut.mutateAsync({
@@ -313,6 +374,7 @@ function ExerciseEditModal(props: {
             equipment: equipment.trim() || null,
             instructions: instructions.trim() || null,
             videoUrl: videoUrl.trim() || null,
+            ...(imageDirty ? { imageData: imageData ?? null } : {}),
           },
         });
       }
@@ -408,6 +470,60 @@ function ExerciseEditModal(props: {
                 keyboardType="url"
                 style={styles.input}
               />
+            </Field>
+
+            <Field
+              label="Bild"
+              hint={
+                Platform.OS === 'web'
+                  ? 'Optional — Hochkant 4:5 wird empfohlen. Wird automatisch auf 4:5 zugeschnitten und auf max. 400 KB komprimiert.'
+                  : 'Optional — beim Auswählen kannst du das Bild auf 4:5 hochkant zuschneiden. Wird auf max. 400 KB komprimiert.'
+              }
+            >
+              <View style={styles.imageRow}>
+                <View style={styles.imagePreview}>
+                  {imageData ? (
+                    <Image
+                      source={{ uri: `data:image/jpeg;base64,${imageData}` }}
+                      style={styles.imagePreviewImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <ImagePlus size={28} color={Colors.textMuted} />
+                      <Text style={styles.imagePlaceholderText}>kein Bild</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.imageActions}>
+                  <TouchableOpacity
+                    style={[styles.secondaryBtn, pickingImage && { opacity: 0.6 }]}
+                    onPress={pickImage}
+                    disabled={pickingImage || saving}
+                  >
+                    {pickingImage ? (
+                      <ActivityIndicator color={Colors.text} />
+                    ) : (
+                      <>
+                        <ImagePlus size={16} color={Colors.text} />
+                        <Text style={styles.secondaryBtnText}>
+                          {imageData ? 'Bild ändern' : 'Bild auswählen'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  {imageData && (
+                    <TouchableOpacity
+                      style={styles.dangerBtn}
+                      onPress={removeImage}
+                      disabled={saving}
+                    >
+                      <Trash2 size={16} color={Colors.text} />
+                      <Text style={styles.dangerBtnText}>Bild entfernen</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             </Field>
 
             <TouchableOpacity
@@ -670,4 +786,39 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.accent },
   chipText: { color: Colors.textSecondary, fontSize: 13 },
   chipTextActive: { color: Colors.text, fontWeight: '700' },
+
+  imageRow: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
+  imagePreview: {
+    width: 120,
+    aspectRatio: 4 / 5,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  imagePreviewImg: { width: '100%', height: '100%' },
+  imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  imagePlaceholderText: { color: Colors.textMuted, fontSize: 11 },
+  imageActions: { flex: 1, gap: 8 },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  secondaryBtnText: { color: Colors.text, fontWeight: '600', fontSize: 13 },
+  dangerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#5a1f1f',
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  dangerBtnText: { color: Colors.text, fontWeight: '600', fontSize: 13 },
 });

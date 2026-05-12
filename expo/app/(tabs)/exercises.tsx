@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
+  Image,
 } from 'react-native';
 import { Search, X, Plus } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
@@ -117,6 +118,16 @@ export default function ExercisesScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
+              {selectedExercise?.imageData ? (
+                <View style={styles.heroImageWrap}>
+                  <Image
+                    source={{ uri: `data:image/jpeg;base64,${selectedExercise.imageData}` }}
+                    style={styles.heroImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : null}
+
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Muskelgruppen</Text>
                 <Text style={styles.modalText}>
@@ -243,6 +254,20 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: Spacing.lg,
+  },
+  heroImageWrap: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    maxHeight: 360,
+    borderRadius: BorderRadius.lg,
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.background,
+    alignSelf: 'center',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   modalSection: {
     marginBottom: Spacing.lg,

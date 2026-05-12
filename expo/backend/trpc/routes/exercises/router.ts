@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { protectedProcedure, adminProcedure } from '../../create-context';
 import { storage } from '../../../storage';
+import { normalizeExerciseImage } from '../../../lib/image-normalize';
 
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -86,11 +87,23 @@ export const createExercise = adminProcedure
     equipment: z.string().max(255).optional(),
     instructions: z.string().optional(),
     videoUrl: z.string().url().optional().or(z.literal('').transform(() => undefined)),
+    imageData: z.string().optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     const id = input.id ?? toSlug(input.name);
     if (!slugRegex.test(id)) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ungültige id.' });
+    }
+    let normalizedImage: string | undefined;
+    if (input.imageData) {
+      try {
+        normalizedImage = await normalizeExerciseImage(input.imageData);
+      } catch (err) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Bild konnte nicht verarbeitet werden: ' + ((err as Error).message ?? 'unbekannt'),
+        });
+      }
     }
     try {
       return await storage.exercises.create({
@@ -101,6 +114,7 @@ export const createExercise = adminProcedure
         equipment: input.equipment,
         instructions: input.instructions,
         videoUrl: input.videoUrl,
+        imageData: normalizedImage,
         createdBy: ctx.user.userId,
       });
     } catch (err) {
@@ -122,11 +136,23 @@ export const updateExercise = adminProcedure
       equipment: z.string().max(255).nullable().optional(),
       instructions: z.string().nullable().optional(),
       videoUrl: z.string().url().nullable().optional().or(z.literal('').transform(() => null)),
+      imageData: z.string().nullable().optional(),
       active: z.boolean().optional(),
     }),
   }))
   .mutation(async ({ input }) => {
-    const ok = await storage.exercises.update(input.id, input.patch);
+    const patch = { ...input.patch };
+    if (typeof patch.imageData === 'string' && patch.imageData.length > 0) {
+      try {
+        patch.imageData = await normalizeExerciseImage(patch.imageData);
+      } catch (err) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Bild konnte nicht verarbeitet werden: ' + ((err as Error).message ?? 'unbekannt'),
+        });
+      }
+    }
+    const ok = await storage.exercises.update(input.id, patch);
     if (!ok) throw new TRPCError({ code: 'NOT_FOUND', message: 'Übung nicht gefunden.' });
     return { success: true };
   });
