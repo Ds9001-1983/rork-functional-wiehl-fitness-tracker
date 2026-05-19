@@ -16,31 +16,34 @@ export default protectedProcedure
       throw new TRPCError({ code: 'FORBIDDEN', message: 'Nur Trainer dürfen Kunden erstellen.' });
     }
 
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const normalizedPhone = input.phone?.trim();
+
     // Check if client with this email or phone already exists
     const existingClients = await storage.clients.getAll();
-    
+
     // Check for duplicate email
-    const existingClientByEmail = existingClients.find(client => client.email === input.email);
+    const existingClientByEmail = existingClients.find(client => client.email === normalizedEmail);
     if (existingClientByEmail) {
-      console.log('[Server] Client with email already exists:', input.email);
+      console.log('[Server] Client with email already exists:', normalizedEmail);
       throw new Error('CLIENT_EMAIL_EXISTS');
     }
-    
+
     // Check for duplicate phone number (if provided)
-    if (input.phone && input.phone.trim()) {
-      const existingClientByPhone = existingClients.find(client => client.phone === input.phone);
+    if (normalizedPhone) {
+      const existingClientByPhone = existingClients.find(client => client.phone === normalizedPhone);
       if (existingClientByPhone) {
-        console.log('[Server] Client with phone already exists:', input.phone);
+        console.log('[Server] Client with phone already exists:', normalizedPhone);
         throw new Error('CLIENT_PHONE_EXISTS');
       }
     }
-    
+
     const starterPassword = input.starterPassword || 'TEMP123';
 
     const newClient = await storage.clients.create({
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
+      name: input.name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       role: 'client' as const,
       joinDate: new Date().toISOString(),
       starterPassword: starterPassword,

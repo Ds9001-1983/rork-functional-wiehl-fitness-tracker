@@ -11,28 +11,49 @@ const loginSchema = z.object({
 export const loginProcedure = publicProcedure
   .input(loginSchema)
   .mutation(async ({ input }) => {
-    const { email, password } = input;
+    const email = input.email.trim().toLowerCase();
+    const password = input.password;
 
     console.log('[Server] Login attempt for:', email);
 
     const pool = getPool();
 
-    // In-Memory-Fallback: Login gegen storage.clients
+    // In-Memory-Fallback: einheitlich via bcrypt gegen storage.users
     if (!pool) {
+      const user = await storage.users.findByEmail(email);
+      if (!user) throw new Error('USER_NOT_INVITED');
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) throw new Error('INVALID_PASSWORD');
+
       const allClients = await storage.clients.getAll();
       const client = allClients.find(c => c.email === email);
-      if (!client) throw new Error('USER_NOT_INVITED');
-      if (client.starterPassword !== password) throw new Error('INVALID_PASSWORD');
 
-      const userData = {
-        id: client.id,
-        name: client.name,
-        email: client.email,
-        role: client.role,
-        joinDate: client.joinDate,
-        passwordChanged: client.passwordChanged,
-        stats: client.stats,
-      };
+      const userData = client
+        ? {
+            id: client.id,
+            name: client.name,
+            email: client.email,
+            role: client.role,
+            joinDate: client.joinDate,
+            passwordChanged: client.passwordChanged,
+            stats: client.stats,
+          }
+        : {
+            id: user.id,
+            name: user.role === 'admin' ? 'Administrator' : user.role === 'trainer' ? 'Functional Wiehl Trainer' : user.email.split('@')[0],
+            email: user.email,
+            role: user.role,
+            joinDate: user.createdAt,
+            passwordChanged: user.passwordChanged,
+            stats: {
+              totalWorkouts: 0,
+              totalVolume: 0,
+              currentStreak: 0,
+              longestStreak: 0,
+              personalRecords: {},
+            },
+          };
       const token = signToken({ userId: userData.id, email: userData.email, role: userData.role });
       console.log('[Server] In-memory login successful:', email);
       return { success: true, user: userData, token };

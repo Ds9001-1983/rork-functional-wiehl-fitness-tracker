@@ -10,6 +10,7 @@ import { useClients } from '@/hooks/use-clients';
 import { useWorkouts } from '@/hooks/use-workouts';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import StatusBanner from '@/components/StatusBanner';
+import { generateStarterPassword } from '@/lib/starter-password';
 
 export default function TrainerClientsScreen() {
   const { user } = useAuth();
@@ -55,19 +56,6 @@ export default function TrainerClientsScreen() {
   const isValidPhone = (phone: string) => /^[\d\s\-+()]{6,}$/.test(phone.trim());
   const getEmailError = () => clientEmail.length > 0 && !isValidEmail(clientEmail) ? 'Ungültige E-Mail' : '';
   const getPhoneError = () => clientPhone.length > 0 && !isValidPhone(clientPhone) ? 'Ungültige Nummer' : '';
-
-  const generateStarterPassword = (): string => {
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    let result = '';
-    for (let i = 0; i < 4; i++) {
-      result += letters.charAt(Math.floor(Math.random() * letters.length));
-    }
-    for (let i = 0; i < 4; i++) {
-      result += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    }
-    return result.split('').sort(() => Math.random() - 0.5).join('');
-  };
 
   const handleCreateClient = async () => {
     if (!clientFirstName.trim() || !clientLastName.trim()) {

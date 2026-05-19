@@ -70,12 +70,13 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
   }, [queryClient]);
 
   const login = useCallback(async (email: string, password: string): Promise<User | null> => {
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      console.log('🔄 Attempting login with backend for:', email);
+      console.log('🔄 Attempting login with backend for:', normalizedEmail);
       console.log('🔄 tRPC client available:', !!trpcClient);
       console.log('🔄 tRPC auth available:', !!trpcClient.auth);
       console.log('🔄 tRPC login available:', !!trpcClient.auth.login);
-      
+
       // Test connection first
       try {
         console.log('🔄 Testing tRPC connection...');
@@ -85,11 +86,11 @@ export const [AuthProvider, useAuth] = createContextHook<AuthState>(() => {
         console.log('❌ tRPC connection failed:', connectionError);
         throw new Error('CONNECTION_FAILED');
       }
-      
-      const result = await trpcClient.auth.login.mutate({ email, password });
+
+      const result = await trpcClient.auth.login.mutate({ email: normalizedEmail, password });
       
       if (result.success && result.user) {
-        console.log('✅ Backend login successful for:', email);
+        console.log('✅ Backend login successful for:', normalizedEmail);
         console.log('✅ User data:', result.user);
         await Promise.all([
           AsyncStorage.setItem('user', JSON.stringify(result.user)),
