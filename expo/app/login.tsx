@@ -64,8 +64,9 @@ export default function LoginScreen() {
     }
     setIsLoading(true);
     try {
-      const loggedIn = await login(email, password);
-      await AsyncStorage.setItem('savedEmail', email);
+      const normalizedEmail = email.trim().toLowerCase();
+      const loggedIn = await login(normalizedEmail, password.trim());
+      await AsyncStorage.setItem('savedEmail', normalizedEmail);
       await AsyncStorage.setItem('rememberPassword', rememberPassword ? 'true' : 'false');
       await AsyncStorage.removeItem('savedPassword');
       if (!loggedIn) {

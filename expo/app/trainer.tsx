@@ -6,6 +6,7 @@ import { UserPlus, ClipboardList, Mail, User, Trash2, Phone, Users, Calendar, Ch
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
+import { generateStarterPassword } from '@/lib/starter-password';
 
 export default function TrainerCenterScreen() {
   const { user } = useAuth();
@@ -25,18 +26,6 @@ export default function TrainerCenterScreen() {
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
   const screenWidth = Dimensions.get('window').width;
   const swipeThreshold = screenWidth * 0.3;
-
-  const generateStarterPassword = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const array = new Uint8Array(8);
-    // getRandomValues ist in React Native via expo verfügbar
-    if (typeof globalThis.crypto?.getRandomValues === 'function') {
-      globalThis.crypto.getRandomValues(array);
-    } else {
-      for (let i = 0; i < 8; i++) array[i] = Math.floor(Math.random() * 256);
-    }
-    return Array.from(array, b => chars[b % chars.length]).join('');
-  };
 
   const sendWelcomeEmail = async (email: string, name: string, password: string): Promise<boolean> => {
     try {
