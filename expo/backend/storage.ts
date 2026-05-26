@@ -2069,6 +2069,40 @@ export const storage = {
       return false;
     },
 
+    delete: async (id: string): Promise<boolean> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(`DELETE FROM notifications WHERE id = $1`, [id]);
+          return (result.rowCount ?? 0) > 0;
+        } catch (err) {
+          console.log('[Storage] DB delete failed for notification:', err);
+        }
+      }
+      const before = notificationsData.length;
+      notificationsData = notificationsData.filter(n => n.id !== id);
+      return notificationsData.length < before;
+    },
+
+    deleteByTypeAndClient: async (type: string, clientId: string): Promise<number> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `DELETE FROM notifications WHERE type = $1 AND data->>'clientId' = $2`,
+            [type, clientId]
+          );
+          return result.rowCount ?? 0;
+        } catch (err) {
+          console.log('[Storage] DB delete by type+clientId failed:', err);
+          return 0;
+        }
+      }
+      const before = notificationsData.length;
+      notificationsData = notificationsData.filter(n =>
+        !(n.type === type && (n.data as any)?.clientId === clientId)
+      );
+      return before - notificationsData.length;
+    },
+
     markAllRead: async (userId: string): Promise<void> => {
       if (useDatabase && pool) {
         try {

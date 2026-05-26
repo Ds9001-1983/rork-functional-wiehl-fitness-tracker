@@ -11,6 +11,14 @@ export default trainerProcedure
       throw new TRPCError({ code: 'NOT_FOUND', message: 'CLIENT_NOT_FOUND' });
     }
 
+    // Offene Reset-Anfrage-Notifications für diesen Kunden bei allen Trainern entfernen
+    try {
+      const removed = await storage.notifications.deleteByTypeAndClient('password_reset_request', input.id);
+      if (removed > 0) console.log('[Clients] Removed', removed, 'reset-request notifications for client', input.id);
+    } catch (err) {
+      console.log('[Clients] Could not remove reset-request notifications:', err);
+    }
+
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     const APP_URL = process.env.APP_URL || 'https://app.functional-wiehl.de';
     let emailSent = false;
