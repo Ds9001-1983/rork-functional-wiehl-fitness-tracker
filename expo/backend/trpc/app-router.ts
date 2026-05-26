@@ -5,12 +5,14 @@ import listClients from "./routes/clients/list";
 import deleteClient from "./routes/clients/delete";
 import updateClient from "./routes/clients/update";
 import resendClientStarterPassword from "./routes/clients/resend-starter-password";
+import findClientByEmail from "./routes/clients/find-by-email";
 import createInvitation from "./routes/invitations/create";
 import listInvitations from "./routes/invitations/list";
 import { loginProcedure } from "./routes/auth/login";
 import { updatePasswordProcedure } from "./routes/auth/update-password";
 import requestReset from "./routes/auth/request-reset";
 import resetPassword from "./routes/auth/reset-password";
+import requestTrainerReset from "./routes/auth/request-trainer-reset";
 import createWorkout from "./routes/workouts/create";
 import listWorkouts from "./routes/workouts/list";
 import updateWorkout from "./routes/workouts/update";
@@ -75,6 +77,7 @@ export const appRouter = createTRPCRouter({
     updatePassword: updatePasswordProcedure,
     requestReset: requestReset,
     resetPassword: resetPassword,
+    requestTrainerReset: requestTrainerReset,
   }),
   clients: createTRPCRouter({
     create: createClient,
@@ -82,6 +85,7 @@ export const appRouter = createTRPCRouter({
     delete: deleteClient,
     update: updateClient,
     resendStarterPassword: resendClientStarterPassword,
+    findByEmail: findClientByEmail,
     progress: clientProgress,
   }),
   invitations: createTRPCRouter({

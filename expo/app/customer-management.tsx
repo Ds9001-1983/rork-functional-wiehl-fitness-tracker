@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
-import { Stack, router } from 'expo-router';
-import { Search, User, X, Eye, Activity, Target, Pencil, KeyRound } from 'lucide-react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, RefreshControl } from 'react-native';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { Search, User, X, Eye, Activity, Target, Pencil, KeyRound, Mail } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
@@ -12,25 +12,86 @@ import type { User as UserType } from '@/types/workout';
 
 export default function CustomerManagementScreen() {
   const { user } = useAuth();
-  const { clients, updateClient } = useClients();
+  const { clients, updateClient, refresh, isOffline } = useClients();
+  const params = useLocalSearchParams<{ focus?: string }>();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [editClient, setEditClient] = useState<UserType | null>(null);
   const [editForm, setEditForm] = useState<{ name: string; email: string; phone: string }>({ name: '', email: '', phone: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const [resendingPw, setResendingPw] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [emailSearchOpen, setEmailSearchOpen] = useState(false);
+  const [emailSearchInput, setEmailSearchInput] = useState('');
+  const [emailSearching, setEmailSearching] = useState(false);
 
   const isTrainer = user?.role === 'trainer' || user?.role === 'admin';
 
+  const sortedClients = useMemo(() => {
+    const onlyClients = clients.filter(c => c.role === 'client');
+    return [...onlyClients].sort((a, b) => {
+      const aReq = a.passwordResetRequestedAt ? 1 : 0;
+      const bReq = b.passwordResetRequestedAt ? 1 : 0;
+      if (aReq !== bReq) return bReq - aReq;
+      if (a.passwordResetRequestedAt && b.passwordResetRequestedAt) {
+        return b.passwordResetRequestedAt.localeCompare(a.passwordResetRequestedAt);
+      }
+      return 0;
+    });
+  }, [clients]);
+
   const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return clients;
+    if (!searchQuery.trim()) return sortedClients;
     const query = searchQuery.toLowerCase();
-    return clients.filter(client =>
+    return sortedClients.filter(client =>
       client.name.toLowerCase().includes(query) ||
       client.email.toLowerCase().includes(query) ||
       (client.phone && client.phone.includes(query))
     );
-  }, [clients, searchQuery]);
+  }, [sortedClients, searchQuery]);
+
+  // Deep-Link aus Push/Notification: ?focus=<clientId> öffnet das Edit-Modal direkt
+  useEffect(() => {
+    if (!params.focus) return;
+    const target = clients.find(c => c.id === params.focus);
+    if (target) {
+      setEditClient(target);
+      setEditForm({ name: target.name, email: target.email, phone: target.phone ?? '' });
+    }
+  }, [params.focus, clients]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const searchByEmail = async () => {
+    const email = emailSearchInput.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      infoAlert('Fehler', 'Bitte gültige E-Mail-Adresse eingeben.');
+      return;
+    }
+    setEmailSearching(true);
+    try {
+      const result = await trpcClient.clients.findByEmail.query({ email });
+      if (!result) {
+        infoAlert('Nicht gefunden', `Kein Kunde mit der E-Mail ${email} gefunden.`);
+        return;
+      }
+      setEmailSearchOpen(false);
+      setEmailSearchInput('');
+      setEditClient(result as unknown as UserType);
+      setEditForm({ name: result.name, email: result.email, phone: result.phone ?? '' });
+    } catch (e: any) {
+      infoAlert('Fehler', e?.message || 'Suche fehlgeschlagen.');
+    } finally {
+      setEmailSearching(false);
+    }
+  };
 
   const openClientDetails = (client: UserType) => {
     // Navigate to the trainer-tabs client-progress screen (with the two tiles + metrics)
@@ -118,13 +179,34 @@ export default function CustomerManagementScreen() {
               style={styles.searchInput}
             />
           </View>
-          <Text style={styles.resultCount}>
-            {filteredClients.length} von {clients.length} Kunden
-          </Text>
+          <View style={styles.headerRow}>
+            <Text style={styles.resultCount}>
+              {filteredClients.length} von {sortedClients.length} Kunden
+            </Text>
+            <TouchableOpacity
+              onPress={() => setEmailSearchOpen(true)}
+              hitSlop={8}
+              style={styles.emailSearchButton}
+            >
+              <Mail size={14} color={Colors.accent} />
+              <Text style={styles.emailSearchText}>Kunde per E-Mail suchen</Text>
+            </TouchableOpacity>
+          </View>
+          {isOffline && (
+            <View style={styles.offlineBanner}>
+              <Text style={styles.offlineText}>Offline — gecachte Daten möglicherweise veraltet. Nach unten ziehen zum Aktualisieren.</Text>
+            </View>
+          )}
         </View>
 
         {/* Clients List */}
-        <ScrollView style={styles.clientsList} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.clientsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />
+          }
+        >
           {filteredClients.length === 0 ? (
             <View style={styles.emptyState}>
               <User size={48} color={Colors.textMuted} />
@@ -136,53 +218,62 @@ export default function CustomerManagementScreen() {
               </Text>
             </View>
           ) : (
-            filteredClients.map((client) => (
-              <View key={client.id} style={styles.clientCard}>
-                <TouchableOpacity onPress={() => openClientDetails(client)}>
-                  <View style={styles.clientHeader}>
-                    <View style={styles.clientAvatar}>
-                      <User size={24} color={Colors.text} />
+            filteredClients.map((client) => {
+              const hasReset = !!client.passwordResetRequestedAt;
+              return (
+                <View key={client.id} style={[styles.clientCard, hasReset && styles.clientCardHighlight]}>
+                  {hasReset && (
+                    <View style={styles.resetBadge}>
+                      <KeyRound size={12} color={Colors.background} />
+                      <Text style={styles.resetBadgeText}>Passwort-Reset angefragt</Text>
                     </View>
-                    <View style={styles.clientInfo}>
-                      <Text style={styles.clientName}>{client.name}</Text>
-                      <Text style={styles.clientEmail}>{client.email}</Text>
-                      {client.phone && (
-                        <Text style={styles.clientPhone}>📱 {client.phone}</Text>
-                      )}
-                    </View>
-                    <View style={styles.clientStats}>
-                      <View style={styles.statItem}>
-                        <Activity size={14} color={Colors.accent} />
-                        <Text style={styles.statText}>{client.stats?.totalWorkouts || 0}</Text>
+                  )}
+                  <TouchableOpacity onPress={() => openClientDetails(client)}>
+                    <View style={styles.clientHeader}>
+                      <View style={styles.clientAvatar}>
+                        <User size={24} color={Colors.text} />
                       </View>
-                      <View style={styles.statItem}>
-                        <Target size={14} color={Colors.accent} />
-                        <Text style={styles.statText}>{client.stats?.currentStreak || 0}</Text>
+                      <View style={styles.clientInfo}>
+                        <Text style={styles.clientName}>{client.name}</Text>
+                        <Text style={styles.clientEmail}>{client.email}</Text>
+                        {client.phone && (
+                          <Text style={styles.clientPhone}>📱 {client.phone}</Text>
+                        )}
+                      </View>
+                      <View style={styles.clientStats}>
+                        <View style={styles.statItem}>
+                          <Activity size={14} color={Colors.accent} />
+                          <Text style={styles.statText}>{client.stats?.totalWorkouts || 0}</Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Target size={14} color={Colors.accent} />
+                          <Text style={styles.statText}>{client.stats?.currentStreak || 0}</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
 
-                <View style={styles.clientActions}>
-                  <TouchableOpacity
-                    onPress={() => openClientDetails(client)}
-                    style={styles.actionButton}
-                    hitSlop={8}
-                  >
-                    <Eye size={16} color={Colors.textSecondary} />
-                    <Text style={styles.actionText}>Details ansehen</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => openEdit(client)}
-                    style={styles.actionButton}
-                    hitSlop={8}
-                  >
-                    <Pencil size={16} color={Colors.accent} />
-                    <Text style={[styles.actionText, { color: Colors.accent }]}>Bearbeiten</Text>
-                  </TouchableOpacity>
+                  <View style={styles.clientActions}>
+                    <TouchableOpacity
+                      onPress={() => openClientDetails(client)}
+                      style={styles.actionButton}
+                      hitSlop={8}
+                    >
+                      <Eye size={16} color={Colors.textSecondary} />
+                      <Text style={styles.actionText}>Details ansehen</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => openEdit(client)}
+                      style={styles.actionButton}
+                      hitSlop={8}
+                    >
+                      <Pencil size={16} color={Colors.accent} />
+                      <Text style={[styles.actionText, { color: Colors.accent }]}>Bearbeiten</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </ScrollView>
 
@@ -196,6 +287,15 @@ export default function CustomerManagementScreen() {
                   <X size={22} color={Colors.text} />
                 </TouchableOpacity>
               </View>
+
+              {editClient?.passwordResetRequestedAt && (
+                <View style={styles.resetNotice}>
+                  <KeyRound size={14} color={Colors.accent} />
+                  <Text style={styles.resetNoticeText}>
+                    Dieser Kunde hat ein Passwort-Reset angefragt am {new Date(editClient.passwordResetRequestedAt).toLocaleString('de-DE')}.
+                  </Text>
+                </View>
+              )}
 
               <Text style={styles.editLabel}>Name</Text>
               <TextInput
@@ -254,6 +354,45 @@ export default function CustomerManagementScreen() {
               <Text style={styles.editHint}>
                 Generiert ein neues Starter-Passwort und mailt es an die oben hinterlegte E-Mail. Bei Tippfehler in der E-Mail vorher Speichern.
               </Text>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Email-Search-Modal: Notfall-Fallback wenn Kunde nicht in Liste */}
+        <Modal visible={emailSearchOpen} animationType="slide" transparent onRequestClose={() => setEmailSearchOpen(false)}>
+          <View style={styles.editBackdrop}>
+            <View style={styles.editCard}>
+              <View style={styles.editHeader}>
+                <Text style={styles.editTitle}>Kunde per E-Mail suchen</Text>
+                <TouchableOpacity onPress={() => setEmailSearchOpen(false)} hitSlop={8}>
+                  <X size={22} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.editHint}>
+                Falls ein Kunde in deiner Liste fehlt (z.B. nach einem Schema-Update), kannst du ihn hier direkt per E-Mail finden und bearbeiten.
+              </Text>
+              <Text style={styles.editLabel}>E-Mail</Text>
+              <TextInput
+                value={emailSearchInput}
+                onChangeText={setEmailSearchInput}
+                placeholder="kunde@example.com"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.editInput}
+              />
+              <TouchableOpacity
+                style={[styles.editPrimary, emailSearching && { opacity: 0.6 }]}
+                onPress={searchByEmail}
+                disabled={emailSearching}
+              >
+                {emailSearching ? (
+                  <ActivityIndicator color={Colors.text} />
+                ) : (
+                  <Text style={styles.editPrimaryText}>Suchen</Text>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -335,6 +474,72 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     overflow: 'hidden',
+  },
+  clientCardHighlight: {
+    borderColor: Colors.accent,
+    borderWidth: 2,
+  },
+  resetBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+  },
+  resetBadgeText: {
+    color: Colors.background,
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  resetNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  resetNoticeText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  emailSearchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+  },
+  emailSearchText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  offlineBanner: {
+    marginTop: Spacing.sm,
+    padding: Spacing.sm,
+    backgroundColor: Colors.surfaceLight,
+    borderRadius: BorderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.warning,
+  },
+  offlineText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
   },
   clientHeader: {
     flexDirection: 'row',

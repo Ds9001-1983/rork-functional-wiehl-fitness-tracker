@@ -26,6 +26,7 @@ export interface StoredClient {
   joinDate: string;
   starterPassword?: string;
   passwordChanged: boolean;
+  passwordResetRequestedAt?: string | null;
   avatar?: string;
   stats: {
     totalWorkouts: number;
@@ -545,6 +546,9 @@ async function initializeTables() {
     await addColumnIfNotExists('users', 'consented_at', 'TIMESTAMP');
     await addColumnIfNotExists('users', 'privacy_version', "VARCHAR(10) DEFAULT '1.0'");
 
+    // Passwort-Vergessen-Anfrage (vom Kunden, vom Trainer manuell bearbeitet)
+    await addColumnIfNotExists('users', 'password_reset_requested_at', 'TIMESTAMP');
+
     // Template-Instance system for workout plans
     await addColumnIfNotExists('workout_plans', 'template_id', 'INTEGER');
     await addColumnIfNotExists('workout_plans', 'is_instance', 'BOOLEAN DEFAULT FALSE');
@@ -790,6 +794,18 @@ export const storage = {
     verifyPassword: async (plainPassword: string, hashedPassword: string): Promise<boolean> => {
       return bcrypt.compare(plainPassword, hashedPassword);
     },
+
+    listByRole: async (role: 'client' | 'trainer' | 'admin'): Promise<{ id: string; email: string }[]> => {
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query('SELECT id, email FROM users WHERE role = $1', [role]);
+          return result.rows.map(r => ({ id: r.id.toString(), email: r.email }));
+        } catch (err) {
+          console.log('[Storage] DB query failed for listByRole:', err);
+        }
+      }
+      return users.filter(u => u.role === role).map(u => ({ id: u.id, email: u.email }));
+    },
   },
 
   clients: {
@@ -809,6 +825,7 @@ export const storage = {
               join_date as "joinDate",
               starter_password as "starterPassword",
               password_changed as "passwordChanged",
+              password_reset_requested_at as "passwordResetRequestedAt",
               total_workouts as "totalWorkouts",
               total_volume as "totalVolume",
               current_streak as "currentStreak",
@@ -830,6 +847,9 @@ export const storage = {
             joinDate: row.joinDate || row.createdAt || new Date().toISOString(),
             starterPassword: row.starterPassword,
             passwordChanged: row.passwordChanged || false,
+            passwordResetRequestedAt: row.passwordResetRequestedAt
+              ? new Date(row.passwordResetRequestedAt).toISOString()
+              : null,
             avatar: row.avatar,
             stats: {
               totalWorkouts: Number(row.totalWorkouts) || 0,
@@ -962,7 +982,11 @@ export const storage = {
       if (useDatabase && pool) {
         try {
           const r = await pool.query(
-            `UPDATE users SET password = $1, starter_password = $2, password_changed = FALSE
+            `UPDATE users
+               SET password = $1,
+                   starter_password = $2,
+                   password_changed = FALSE,
+                   password_reset_requested_at = NULL
              WHERE id = $3 RETURNING email, COALESCE(name, '') as name`,
             [hash, pw, userId]
           );
@@ -980,7 +1004,85 @@ export const storage = {
       u.passwordChanged = false;
       c.starterPassword = pw;
       c.passwordChanged = false;
+      c.passwordResetRequestedAt = null;
       return { ok: true, password: pw, email: c.email, name: c.name };
+    },
+
+    markResetRequest: async (email: string): Promise<{ ok: true; clientId: string; name: string } | { ok: false }> => {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (useDatabase && pool) {
+        try {
+          const r = await pool.query(
+            `UPDATE users
+               SET password_reset_requested_at = NOW()
+             WHERE LOWER(email) = $1 AND role = 'client'
+             RETURNING id, COALESCE(name, '') as name`,
+            [normalizedEmail]
+          );
+          if (!r.rows[0]) return { ok: false };
+          return { ok: true, clientId: r.rows[0].id.toString(), name: r.rows[0].name };
+        } catch (err) {
+          console.log('[Storage] DB markResetRequest failed:', err);
+          return { ok: false };
+        }
+      }
+      const c = clients.find(x => x.email.toLowerCase() === normalizedEmail && x.role === 'client');
+      if (!c) return { ok: false };
+      c.passwordResetRequestedAt = new Date().toISOString();
+      return { ok: true, clientId: c.id, name: c.name };
+    },
+
+    findByEmail: async (email: string): Promise<StoredClient | null> => {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (useDatabase && pool) {
+        try {
+          const result = await pool.query(
+            `SELECT
+               id, email, role, name, phone, avatar,
+               join_date as "joinDate",
+               starter_password as "starterPassword",
+               password_changed as "passwordChanged",
+               password_reset_requested_at as "passwordResetRequestedAt",
+               total_workouts as "totalWorkouts",
+               total_volume as "totalVolume",
+               current_streak as "currentStreak",
+               longest_streak as "longestStreak",
+               personal_records as "personalRecords",
+               created_at as "createdAt"
+             FROM users
+             WHERE LOWER(email) = $1 AND role = 'client'
+             LIMIT 1`,
+            [normalizedEmail]
+          );
+          if (!result.rows[0]) return null;
+          const row = result.rows[0];
+          return {
+            id: row.id.toString(),
+            userId: row.id.toString(),
+            name: row.name || row.email?.split('@')[0] || 'Unbekannt',
+            email: row.email,
+            phone: row.phone,
+            role: row.role,
+            joinDate: row.joinDate || row.createdAt || new Date().toISOString(),
+            starterPassword: row.starterPassword,
+            passwordChanged: row.passwordChanged || false,
+            passwordResetRequestedAt: row.passwordResetRequestedAt
+              ? new Date(row.passwordResetRequestedAt).toISOString()
+              : null,
+            avatar: row.avatar,
+            stats: {
+              totalWorkouts: Number(row.totalWorkouts) || 0,
+              totalVolume: Number(row.totalVolume) || 0,
+              currentStreak: Number(row.currentStreak) || 0,
+              longestStreak: Number(row.longestStreak) || 0,
+              personalRecords: row.personalRecords || {},
+            },
+          };
+        } catch (err) {
+          console.log('[Storage] DB findByEmail (clients) failed:', err);
+        }
+      }
+      return clients.find(c => c.email.toLowerCase() === normalizedEmail && c.role === 'client') || null;
     },
 
     updateProfile: async (userId: string, updates: { name?: string; phone?: string; avatar?: string; email?: string }): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'email_taken' }> => {

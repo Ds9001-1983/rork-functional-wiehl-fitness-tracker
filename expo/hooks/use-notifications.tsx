@@ -19,7 +19,7 @@ if (!isWeb) {
   });
 }
 
-type PushData = { type?: string; workoutId?: string; planId?: string; instanceId?: string };
+type PushData = { type?: string; workoutId?: string; planId?: string; instanceId?: string; clientId?: string };
 
 export function useNotifications(userId: string | null) {
   const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
@@ -36,6 +36,10 @@ export function useNotifications(userId: string | null) {
       if (data?.type === 'plan_assigned' && data.planId) {
         await refreshWorkouts();
         router.push(`/plan-detail/${data.planId}`);
+        return;
+      }
+      if (data?.type === 'password_reset_request' && data.clientId) {
+        router.push(`/customer-management?focus=${data.clientId}` as any);
         return;
       }
     } catch (err) {

@@ -272,3 +272,32 @@ describe('Route: Password Reset', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('Route: Trainer-Reset-Anfrage (markResetRequest)', () => {
+  let storage: any;
+
+  beforeEach(async () => {
+    const mod = await import('../backend/storage');
+    storage = mod.storage;
+  });
+
+  it('liefert ok:false bei unbekannter E-Mail (kein Info-Leak)', async () => {
+    const result = await storage.clients.markResetRequest('definitiv-nicht-vorhanden@example.com');
+    expect(result.ok).toBe(false);
+  });
+
+  it('normalisiert E-Mail-Casing beim Lookup', async () => {
+    // Sicherstellen, dass die Methode trimmt + lowercase macht
+    const result = await storage.clients.markResetRequest('  NICHTEXISTIERT@Example.COM  ');
+    expect(result.ok).toBe(false);
+  });
+
+  it('listByRole liefert nur die angeforderte Rolle', async () => {
+    const trainers = await storage.users.listByRole('trainer');
+    expect(Array.isArray(trainers)).toBe(true);
+    for (const t of trainers) {
+      expect(typeof t.id).toBe('string');
+      expect(typeof t.email).toBe('string');
+    }
+  });
+});

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { User } from '@/types/workout';
 import { trpcClient } from '@/lib/trpc';
 
+const CLIENTS_CACHE_KEY = 'clients_v2';
+const CLIENTS_CACHE_KEY_LEGACY = 'clients';
+
 export interface Invitation {
   code: string;
   email?: string;
@@ -15,6 +18,7 @@ interface ClientsState {
   clients: User[];
   invitations: Invitation[];
   isLoading: boolean;
+  isOffline: boolean;
   inviteClient: (payload: { name?: string; email?: string }) => Promise<Invitation>;
   addClient: (client: Omit<User, 'id' | 'joinDate' | 'role'> & { id?: string; phone?: string; starterPassword?: string; passwordChanged?: boolean }) => Promise<User>;
   removeClient: (userId: string) => Promise<void>;
@@ -26,41 +30,49 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
   const [clients, setClients] = useState<User[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+
+  // Einmalige Migration: alten Cache-Key (Pre-Schema-Merge) löschen
+  useEffect(() => {
+    AsyncStorage.removeItem(CLIENTS_CACHE_KEY_LEGACY).catch(() => {});
+  }, []);
 
   // Load data from server and local storage
   const loadData = useCallback(async () => {
     try {
       console.log('[Clients] Loading data...');
       setIsLoading(true);
-      
+
       // Try to load from server first
       try {
         const [serverClients, serverInvitations] = await Promise.all([
           trpcClient.clients.list.query(),
           trpcClient.invitations.list.query()
         ]);
-        
+
         console.log('[Clients] Loaded from server:', { clients: serverClients.length, invitations: serverInvitations.length });
         setClients(serverClients);
         setInvitations(serverInvitations);
-        
+        setIsOffline(false);
+
         // Cache locally as backup
         await Promise.all([
-          AsyncStorage.setItem('clients', JSON.stringify(serverClients)),
+          AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(serverClients)),
           AsyncStorage.setItem('invitations', JSON.stringify(serverInvitations))
         ]);
       } catch (serverError) {
         console.error('[Clients] Server load failed, trying local storage:', serverError);
-        
+        setIsOffline(true);
+
         // Fallback to local storage
         const [localClients, localInvitations] = await Promise.all([
-          AsyncStorage.getItem('clients'),
+          AsyncStorage.getItem(CLIENTS_CACHE_KEY),
           AsyncStorage.getItem('invitations')
         ]);
-        
+
         if (localClients) setClients(JSON.parse(localClients));
         if (localInvitations) setInvitations(JSON.parse(localInvitations));
-        
+
         console.log('[Clients] Loaded from local storage');
       }
     } catch (error) {
@@ -115,7 +127,7 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
       // Update local state
       const updatedClients = [newClient, ...clients];
       setClients(updatedClients);
-      await AsyncStorage.setItem('clients', JSON.stringify(updatedClients));
+      await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(updatedClients));
       
       return newClient;
     } catch (error: any) {
@@ -147,7 +159,7 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
       };
       const next = [newClient, ...clients];
       setClients(next);
-      await AsyncStorage.setItem('clients', JSON.stringify(next));
+      await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(next));
       return newClient;
     }
   }, [clients]);
@@ -156,7 +168,7 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
     await trpcClient.clients.update.mutate({ id, ...updates });
     const next = clients.map(c => c.id === id ? { ...c, ...updates } : c);
     setClients(next);
-    await AsyncStorage.setItem('clients', JSON.stringify(next));
+    await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(next));
   }, [clients]);
 
   const removeClient = useCallback(async (userId: string) => {
@@ -167,13 +179,13 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
       // Update local state
       const updatedClients = clients.filter(c => c.id !== userId);
       setClients(updatedClients);
-      await AsyncStorage.setItem('clients', JSON.stringify(updatedClients));
+      await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(updatedClients));
     } catch (error) {
       console.error('[Clients] Server delete failed, removing locally', error);
       // Fallback to local removal
       const next = clients.filter(c => c.id !== userId);
       setClients(next);
-      await AsyncStorage.setItem('clients', JSON.stringify(next));
+      await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(next));
     }
   }, [clients]);
 
@@ -181,10 +193,11 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
     clients,
     invitations,
     isLoading,
+    isOffline,
     inviteClient,
     addClient,
     removeClient,
     updateClient,
     refresh: loadData,
-  }), [clients, invitations, isLoading, inviteClient, addClient, removeClient, updateClient, loadData]);
+  }), [clients, invitations, isLoading, isOffline, inviteClient, addClient, removeClient, updateClient, loadData]);
 });

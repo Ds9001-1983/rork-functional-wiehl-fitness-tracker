@@ -14,6 +14,7 @@ export default protectedProcedure
           email,
           role,
           password_changed,
+          password_reset_requested_at,
           created_at,
           name,
           phone,
@@ -26,7 +27,7 @@ export default protectedProcedure
         FROM users
         ORDER BY created_at DESC
       `);
-      
+
       let clients = result.rows.map(row => ({
         id: row.id.toString(),
         name: row.name || row.email.split('@')[0],
@@ -35,6 +36,9 @@ export default protectedProcedure
         role: row.role,
         joinDate: row.join_date || row.created_at,
         passwordChanged: row.password_changed,
+        passwordResetRequestedAt: row.password_reset_requested_at
+          ? new Date(row.password_reset_requested_at).toISOString()
+          : null,
         stats: {
           totalWorkouts: row.total_workouts || 0,
           totalVolume: row.total_volume || 0,

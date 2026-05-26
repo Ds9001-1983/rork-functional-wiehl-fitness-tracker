@@ -46,6 +46,8 @@ export default function NotificationsScreen() {
     if (!item.read) markRead(item.id);
     if (item.type === 'chat' && item.data?.senderId) {
       router.push(`/chat/${item.data.senderId}` as any);
+    } else if (item.type === 'password_reset_request' && item.data?.clientId) {
+      router.push(`/customer-management?focus=${item.data.clientId}` as any);
     } else if (item.data?.type === 'plan_assigned') {
       router.push('/(tabs)');
     }

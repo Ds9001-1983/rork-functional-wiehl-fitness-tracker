@@ -59,6 +59,7 @@ export interface User {
   stats?: UserStats;
   starterPassword?: string; // Temporäres Passwort vom Trainer
   passwordChanged?: boolean; // Flag ob Kunde das Passwort bereits geändert hat
+  passwordResetRequestedAt?: string | null; // Zeitstempel offener Reset-Anfrage vom Kunden
 }
 
 export interface UserStats {

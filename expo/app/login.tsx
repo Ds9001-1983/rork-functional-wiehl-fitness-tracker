@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import StatusBanner from '@/components/StatusBanner';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { openExternalUrl } from '@/lib/open-url';
+import { trpcClient } from '@/lib/trpc';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -109,12 +110,24 @@ export default function LoginScreen() {
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!email) {
       setStatusMessage({ type: 'info', text: 'Bitte zuerst deine E-Mail-Adresse eingeben.' });
       return;
     }
-    setStatusMessage({ type: 'info', text: 'Bitte wende dich an deinen Trainer, um dein Passwort zurücksetzen zu lassen.' });
+    setIsLoading(true);
+    try {
+      await trpcClient.auth.requestTrainerReset.mutate({ email: email.trim().toLowerCase() });
+      setStatusMessage({
+        type: 'success',
+        text: 'Dein Trainer wurde benachrichtigt und meldet sich in Kürze mit einem neuen Passwort.',
+      });
+    } catch (err) {
+      console.log('[Login] Trainer-Reset-Request fehlgeschlagen:', err);
+      setStatusMessage({ type: 'error', text: 'Anfrage konnte nicht gesendet werden. Bitte versuche es später erneut.' });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClearStorage = async () => {
