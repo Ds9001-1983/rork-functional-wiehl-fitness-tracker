@@ -1,10 +1,21 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList, MessageSquare } from 'lucide-react-native';
+import { Bell, Trophy, Flame, Target, Info, Dumbbell, Star, ClipboardList, MessageSquare, KeyRound } from 'lucide-react-native';
 import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
-import { useNotifications } from '@/hooks/use-notifications';
+import { trpcClient } from '@/lib/trpc';
+
+interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: string;
+  read: boolean;
+  data?: Record<string, any>;
+  createdAt: string;
+}
 
 function getNotificationIcon(type: string, Colors: any) {
   switch (type) {
@@ -14,6 +25,7 @@ function getNotificationIcon(type: string, Colors: any) {
     case 'level': return <Star size={20} color={Colors.warning} />;
     case 'workout_reminder': return <Dumbbell size={20} color={Colors.accent} />;
     case 'chat': return <MessageSquare size={20} color={Colors.accent} />;
+    case 'password_reset_request': return <KeyRound size={20} color={Colors.accent} />;
     case 'system': return <ClipboardList size={20} color={Colors.accent} />;
     default: return <Info size={20} color={Colors.textSecondary} />;
   }
@@ -32,17 +44,55 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function NotificationsScreen() {
-  const { notifications, unreadCount, isLoading, markRead, markAllRead, fetchNotifications } = useNotifications();
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const Colors = useColors();
   const styles = useMemo(() => createStyles(Colors), [Colors]);
   const router = useRouter();
 
-  // Sofort beim Öffnen des Screens aktualisieren
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const items = await trpcClient.notifications.list.query();
+      setNotifications((items as NotificationItem[]) ?? []);
+    } catch (err) {
+      console.log('[Notifications] fetch failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const handleNotificationPress = (item: any) => {
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchNotifications();
+    setRefreshing(false);
+  }, [fetchNotifications]);
+
+  const markRead = useCallback(async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    try {
+      await trpcClient.notifications.markRead.mutate({ id });
+    } catch (err) {
+      console.log('[Notifications] markRead failed:', err);
+    }
+  }, []);
+
+  const markAllRead = useCallback(async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await trpcClient.notifications.markAllRead.mutate();
+    } catch (err) {
+      console.log('[Notifications] markAllRead failed:', err);
+    }
+  }, []);
+
+  const handleNotificationPress = (item: NotificationItem) => {
     if (!item.read) markRead(item.id);
     if (item.type === 'chat' && item.data?.senderId) {
       router.push(`/chat/${item.data.senderId}` as any);
@@ -85,6 +135,7 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.notifUnread]}
