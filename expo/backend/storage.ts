@@ -61,6 +61,7 @@ export interface StoredExercise {
   instructions?: string;
   videoUrl?: string;
   imageData?: string | null;
+  images?: string[];
   active: boolean;
   createdBy?: string;
 }
@@ -557,6 +558,9 @@ async function initializeTables() {
 
     // Exercise image (4:5 portrait, normalized to <=400KB on server)
     await addColumnIfNotExists('exercises', 'image_data', 'TEXT');
+
+    // Exercise gallery: bis zu 5 Bilder als JSONB Array (Reihenfolge = Position)
+    await addColumnIfNotExists('exercises', 'images', "JSONB DEFAULT '[]'");
 
     // Exercise catalog (editable by admin)
     await pool!.query(`
@@ -1200,17 +1204,23 @@ export const storage = {
             `SELECT id, name, category, muscle_groups as "muscleGroups",
                     equipment, instructions, video_url as "videoUrl",
                     image_data as "imageData",
+                    images,
                     active, created_by as "createdBy"
              FROM exercises ${where}
              ORDER BY category ASC, name ASC`
           );
-          return result.rows;
+          return result.rows.map(row => {
+            const rawImages = Array.isArray(row.images) ? row.images : [];
+            // Backward-Compat: alte Übungen haben nur image_data → als images[0] zeigen
+            const images = rawImages.length > 0 ? rawImages : (row.imageData ? [row.imageData] : []);
+            return { ...row, images };
+          });
         } catch (err) {
           console.error('[Storage] DB query failed for exercises:', err);
           return [];
         }
       }
-      return DEFAULT_EXERCISES.map((e) => ({ ...e, active: true }));
+      return DEFAULT_EXERCISES.map((e) => ({ ...e, active: true, images: [] }));
     },
 
     create: async (input: {
@@ -1222,17 +1232,22 @@ export const storage = {
       instructions?: string;
       videoUrl?: string;
       imageData?: string | null;
+      images?: string[];
       createdBy?: string;
     }): Promise<StoredExercise> => {
       if (!useDatabase || !pool) {
         throw new Error('Database required for exercise creation');
       }
+      const images = input.images && input.images.length > 0
+        ? input.images
+        : (input.imageData ? [input.imageData] : []);
+      const primaryImage = images[0] ?? null;
       const result = await pool.query(
-        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, video_url, image_data, active, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, $9)
+        `INSERT INTO exercises (id, name, category, muscle_groups, equipment, instructions, video_url, image_data, images, active, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, $10)
          RETURNING id, name, category, muscle_groups as "muscleGroups",
                    equipment, instructions, video_url as "videoUrl",
-                   image_data as "imageData",
+                   image_data as "imageData", images,
                    active, created_by as "createdBy"`,
         [
           input.id,
@@ -1242,7 +1257,8 @@ export const storage = {
           input.equipment ?? null,
           input.instructions ?? null,
           input.videoUrl ?? null,
-          input.imageData ?? null,
+          primaryImage,
+          JSON.stringify(images),
           input.createdBy ?? null,
         ]
       );
@@ -1257,6 +1273,7 @@ export const storage = {
       instructions?: string | null;
       videoUrl?: string | null;
       imageData?: string | null;
+      images?: string[] | null;
       active?: boolean;
     }): Promise<boolean> => {
       if (!useDatabase || !pool) return false;
@@ -1269,7 +1286,16 @@ export const storage = {
       if (patch.equipment !== undefined) { sets.push(`equipment = $${idx++}`); values.push(patch.equipment); }
       if (patch.instructions !== undefined) { sets.push(`instructions = $${idx++}`); values.push(patch.instructions); }
       if (patch.videoUrl !== undefined) { sets.push(`video_url = $${idx++}`); values.push(patch.videoUrl); }
-      if (patch.imageData !== undefined) { sets.push(`image_data = $${idx++}`); values.push(patch.imageData); }
+      if (patch.images !== undefined) {
+        const images = patch.images ?? [];
+        sets.push(`images = $${idx++}`); values.push(JSON.stringify(images));
+        // Keep image_data in sync with images[0] für Backward-Compat
+        sets.push(`image_data = $${idx++}`); values.push(images[0] ?? null);
+      } else if (patch.imageData !== undefined) {
+        // Legacy-Pfad: nur image_data gepatcht — auch images entsprechend setzen
+        sets.push(`image_data = $${idx++}`); values.push(patch.imageData);
+        sets.push(`images = $${idx++}`); values.push(JSON.stringify(patch.imageData ? [patch.imageData] : []));
+      }
       if (patch.active !== undefined) { sets.push(`active = $${idx++}`); values.push(patch.active); }
       if (sets.length === 0) return false;
       sets.push(`updated_at = NOW()`);

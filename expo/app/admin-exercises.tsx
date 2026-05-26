@@ -22,6 +22,7 @@ interface ExerciseRow {
   instructions?: string | null;
   videoUrl?: string | null;
   imageData?: string | null;
+  images?: string[];
   active: boolean;
 }
 
@@ -266,22 +267,42 @@ function ExerciseEditModal(props: {
   const { exercise, categories, onClose, onSaved } = props;
   const isNew = !exercise;
 
+  const MAX_IMAGES = 5;
+
   const [name, setName] = useState(exercise?.name ?? '');
   const [category, setCategory] = useState(exercise?.category ?? categories[0]?.slug ?? '');
   const [muscleGroupsText, setMuscleGroupsText] = useState(exercise?.muscleGroups.join(', ') ?? '');
   const [equipment, setEquipment] = useState(exercise?.equipment ?? '');
   const [instructions, setInstructions] = useState(exercise?.instructions ?? '');
   const [videoUrl, setVideoUrl] = useState(exercise?.videoUrl ?? '');
-  const [imageData, setImageData] = useState<string | null>(exercise?.imageData ?? null);
-  const [imageDirty, setImageDirty] = useState(false);
+  const initialImages = exercise?.images && exercise.images.length > 0
+    ? exercise.images.slice(0, MAX_IMAGES)
+    : (exercise?.imageData ? [exercise.imageData] : []);
+  const [images, setImages] = useState<string[]>(initialImages);
+  const [imagesDirty, setImagesDirty] = useState(false);
   const [pickingImage, setPickingImage] = useState(false);
+  const [pickingSlot, setPickingSlot] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
   const createMut = trpc.exercises.create.useMutation();
   const updateMut = trpc.exercises.update.useMutation();
 
-  const pickImage = async () => {
+  const setSlotImage = (slot: number, base64: string) => {
+    setImages(prev => {
+      const next = [...prev];
+      if (slot < next.length) {
+        next[slot] = base64;
+      } else {
+        next.push(base64);
+      }
+      return next.slice(0, MAX_IMAGES);
+    });
+    setImagesDirty(true);
+  };
+
+  const pickImageForSlot = async (slot: number) => {
     setPickingImage(true);
+    setPickingSlot(slot);
     try {
       if (Platform.OS === 'web') {
         const input = document.createElement('input');
@@ -289,18 +310,19 @@ function ExerciseEditModal(props: {
         input.accept = 'image/*';
         input.onchange = async (e: any) => {
           const file = e.target.files?.[0];
-          if (!file) { setPickingImage(false); return; }
+          if (!file) { setPickingImage(false); setPickingSlot(null); return; }
           const reader = new FileReader();
           reader.onload = () => {
             const result = reader.result as string;
             const base64 = result.includes(',') ? result.split(',')[1] : result;
-            setImageData(base64);
-            setImageDirty(true);
+            setSlotImage(slot, base64);
             setPickingImage(false);
+            setPickingSlot(null);
           };
           reader.onerror = () => {
             Alert.alert('Fehler', 'Bild konnte nicht gelesen werden.');
             setPickingImage(false);
+            setPickingSlot(null);
           };
           reader.readAsDataURL(file);
         };
@@ -320,19 +342,19 @@ function ExerciseEditModal(props: {
         base64: true,
       });
       if (!result.canceled && result.assets[0]?.base64) {
-        setImageData(result.assets[0].base64);
-        setImageDirty(true);
+        setSlotImage(slot, result.assets[0].base64);
       }
     } catch (err) {
       Alert.alert('Fehler', 'Bildauswahl fehlgeschlagen: ' + String((err as Error).message ?? err));
     } finally {
       setPickingImage(false);
+      setPickingSlot(null);
     }
   };
 
-  const removeImage = () => {
-    setImageData(null);
-    setImageDirty(true);
+  const removeImageAt = (slot: number) => {
+    setImages(prev => prev.filter((_, i) => i !== slot));
+    setImagesDirty(true);
   };
 
   const save = async () => {
@@ -362,7 +384,7 @@ function ExerciseEditModal(props: {
           equipment: equipment.trim() || undefined,
           instructions: instructions.trim() || undefined,
           videoUrl: videoUrl.trim() || undefined,
-          imageData: imageData ?? undefined,
+          images: images.length > 0 ? images : undefined,
         });
       } else {
         await updateMut.mutateAsync({
@@ -374,7 +396,7 @@ function ExerciseEditModal(props: {
             equipment: equipment.trim() || null,
             instructions: instructions.trim() || null,
             videoUrl: videoUrl.trim() || null,
-            ...(imageDirty ? { imageData: imageData ?? null } : {}),
+            ...(imagesDirty ? { images } : {}),
           },
         });
       }
@@ -473,56 +495,58 @@ function ExerciseEditModal(props: {
             </Field>
 
             <Field
-              label="Bild"
+              label={`Bilder (${images.length}/${MAX_IMAGES})`}
               hint={
                 Platform.OS === 'web'
-                  ? 'Optional — Hochkant 4:5 wird empfohlen. Wird automatisch auf 4:5 zugeschnitten und auf max. 400 KB komprimiert.'
-                  : 'Optional — beim Auswählen kannst du das Bild auf 4:5 hochkant zuschneiden. Wird auf max. 400 KB komprimiert.'
+                  ? 'Bis zu 5 Bilder. Hochkant 4:5 wird empfohlen. Tippe auf einen leeren Slot zum Hinzufügen oder auf ein vorhandenes Bild zum Ersetzen. Jedes Bild wird auf 4:5 zugeschnitten und auf max. 400 KB komprimiert.'
+                  : 'Bis zu 5 Bilder. Tippe auf einen leeren Slot zum Hinzufügen oder auf ein vorhandenes Bild zum Ersetzen. 4:5 hochkant, max. 400 KB nach Komprimierung.'
               }
             >
-              <View style={styles.imageRow}>
-                <View style={styles.imagePreview}>
-                  {imageData ? (
-                    <Image
-                      source={{ uri: `data:image/jpeg;base64,${imageData}` }}
-                      style={styles.imagePreviewImg}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <ImagePlus size={28} color={Colors.textMuted} />
-                      <Text style={styles.imagePlaceholderText}>kein Bild</Text>
+              <View style={styles.imageGrid}>
+                {Array.from({ length: MAX_IMAGES }).map((_, slot) => {
+                  const img = images[slot];
+                  const isLoading = pickingImage && pickingSlot === slot;
+                  const isNextEmptySlot = !img && slot === images.length;
+                  const isDisabled = !img && !isNextEmptySlot;
+                  return (
+                    <View key={slot} style={styles.imageSlotWrap}>
+                      <TouchableOpacity
+                        style={[
+                          styles.imageSlot,
+                          img ? styles.imageSlotFilled : styles.imageSlotEmpty,
+                          isDisabled && styles.imageSlotDisabled,
+                        ]}
+                        onPress={() => !isDisabled && pickImageForSlot(slot)}
+                        disabled={pickingImage || saving || isDisabled}
+                        activeOpacity={0.7}
+                      >
+                        {img ? (
+                          <Image
+                            source={{ uri: `data:image/jpeg;base64,${img}` }}
+                            style={styles.imageSlotImg}
+                            resizeMode="cover"
+                          />
+                        ) : isLoading ? (
+                          <ActivityIndicator color={Colors.accent} />
+                        ) : isNextEmptySlot ? (
+                          <ImagePlus size={24} color={Colors.accent} />
+                        ) : (
+                          <ImagePlus size={20} color={Colors.textMuted} />
+                        )}
+                      </TouchableOpacity>
+                      {img && (
+                        <TouchableOpacity
+                          style={styles.imageSlotRemove}
+                          onPress={() => removeImageAt(slot)}
+                          disabled={saving}
+                          hitSlop={8}
+                        >
+                          <X size={14} color={Colors.text} />
+                        </TouchableOpacity>
+                      )}
                     </View>
-                  )}
-                </View>
-                <View style={styles.imageActions}>
-                  <TouchableOpacity
-                    style={[styles.secondaryBtn, pickingImage && { opacity: 0.6 }]}
-                    onPress={pickImage}
-                    disabled={pickingImage || saving}
-                  >
-                    {pickingImage ? (
-                      <ActivityIndicator color={Colors.text} />
-                    ) : (
-                      <>
-                        <ImagePlus size={16} color={Colors.text} />
-                        <Text style={styles.secondaryBtnText}>
-                          {imageData ? 'Bild ändern' : 'Bild auswählen'}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                  {imageData && (
-                    <TouchableOpacity
-                      style={styles.dangerBtn}
-                      onPress={removeImage}
-                      disabled={saving}
-                    >
-                      <Trash2 size={16} color={Colors.text} />
-                      <Text style={styles.dangerBtnText}>Bild entfernen</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                  );
+                })}
               </View>
             </Field>
 
@@ -799,6 +823,49 @@ const styles = StyleSheet.create({
   imagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   imagePlaceholderText: { color: Colors.textMuted, fontSize: 11 },
   imageActions: { flex: 1, gap: 8 },
+
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  imageSlotWrap: {
+    width: 72,
+    aspectRatio: 4 / 5,
+    position: 'relative',
+  },
+  imageSlot: {
+    width: '100%',
+    height: '100%',
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  imageSlotEmpty: {
+    backgroundColor: Colors.surface,
+    borderStyle: 'dashed',
+  },
+  imageSlotFilled: {
+    backgroundColor: Colors.surface,
+  },
+  imageSlotDisabled: {
+    opacity: 0.35,
+  },
+  imageSlotImg: { width: '100%', height: '100%' },
+  imageSlotRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.error ?? '#E04848',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -5,6 +5,7 @@ export interface Exercise {
   equipment?: string;
   videoUrl?: string;
   imageData?: string | null;
+  images?: string[];
   instructions?: string;
   muscleGroups: string[];
 }

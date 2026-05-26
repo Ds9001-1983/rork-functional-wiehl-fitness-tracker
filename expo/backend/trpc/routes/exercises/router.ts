@@ -78,6 +78,24 @@ export const listExercises = protectedProcedure
     return await storage.exercises.list(includeInactive ?? false);
   });
 
+const MAX_IMAGES = 5;
+
+async function normalizeImageArray(images: string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const raw of images.slice(0, MAX_IMAGES)) {
+    if (!raw) continue;
+    try {
+      out.push(await normalizeExerciseImage(raw));
+    } catch (err) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Bild konnte nicht verarbeitet werden: ' + ((err as Error).message ?? 'unbekannt'),
+      });
+    }
+  }
+  return out;
+}
+
 export const createExercise = adminProcedure
   .input(z.object({
     id: z.string().regex(slugRegex, 'id muss kleinbuchstaben+bindestriche sein').optional(),
@@ -88,23 +106,17 @@ export const createExercise = adminProcedure
     instructions: z.string().optional(),
     videoUrl: z.string().url().optional().or(z.literal('').transform(() => undefined)),
     imageData: z.string().optional(),
+    images: z.array(z.string()).max(MAX_IMAGES).optional(),
   }))
   .mutation(async ({ input, ctx }) => {
     const id = input.id ?? toSlug(input.name);
     if (!slugRegex.test(id)) {
       throw new TRPCError({ code: 'BAD_REQUEST', message: 'Ungültige id.' });
     }
-    let normalizedImage: string | undefined;
-    if (input.imageData) {
-      try {
-        normalizedImage = await normalizeExerciseImage(input.imageData);
-      } catch (err) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Bild konnte nicht verarbeitet werden: ' + ((err as Error).message ?? 'unbekannt'),
-        });
-      }
-    }
+    const rawImages = input.images && input.images.length > 0
+      ? input.images
+      : (input.imageData ? [input.imageData] : []);
+    const normalizedImages = await normalizeImageArray(rawImages);
     try {
       return await storage.exercises.create({
         id,
@@ -114,7 +126,8 @@ export const createExercise = adminProcedure
         equipment: input.equipment,
         instructions: input.instructions,
         videoUrl: input.videoUrl,
-        imageData: normalizedImage,
+        imageData: normalizedImages[0],
+        images: normalizedImages,
         createdBy: ctx.user.userId,
       });
     } catch (err) {
@@ -137,20 +150,18 @@ export const updateExercise = adminProcedure
       instructions: z.string().nullable().optional(),
       videoUrl: z.string().url().nullable().optional().or(z.literal('').transform(() => null)),
       imageData: z.string().nullable().optional(),
+      images: z.array(z.string()).max(MAX_IMAGES).nullable().optional(),
       active: z.boolean().optional(),
     }),
   }))
   .mutation(async ({ input }) => {
-    const patch = { ...input.patch };
-    if (typeof patch.imageData === 'string' && patch.imageData.length > 0) {
-      try {
-        patch.imageData = await normalizeExerciseImage(patch.imageData);
-      } catch (err) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Bild konnte nicht verarbeitet werden: ' + ((err as Error).message ?? 'unbekannt'),
-        });
-      }
+    const patch: typeof input.patch = { ...input.patch };
+    if (patch.images !== undefined) {
+      const arr = patch.images ?? [];
+      patch.images = await normalizeImageArray(arr);
+    } else if (typeof patch.imageData === 'string' && patch.imageData.length > 0) {
+      const [normalized] = await normalizeImageArray([patch.imageData]);
+      patch.imageData = normalized ?? null;
     }
     const ok = await storage.exercises.update(input.id, patch);
     if (!ok) throw new TRPCError({ code: 'NOT_FOUND', message: 'Übung nicht gefunden.' });

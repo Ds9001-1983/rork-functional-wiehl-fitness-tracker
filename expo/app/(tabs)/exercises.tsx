@@ -9,10 +9,11 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { Search, X, Plus } from 'lucide-react-native';
+import { Search, X, Plus, Images } from 'lucide-react-native';
 import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useExercises } from '@/hooks/use-exercises';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import ImageGalleryViewer from '@/components/ImageGalleryViewer';
 import { Exercise } from '@/types/workout';
 import { useWorkouts } from '@/hooks/use-workouts';
 
@@ -23,6 +24,12 @@ export default function ExercisesScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  const exerciseImages = (selectedExercise?.images && selectedExercise.images.length > 0)
+    ? selectedExercise.images
+    : (selectedExercise?.imageData ? [selectedExercise.imageData] : []);
 
   const filteredExercises = exercises.filter((exercise) => {
     const matchesSearch = exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -118,14 +125,24 @@ export default function ExercisesScreen() {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              {selectedExercise?.imageData ? (
-                <View style={styles.heroImageWrap}>
+              {exerciseImages.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.heroImageWrap}
+                  onPress={() => { setGalleryIndex(0); setGalleryOpen(true); }}
+                  activeOpacity={0.85}
+                >
                   <Image
-                    source={{ uri: `data:image/jpeg;base64,${selectedExercise.imageData}` }}
+                    source={{ uri: `data:image/jpeg;base64,${exerciseImages[0]}` }}
                     style={styles.heroImage}
                     resizeMode="cover"
                   />
-                </View>
+                  {exerciseImages.length > 1 && (
+                    <View style={styles.imageCountBadge}>
+                      <Images size={14} color={Colors.text} />
+                      <Text style={styles.imageCountText}>{exerciseImages.length}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               ) : null}
 
               <View style={styles.modalSection}>
@@ -159,6 +176,13 @@ export default function ExercisesScreen() {
           </View>
         </View>
       </Modal>
+
+      <ImageGalleryViewer
+        visible={galleryOpen}
+        images={exerciseImages}
+        initialIndex={galleryIndex}
+        onClose={() => setGalleryOpen(false)}
+      />
     </View>
   );
 }
@@ -268,6 +292,23 @@ const styles = StyleSheet.create({
   heroImage: {
     width: '100%',
     height: '100%',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  imageCountText: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
   modalSection: {
     marginBottom: Spacing.lg,
