@@ -18,6 +18,9 @@
       },
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
@@ -26,6 +29,9 @@
       "ios": {
         "image": "latest",
         "buildConfiguration": "Release"
+      },
+      "android": {
+        "buildType": "app-bundle"
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://app.functional-wiehl.de"
@@ -38,6 +44,10 @@
         "appleId": "sasse.dennis@googlemail.com",
         "ascAppId": "6761456533",
         "appleTeamId": "KXGPDQ8SWR"
+      },
+      "android": {
+        "serviceAccountKeyPath": "../secrets/play-service-account.json",
+        "track": "production"
       }
     }
   }

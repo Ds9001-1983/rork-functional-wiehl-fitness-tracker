@@ -14,6 +14,9 @@
     "build:ios-preview": "eas build --platform ios --profile preview",
     "build:ios-prod": "eas build --platform ios --profile production",
     "submit:ios": "eas submit --platform ios",
+    "build:android-preview": "eas build --platform android --profile preview",
+    "build:android-prod": "eas build --platform android --profile production",
+    "submit:android": "eas submit --platform android",
     "deploy": "bash deploy.sh"
   },
   "dependencies": {
