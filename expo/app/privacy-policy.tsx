@@ -16,7 +16,7 @@ export default function PrivacyPolicyScreen() {
       <View style={styles.container}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <Text style={styles.title}>Datenschutzerklärung</Text>
-          <Text style={styles.lastUpdated}>Stand: Februar 2026</Text>
+          <Text style={styles.lastUpdated}>Stand: Mai 2026</Text>
 
           <Text style={styles.sectionTitle}>1. Verantwortliche Stelle</Text>
           <Text style={styles.paragraph}>
@@ -69,18 +69,40 @@ export default function PrivacyPolicyScreen() {
             Du hast jederzeit das Recht auf:{'\n\n'}
             - <Text style={styles.bold}>Auskunft</Text> über deine gespeicherten Daten{'\n'}
             - <Text style={styles.bold}>Datenexport</Text> — alle deine Daten als JSON-Datei{'\n'}
-            - <Text style={styles.bold}>Löschung</Text> — vollständige Kontolöschung{'\n'}
+            - <Text style={styles.bold}>Löschung</Text> — vollständige Kontolöschung (siehe Abschnitt 8){'\n'}
             - <Text style={styles.bold}>Widerruf</Text> deiner Einwilligung{'\n\n'}
-            Diese Funktionen findest du unter Profil → Datenschutz & Daten.
+            Für Auskunft, Export oder Widerruf wende dich an datenschutz@functional-wiehl.de.
           </Text>
 
-          <Text style={styles.sectionTitle}>8. Speicherdauer</Text>
+          <Text style={styles.sectionTitle}>8. Konto und Daten löschen</Text>
+          <Text style={styles.paragraph}>
+            Du kannst dein Konto und alle damit verbundenen Daten jederzeit
+            <Text style={styles.bold}> direkt in der App </Text>
+            unwiderruflich löschen:{'\n\n'}
+            <Text style={styles.bold}>Schritt 1:</Text> Öffne die Functional Wiehl Fitness-App.{'\n'}
+            <Text style={styles.bold}>Schritt 2:</Text> Tippe unten rechts auf den Tab „Profil".{'\n'}
+            <Text style={styles.bold}>Schritt 3:</Text> Scrolle ganz nach unten zum rot umrandeten Button „Konto endgültig löschen".{'\n'}
+            <Text style={styles.bold}>Schritt 4:</Text> Bestätige durch Eingabe deiner E-Mail-Adresse.{'\n\n'}
+            <Text style={styles.bold}>Welche Daten gelöscht werden:</Text> Kontodaten (Name, E-Mail, Telefon),
+            sämtliche Workouts und Übungsverläufe, Körpermaße, Fortschrittsfotos, Routinen,
+            Chat-Nachrichten, Gamification-Daten (XP, Badges, Streaks), Push-Tokens.
+            Die Löschung erfolgt sofort und unwiderruflich.{'\n\n'}
+            <Text style={styles.bold}>Was wir kurzzeitig aufbewahren:</Text> Anonymisierte Server-Logs (max. 30 Tage,
+            ohne personenbezogenen Bezug) sowie ggf. Buchhaltungsbelege gemäß § 257 HGB.{'\n\n'}
+            <Text style={styles.bold}>Alternativ:</Text> Hast du die App bereits deinstalliert oder keinen Zugriff mehr?
+            Sende eine formlose E-Mail mit deiner registrierten E-Mail-Adresse an{'\n'}
+            datenschutz@functional-wiehl.de. Wir löschen dein Konto innerhalb von 7 Tagen
+            und bestätigen die Löschung schriftlich.
+          </Text>
+
+          <Text style={styles.sectionTitle}>9. Speicherdauer</Text>
           <Text style={styles.paragraph}>
             Deine Daten werden gespeichert, solange dein Konto aktiv ist.
-            Bei Kontolöschung werden alle personenbezogenen Daten unwiderruflich gelöscht.
+            Bei Kontolöschung werden alle personenbezogenen Daten unwiderruflich gelöscht
+            (siehe Abschnitt 8).
           </Text>
 
-          <Text style={styles.sectionTitle}>9. Kontakt</Text>
+          <Text style={styles.sectionTitle}>10. Kontakt</Text>
           <Text style={styles.paragraph}>
             Bei Fragen zum Datenschutz wende dich an:{'\n'}
             datenschutz@functional-wiehl.de

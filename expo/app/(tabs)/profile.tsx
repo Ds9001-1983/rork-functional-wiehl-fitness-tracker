@@ -12,6 +12,7 @@ import { Colors, Spacing, BorderRadius } from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import DeleteAccountButton from '@/components/DeleteAccountButton';
 import { getAppVersion } from '@/lib/app-version';
 
 export default function ProfileScreen() {
@@ -129,6 +130,8 @@ export default function ProfileScreen() {
           <LogOut size={20} color={Colors.text} />
           <Text style={styles.logoutButtonText}>Abmelden</Text>
         </TouchableOpacity>
+
+        <DeleteAccountButton />
       </ScrollView>
     </View>
   );

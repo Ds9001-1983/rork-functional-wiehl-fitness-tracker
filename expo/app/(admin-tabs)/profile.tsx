@@ -6,6 +6,7 @@ import { Spacing, BorderRadius } from '@/constants/colors';
 import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import DeleteAccountButton from '@/components/DeleteAccountButton';
 import StatusBanner from '@/components/StatusBanner';
 import { getAppVersion } from '@/lib/app-version';
 
@@ -142,6 +143,8 @@ export default function AdminProfileScreen() {
           <LogOut size={20} color={Colors.text} />
           <Text style={styles.logoutButtonText}>Abmelden</Text>
         </TouchableOpacity>
+
+        <DeleteAccountButton />
       </ScrollView>
 
       {/* Edit Profile Modal */}

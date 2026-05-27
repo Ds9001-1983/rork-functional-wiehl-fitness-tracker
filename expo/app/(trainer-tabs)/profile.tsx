@@ -7,6 +7,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import DeleteAccountButton from '@/components/DeleteAccountButton';
 import StatusBanner from '@/components/StatusBanner';
 import { getAppVersion } from '@/lib/app-version';
 
@@ -159,6 +160,8 @@ export default function TrainerProfileScreen() {
           <LogOut size={20} color={Colors.text} />
           <Text style={styles.logoutButtonText}>Abmelden</Text>
         </TouchableOpacity>
+
+        <DeleteAccountButton />
       </ScrollView>
 
       {/* Edit Profile Modal */}
