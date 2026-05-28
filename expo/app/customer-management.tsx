@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useClients } from '@/hooks/use-clients';
 import { trpcClient } from '@/lib/trpc';
 import { confirmAlert, infoAlert } from '@/lib/alert';
+import { openExternalUrl } from '@/lib/open-url';
 
 import type { User as UserType } from '@/types/workout';
 
@@ -133,17 +134,26 @@ export default function CustomerManagementScreen() {
 
   const resendStarterPassword = () => {
     if (!editClient) return;
+    const client = editClient;
     confirmAlert(
       'Neues Starter-Passwort senden?',
-      `Ein neues Starter-Passwort wird generiert und an ${editForm.email.trim() || editClient.email} gemailt. Das alte Passwort funktioniert danach nicht mehr.`,
+      `Ein neues Starter-Passwort wird generiert. Danach öffnet sich eine vorbereitete E-Mail an ${client.email}, die du nur noch absenden musst. Das alte Passwort funktioniert dann nicht mehr.`,
       async () => {
         setResendingPw(true);
         try {
-          const r = await trpcClient.clients.resendStarterPassword.mutate({ id: editClient.id, email: editClient.email });
+          const r = await trpcClient.clients.resendStarterPassword.mutate({ id: client.id, email: client.email });
           if (r.emailSent) {
             infoAlert('Gesendet', `E-Mail mit dem neuen Starter-Passwort wurde an ${r.email} verschickt.`);
           } else {
-            infoAlert('Passwort generiert', `Neues Starter-Passwort: ${r.password}\n\nVersand per E-Mail nicht möglich. Bitte manuell weitergeben.`);
+            // Kein automatischer Server-Versand → E-Mail-Client mit vorausgefüllter
+            // Mail öffnen (wie beim Kunden-Anlegen).
+            const subject = encodeURIComponent('Dein neues Starter-Passwort für die Functional Wiehl App');
+            const body = encodeURIComponent(
+              `Hallo ${client.name},\n\nDein Trainer hat dir ein neues Starter-Passwort für die Functional Wiehl Fitness App erstellt.\n\nDeine Anmeldedaten:\nE-Mail: ${r.email}\nNeues Passwort: ${r.password}\n\nBitte melde dich an unter: https://app.functional-wiehl.de\nBeim ersten Login wirst du gebeten, ein eigenes Passwort zu setzen.\n\nDein Functional Wiehl Team`
+            );
+            const mailtoUrl = `mailto:${r.email}?subject=${subject}&body=${body}`;
+            await openExternalUrl(mailtoUrl);
+            infoAlert('Passwort generiert', `Neues Starter-Passwort: ${r.password}\n\nEine vorbereitete E-Mail wurde geöffnet — bitte absenden. Falls sich kein E-Mail-Programm öffnet, gib das Passwort manuell weiter.`);
           }
         } catch (e: any) {
           infoAlert('Fehler', e?.message || 'Konnte Passwort nicht erneuern.');
