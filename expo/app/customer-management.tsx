@@ -122,7 +122,7 @@ export default function CustomerManagementScreen() {
         name: name !== editClient.name ? name : undefined,
         email: email !== editClient.email ? email : undefined,
         phone: phone !== (editClient.phone ?? '') ? phone : undefined,
-      });
+      }, editClient.email);
       closeEdit();
     } catch (e: any) {
       infoAlert('Fehler', e?.message || 'Speichern fehlgeschlagen.');
@@ -139,7 +139,7 @@ export default function CustomerManagementScreen() {
       async () => {
         setResendingPw(true);
         try {
-          const r = await trpcClient.clients.resendStarterPassword.mutate({ id: editClient.id });
+          const r = await trpcClient.clients.resendStarterPassword.mutate({ id: editClient.id, email: editClient.email });
           if (r.emailSent) {
             infoAlert('Gesendet', `E-Mail mit dem neuen Starter-Passwort wurde an ${r.email} verschickt.`);
           } else {

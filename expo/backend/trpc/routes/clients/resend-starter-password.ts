@@ -4,17 +4,29 @@ import { trainerProcedure } from '../../create-context';
 import { storage } from '../../../storage';
 
 export default trainerProcedure
-  .input(z.object({ id: z.string() }))
+  .input(z.object({ id: z.string(), email: z.string().email().optional() }))
   .mutation(async ({ input }) => {
-    const result = await storage.clients.regenerateStarterPassword(input.id);
+    let resolvedId = input.id;
+    let result = await storage.clients.regenerateStarterPassword(resolvedId);
+
+    // Fallback: Falls die übergebene ID ungültig/unbekannt ist (z. B. veralteter
+    // App-Cache mit Timestamp-ID), den Kunden über die E-Mail auflösen.
+    if (!result.ok && input.email) {
+      const client = await storage.clients.findByEmail(input.email);
+      if (client) {
+        resolvedId = client.id;
+        result = await storage.clients.regenerateStarterPassword(resolvedId);
+      }
+    }
+
     if (!result.ok) {
       throw new TRPCError({ code: 'NOT_FOUND', message: 'CLIENT_NOT_FOUND' });
     }
 
     // Offene Reset-Anfrage-Notifications für diesen Kunden bei allen Trainern entfernen
     try {
-      const removed = await storage.notifications.deleteByTypeAndClient('password_reset_request', input.id);
-      if (removed > 0) console.log('[Clients] Removed', removed, 'reset-request notifications for client', input.id);
+      const removed = await storage.notifications.deleteByTypeAndClient('password_reset_request', resolvedId);
+      if (removed > 0) console.log('[Clients] Removed', removed, 'reset-request notifications for client', resolvedId);
     } catch (err) {
       console.log('[Clients] Could not remove reset-request notifications:', err);
     }

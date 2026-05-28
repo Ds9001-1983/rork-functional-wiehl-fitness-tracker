@@ -5,6 +5,12 @@ import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+// users.id ist eine PostgreSQL-SERIAL (32-bit integer). Frontend-Caches konnten
+// historisch verwaiste Clients mit Date.now()-IDs erzeugen, die den integer-Range
+// sprengen und sonst eine SQL-Exception ("value out of range") auslösen würden.
+const PG_INT_MAX = 2147483647;
+const isValidDbId = (id: string): boolean => /^\d+$/.test(id) && Number(id) <= PG_INT_MAX;
+
 export interface StoredUser {
   id: string;
   email: string;
@@ -929,6 +935,7 @@ export const storage = {
     },
 
     delete: async (id: string): Promise<boolean> => {
+      if (!isValidDbId(id)) return false;
       if (useDatabase && pool) {
         try {
           const result = await pool.query('DELETE FROM users WHERE id = $1', [id]);
@@ -944,6 +951,7 @@ export const storage = {
     },
 
     updateStats: async (userId: string, stats: Partial<StoredClient['stats']>): Promise<boolean> => {
+      if (!isValidDbId(userId)) return false;
       if (useDatabase && pool) {
         try {
           const updates: string[] = [];
@@ -983,6 +991,7 @@ export const storage = {
       let pw = '';
       for (let i = 0; i < 8; i++) pw += alphabet[bytes[i] % alphabet.length];
       const hash = await bcrypt.hash(pw, 10);
+      if (!isValidDbId(userId)) return { ok: false };
       if (useDatabase && pool) {
         try {
           const r = await pool.query(
@@ -1090,6 +1099,7 @@ export const storage = {
     },
 
     updateProfile: async (userId: string, updates: { name?: string; phone?: string; avatar?: string; email?: string }): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'email_taken' }> => {
+      if (!isValidDbId(userId)) return { ok: false, reason: 'not_found' };
       const newEmail = updates.email !== undefined ? updates.email.trim().toLowerCase() : undefined;
       if (useDatabase && pool) {
         try {

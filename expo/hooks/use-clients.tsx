@@ -7,6 +7,11 @@ import { trpcClient } from '@/lib/trpc';
 const CLIENTS_CACHE_KEY = 'clients_v2';
 const CLIENTS_CACHE_KEY_LEGACY = 'clients';
 
+// users.id ist eine 32-bit-SERIAL. Verwaiste Cache-Einträge aus früheren lokalen
+// Fallbacks hatten Date.now()-IDs (> 2^31), die serverseitig nie auflösbar sind.
+const PG_INT_MAX = 2147483647;
+const isValidClientId = (id: string): boolean => /^\d+$/.test(id) && Number(id) <= PG_INT_MAX;
+
 export interface Invitation {
   code: string;
   email?: string;
@@ -22,7 +27,7 @@ interface ClientsState {
   inviteClient: (payload: { name?: string; email?: string }) => Promise<Invitation>;
   addClient: (client: Omit<User, 'id' | 'joinDate' | 'role'> & { id?: string; phone?: string; starterPassword?: string; passwordChanged?: boolean }) => Promise<User>;
   removeClient: (userId: string) => Promise<void>;
-  updateClient: (id: string, updates: { name?: string; email?: string; phone?: string }) => Promise<void>;
+  updateClient: (id: string, updates: { name?: string; email?: string; phone?: string }, lookupEmail?: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -70,7 +75,11 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
           AsyncStorage.getItem('invitations')
         ]);
 
-        if (localClients) setClients(JSON.parse(localClients));
+        // Cache-Hygiene: verwaiste Einträge mit ungültiger (Timestamp-)ID aussortieren
+        if (localClients) {
+          const parsed: User[] = JSON.parse(localClients);
+          setClients(parsed.filter(c => isValidClientId(c.id)));
+        }
         if (localInvitations) setInvitations(JSON.parse(localInvitations));
 
         console.log('[Clients] Loaded from local storage');
@@ -110,62 +119,48 @@ export const [ClientsProvider, useClients] = createContextHook<ClientsState>(() 
   }, [invitations]);
 
   const addClient = useCallback(async (client: Omit<User, 'id' | 'joinDate' | 'role'> & { id?: string; phone?: string; starterPassword?: string; passwordChanged?: boolean }) => {
+    // Ensure starterPassword is provided
+    if (!client.starterPassword) {
+      throw new Error('Starter password is required');
+    }
+
     try {
-      // Ensure starterPassword is provided
-      if (!client.starterPassword) {
-        throw new Error('Starter password is required');
-      }
-      
       const newClient = await trpcClient.clients.create.mutate({
         name: client.name,
         email: client.email,
         phone: client.phone,
         starterPassword: client.starterPassword,
       });
-      console.log('[Clients] Added client via server', newClient.id, 'with password:', newClient.starterPassword);
-      
+      console.log('[Clients] Added client via server', newClient.id);
+
       // Update local state
       const updatedClients = [newClient, ...clients];
       setClients(updatedClients);
       await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(updatedClients));
-      
+
       return newClient;
     } catch (error: any) {
       console.error('[Clients] Server add failed:', error);
-      
-      if (error.message === 'CLIENT_ALREADY_EXISTS') {
-        throw new Error('CLIENT_ALREADY_EXISTS');
+      const msg: string = error?.message ?? '';
+
+      // Kunden MÜSSEN serverseitig in der users-Tabelle angelegt werden — sonst
+      // entstehen verwaiste Einträge mit ungültiger ID, die später CLIENT_NOT_FOUND
+      // auslösen. Daher KEIN lokaler Fallback, sondern klare Fehlermeldung.
+      if (msg.includes('CLIENT_EMAIL_EXISTS')) {
+        throw new Error('Ein Kunde mit dieser E-Mail-Adresse existiert bereits.');
       }
-      
-      // Fallback to local creation only if server is completely unavailable
-      console.log('[Clients] Creating client locally as fallback');
-      const newClient: User = {
-        id: client.id ?? Date.now().toString(),
-        name: client.name,
-        email: client.email,
-        role: 'client',
-        avatar: client.avatar,
-        joinDate: new Date().toISOString(),
-        stats: client.stats || {
-          totalWorkouts: 0,
-          totalVolume: 0,
-          currentStreak: 0,
-          longestStreak: 0,
-          personalRecords: {},
-        },
-        phone: client.phone,
-        starterPassword: client.starterPassword,
-        passwordChanged: client.passwordChanged ?? false,
-      };
-      const next = [newClient, ...clients];
-      setClients(next);
-      await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(next));
-      return newClient;
+      if (msg.includes('CLIENT_PHONE_EXISTS')) {
+        throw new Error('Ein Kunde mit dieser Telefonnummer existiert bereits.');
+      }
+      throw new Error('Kunde konnte nicht angelegt werden. Bitte Internetverbindung prüfen und erneut versuchen.');
     }
   }, [clients]);
 
-  const updateClient = useCallback(async (id: string, updates: { name?: string; email?: string; phone?: string }) => {
-    await trpcClient.clients.update.mutate({ id, ...updates });
+  const updateClient = useCallback(async (id: string, updates: { name?: string; email?: string; phone?: string }, lookupEmail?: string) => {
+    // lookupEmail erlaubt dem Backend, den Kunden bei ungültiger Cache-ID über die
+    // E-Mail aufzulösen. Wenn nicht übergeben, aus dem State ableiten.
+    const resolvedLookup = lookupEmail ?? clients.find(c => c.id === id)?.email;
+    await trpcClient.clients.update.mutate({ id, ...updates, lookupEmail: resolvedLookup });
     const next = clients.map(c => c.id === id ? { ...c, ...updates } : c);
     setClients(next);
     await AsyncStorage.setItem(CLIENTS_CACHE_KEY, JSON.stringify(next));
