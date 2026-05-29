@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export default protectedProcedure
   .input(z.object({
-    userId: z.string(),
+    userId: z.string().optional(),
     name: z.string().min(1).max(255),
     exercises: z.array(z.object({
       exerciseId: z.string(),
@@ -14,6 +14,7 @@ export default protectedProcedure
       notes: z.string().max(500).optional(),
     })).max(50),
   }))
-  .mutation(async ({ input }) => {
-    return storage.routines.create(input);
+  .mutation(async ({ ctx, input }) => {
+    // Routinen sind immer dem eingeloggten Nutzer zugeordnet (input.userId wird ignoriert).
+    return storage.routines.create({ userId: ctx.user.userId, name: input.name, exercises: input.exercises });
   });

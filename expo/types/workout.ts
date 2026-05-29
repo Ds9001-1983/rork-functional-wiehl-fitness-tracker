@@ -16,6 +16,7 @@ export interface WorkoutSet {
   weight: number;
   completed: boolean;
   restTime?: number;
+  type?: 'normal' | 'warmup' | 'dropset' | 'failure';
 }
 
 export interface WorkoutExercise {
@@ -70,4 +71,14 @@ export interface UserStats {
   longestStreak: number;
   favoriteExercise?: string;
   personalRecords: Record<string, number>;
+}
+
+/**
+ * Geschätztes 1-Rep-Maximum nach der Epley-Formel.
+ * Bei einer Wiederholung ist 1RM = Gewicht; sonst weight * (1 + reps/30).
+ */
+export function calculate1RM(weight: number, reps: number): number {
+  if (!Number.isFinite(weight) || !Number.isFinite(reps) || weight <= 0 || reps <= 0) return 0;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30));
 }

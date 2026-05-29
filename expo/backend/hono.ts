@@ -4,6 +4,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { appRouter } from './trpc/app-router.ts';
 import { createContext } from './trpc/create-context.ts';
 import { cors } from 'hono/cors';
+import { apiRateLimit, loginRateLimit, aiGenerateRateLimit } from './middleware/rate-limit.ts';
 import { initCourseTables } from './courses/storage.ts';
 
 initCourseTables()
@@ -24,6 +25,22 @@ app.use('/trpc/*', bodyLimit({
   maxSize: 10 * 1024 * 1024,
   onError: (c) => c.json({ error: 'Datei zu groß. Maximal 10 MB pro Anfrage.' }, 413),
 }));
+
+// Genereller Anti-Abuse-Backstop pro IP (vorher toter Code, nie eingehängt).
+app.use('/trpc/*', apiRateLimit());
+
+// Strengere Drosseln pro Endpunkt: teure KI-Generierung + Passwort-Reset-Pfade.
+// (Login selbst wird pro E-Mail in routes/auth/login.ts gedrosselt, um Shared-IP-False-Positives zu vermeiden.)
+const aiLimiter = aiGenerateRateLimit();
+const authLimiter = loginRateLimit();
+app.use('/trpc/*', async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (path.includes('plans.aiGenerate')) return aiLimiter(c, next);
+  if (path.includes('auth.requestReset') || path.includes('auth.resetPassword') || path.includes('auth.requestTrainerReset')) {
+    return authLimiter(c, next);
+  }
+  return next();
+});
 
 // tRPC handler (mounted under /api in backend-server.ts, so this becomes /api/trpc/*)
 app.use('/trpc/*', trpcServer({

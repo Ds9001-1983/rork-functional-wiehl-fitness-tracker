@@ -8,8 +8,8 @@ export default protectedProcedure
     confirmEmail: z.string().email(),
   }))
   .mutation(async ({ ctx, input }) => {
-    // Verify email matches the authenticated user
-    if (input.confirmEmail !== ctx.user.email) {
+    // Verify email matches the authenticated user (case-insensitiv, da E-Mails lowercase gespeichert werden)
+    if (input.confirmEmail.trim().toLowerCase() !== ctx.user.email.trim().toLowerCase()) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
         message: 'E-Mail stimmt nicht überein. Bitte gib deine registrierte E-Mail zur Bestätigung ein.',

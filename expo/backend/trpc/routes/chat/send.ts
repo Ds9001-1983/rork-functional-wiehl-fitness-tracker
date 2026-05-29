@@ -1,5 +1,6 @@
 import { protectedProcedure } from '../../create-context';
 import { storage, getPool } from '../../../storage';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 export default protectedProcedure
@@ -8,6 +9,19 @@ export default protectedProcedure
     message: z.string().min(1).max(2000),
   }))
   .mutation(async ({ input, ctx }) => {
+    // Empfänger muss existieren; Selbst-Nachrichten unterbinden.
+    if (input.receiverId === ctx.user.userId) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nachricht an sich selbst nicht möglich.' });
+    }
+    const receiver = await storage.users.findById(input.receiverId);
+    if (!receiver) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Empfänger nicht gefunden.' });
+    }
+    // Clients dürfen nur mit Trainer/Admin chatten (kein Client-zu-Client).
+    if (ctx.user.role === 'client' && receiver.role === 'client') {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Nachrichten nur an Trainer möglich.' });
+    }
+
     const result = await storage.chatMessages.send(
       ctx.user.userId,
       input.receiverId,

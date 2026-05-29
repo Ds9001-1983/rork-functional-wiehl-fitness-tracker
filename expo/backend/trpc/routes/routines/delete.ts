@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export default protectedProcedure
   .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }) => {
-    return storage.routines.delete(input.id);
+  .mutation(async ({ ctx, input }) => {
+    // Owner-Scope: nur eigene Routinen dürfen gelöscht werden.
+    return storage.routines.delete(input.id, ctx.user.userId);
   });

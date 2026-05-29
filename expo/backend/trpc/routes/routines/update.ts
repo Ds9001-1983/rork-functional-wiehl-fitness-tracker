@@ -10,7 +10,8 @@ export default protectedProcedure
     timesUsed: z.number().optional(),
     lastUsed: z.string().optional(),
   }))
-  .mutation(async ({ input }) => {
+  .mutation(async ({ ctx, input }) => {
     const { id, ...updates } = input;
-    return storage.routines.update(id, updates);
+    // Owner-Scope: nur eigene Routinen dürfen geändert werden.
+    return storage.routines.update(id, updates, ctx.user.userId);
   });

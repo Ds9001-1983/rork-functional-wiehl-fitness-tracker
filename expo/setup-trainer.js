@@ -3,6 +3,10 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
 async function setupTrainer() {
+  if (!process.env.DATABASE_URL || !process.env.TRAINER_PASSWORD) {
+    console.error('Bitte DATABASE_URL und TRAINER_PASSWORD als Env-Variablen setzen.');
+    process.exit(1);
+  }
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
   });
@@ -70,7 +74,7 @@ async function setupTrainer() {
       
       // Update password to ensure it's correct
       console.log('🔄 Updating trainer password to ensure it\'s correct...');
-      const hashedPassword = await bcrypt.hash('trainer123', 10);
+      const hashedPassword = await bcrypt.hash(process.env.TRAINER_PASSWORD, 10);
       
       await pool.query(
         'UPDATE users SET password = $1, updated_at = NOW() WHERE email = $2',
@@ -83,7 +87,7 @@ async function setupTrainer() {
 
     // Create trainer account
     console.log('🔄 Creating new trainer account...');
-    const hashedPassword = await bcrypt.hash('trainer123', 10);
+    const hashedPassword = await bcrypt.hash(process.env.TRAINER_PASSWORD, 10);
     
     const result = await pool.query(
       `INSERT INTO users (email, password, role, password_changed, created_at, updated_at) 
@@ -94,13 +98,13 @@ async function setupTrainer() {
 
     console.log('✅ Trainer account created successfully!');
     console.log('📧 Email: app@functional-wiehl.de');
-    console.log('🔑 Password: trainer123');
+    console.log('🔑 Password: (aus TRAINER_PASSWORD)');
     console.log('👤 Role: trainer');
     console.log('🆔 ID:', result.rows[0].id);
-    
+
     // Verify the password works
     console.log('🔄 Verifying password...');
-    const isValid = await bcrypt.compare('trainer123', result.rows[0].password);
+    const isValid = await bcrypt.compare(process.env.TRAINER_PASSWORD, result.rows[0].password);
     console.log('✅ Password verification:', isValid ? 'SUCCESS' : 'FAILED');
 
   } catch (error) {

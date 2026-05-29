@@ -1,13 +1,18 @@
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
 
 async function fixPassword() {
+  if (!process.env.DATABASE_URL || !process.env.NEW_PASSWORD) {
+    console.error('Bitte DATABASE_URL und NEW_PASSWORD als Env-Variablen setzen.');
+    process.exit(1);
+  }
   const pool = new Pool({
-    connectionString: 'postgresql://app_user:LKW_Peter123@localhost:5432/fitness_app'
+    connectionString: process.env.DATABASE_URL,
   });
 
   // Neuen Hash mit lokalem bcrypt generieren
-  const newHash = await bcrypt.hash('trainer123', 10);
+  const newHash = await bcrypt.hash(process.env.NEW_PASSWORD, 10);
   console.log('Neuer Hash generiert:', newHash);
   
   // In DB updaten
@@ -21,7 +26,7 @@ async function fixPassword() {
     
     // Testen
     const testResult = await pool.query('SELECT password FROM users WHERE email = $1', ['app@functional-wiehl.de']);
-    const isValid = await bcrypt.compare('trainer123', testResult.rows[0].password);
+    const isValid = await bcrypt.compare(process.env.NEW_PASSWORD, testResult.rows[0].password);
     console.log('✅ Login-Test erfolgreich:', isValid);
   } else {
     console.log('❌ User nicht gefunden!');

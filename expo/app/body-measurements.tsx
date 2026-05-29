@@ -103,9 +103,16 @@ export default function BodyMeasurementsScreen() {
     try {
       const result = await trpcClient.measurements.list.query({ userId: user.id });
       if (Array.isArray(result)) {
-        setMeasurements(result);
+        // Backend liefert { id, userId, date, measurements: Record } → in flache Felder überführen.
+        const flat: Measurement[] = result.map((r: any) => ({
+          id: String(r.id),
+          userId: String(r.userId ?? user.id),
+          date: r.date,
+          ...(r.measurements || {}),
+        }));
+        setMeasurements(flat);
         setIsUsingCache(false);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(result));
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(flat));
       }
     } catch (error) {
       console.log('[BodyMeasurements] Server nicht erreichbar, lade lokal');
@@ -213,8 +220,16 @@ export default function BodyMeasurementsScreen() {
       return;
     }
 
+    // Flache Felder in das vom Backend erwartete measurements-Record überführen.
+    const measurementsRecord: Record<string, number> = {};
+    for (const field of FIELDS) {
+      const v = (newMeasurement as any)[field.key];
+      if (typeof v === 'number') measurementsRecord[field.key] = v;
+    }
+    let savedToServer = false;
     try {
-      await trpcClient.measurements.create.mutate(newMeasurement);
+      await trpcClient.measurements.create.mutate({ date: newMeasurement.date, measurements: measurementsRecord });
+      savedToServer = true;
     } catch (error) {
       console.log('[BodyMeasurements] Server-Speicherung fehlgeschlagen, speichere lokal');
     }
@@ -229,7 +244,9 @@ export default function BodyMeasurementsScreen() {
 
     resetForm();
     setFormExpanded(false);
-    setStatusMessage({ type: 'success', text: 'Messung gespeichert!' });
+    setStatusMessage(savedToServer
+      ? { type: 'success', text: 'Messung gespeichert!' }
+      : { type: 'error', text: 'Nur lokal gespeichert – Server nicht erreichbar.' });
     setIsSaving(false);
   };
 

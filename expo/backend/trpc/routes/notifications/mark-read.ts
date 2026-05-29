@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 export default protectedProcedure
   .input(z.object({ id: z.string() }))
-  .mutation(async ({ input }) => {
-    return storage.notifications.markRead(input.id);
+  .mutation(async ({ ctx, input }) => {
+    // Nur eigene Benachrichtigungen dürfen als gelesen markiert werden.
+    return storage.notifications.markRead(input.id, ctx.user.userId);
   });

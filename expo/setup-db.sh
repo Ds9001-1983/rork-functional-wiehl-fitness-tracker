@@ -3,10 +3,10 @@
 # Database setup script for fitness app
 echo "🗄️  Setting up PostgreSQL database..."
 
-# Generate a strong password (you can use the existing one)
-DBPASS="LKW_Peter123!"
-DBUSER="app_user"
-DBNAME="fitness_app"
+# DB-Passwort NICHT hartcodieren — per Env übergeben: DBPASS=... ./setup-db.sh
+DBPASS="${DBPASS:?Bitte DBPASS als Umgebungsvariable setzen}"
+DBUSER="${DBUSER:-app_user}"
+DBNAME="${DBNAME:-fitness_app}"
 
 echo "📝 Creating database user and database..."
 

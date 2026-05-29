@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, signToken } from '../../create-context';
 import { getPool, storage } from '../../../storage';
 import bcrypt from 'bcryptjs';
@@ -8,6 +9,20 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
+// Brute-Force-Schutz pro E-Mail (nicht pro IP, damit Studio-WLAN andere Mitglieder nicht aussperrt).
+// Zähler wird bei erfolgreichem Login zurückgesetzt.
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginAttempts = new Map<string, number[]>();
+
+function recordLoginAttempt(key: string): number {
+  const now = Date.now();
+  const list = (loginAttempts.get(key) || []).filter(ts => now - ts < LOGIN_WINDOW_MS);
+  list.push(now);
+  loginAttempts.set(key, list);
+  return list.length;
+}
+
 export const loginProcedure = publicProcedure
   .input(loginSchema)
   .mutation(async ({ input }) => {
@@ -15,6 +30,11 @@ export const loginProcedure = publicProcedure
     const password = input.password;
 
     console.log('[Server] Login attempt for:', email);
+
+    if (recordLoginAttempt(email) > LOGIN_MAX_ATTEMPTS) {
+      console.warn('[Server] Login throttled for:', email);
+      throw new TRPCError({ code: 'TOO_MANY_REQUESTS', message: 'Zu viele Anmeldeversuche. Bitte warte ein paar Minuten.' });
+    }
 
     const pool = getPool();
 
@@ -55,6 +75,7 @@ export const loginProcedure = publicProcedure
             },
           };
       const token = signToken({ userId: userData.id, email: userData.email, role: userData.role });
+      loginAttempts.delete(email);
       console.log('[Server] In-memory login successful:', email);
       return { success: true, user: userData, token };
     }
@@ -96,6 +117,7 @@ export const loginProcedure = publicProcedure
       };
 
       const token = signToken({ userId: userData.id, email: userData.email, role: userData.role });
+      loginAttempts.delete(email);
       console.log('[Server] DB login successful:', email, 'role:', user.role);
       return { success: true, user: userData, token };
 

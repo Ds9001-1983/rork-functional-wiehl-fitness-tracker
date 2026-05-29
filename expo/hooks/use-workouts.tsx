@@ -373,10 +373,26 @@ export const [WorkoutProvider, useWorkouts] = createContextHook<WorkoutState>(()
   const duplicatePlan = useCallback(async (planId: string) => {
     const plan = workoutPlans.find(p => p.id === planId);
     if (!plan) return;
-    const copy: WorkoutPlan = { ...plan, id: Date.now().toString(), name: `${plan.name} (Kopie)` };
-    const next = [...workoutPlans, copy];
-    setWorkoutPlans(next);
-    await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+    const copyName = `${plan.name} (Kopie)`;
+    try {
+      // Serverseitig als eigenständige Vorlage anlegen, sonst verschwindet die Kopie beim nächsten Sync.
+      const serverPlan = await trpcClient.plans.create.mutate({
+        name: copyName,
+        description: plan.description,
+        exercises: plan.exercises,
+        schedule: plan.schedule,
+      });
+      const copy = { ...plan, id: serverPlan.id, name: copyName } as WorkoutPlan;
+      const next = [...workoutPlans, copy];
+      setWorkoutPlans(next);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+    } catch (error) {
+      console.error('[Workouts] Server duplicatePlan fehlgeschlagen, speichere lokal:', error);
+      const copy: WorkoutPlan = { ...plan, id: Date.now().toString(), name: copyName };
+      const next = [...workoutPlans, copy];
+      setWorkoutPlans(next);
+      await AsyncStorage.setItem('workoutPlans', JSON.stringify(next));
+    }
   }, [workoutPlans]);
 
   const instantiatePlan = useCallback(async (planId: string, userIds: string[]) => {

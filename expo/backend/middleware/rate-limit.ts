@@ -87,15 +87,17 @@ export function apiRateLimit() {
 
     const ip = getClientIP(c);
     const key = `api:${ip}`;
+    // Großzügiger Anti-Abuse-Backstop: Studio-WLAN teilt sich oft eine öffentliche IP,
+    // daher hoch genug für viele gleichzeitige Mitglieder, aber Abuse (>5 req/s) gekappt.
     const config: RateLimitConfig = {
-      maxTokens: 100,
-      refillRate: 100,
+      maxTokens: 300,
+      refillRate: 300,
       refillInterval: 60000, // 1 minute
     };
 
     const result = checkLimit(key, config);
 
-    c.header('X-RateLimit-Limit', '100');
+    c.header('X-RateLimit-Limit', '300');
     c.header('X-RateLimit-Remaining', result.remaining.toString());
     c.header('X-RateLimit-Reset', Math.ceil(result.resetMs / 1000).toString());
 

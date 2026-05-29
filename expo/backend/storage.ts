@@ -254,6 +254,12 @@ if (process.env.DATABASE_URL) {
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
 
+    // Idle-Client-Fehler (PG-Neustart, Timeout, Connection-Reset) abfangen, sonst wird
+    // ein unhandled 'error'-Event geworfen und der gesamte Backend-Prozess stürzt ab.
+    pool.on('error', (err) => {
+      console.error('[Storage] Idle client error (handled, process stays alive):', err.message);
+    });
+
     // dbReady is awaited before any storage operation to prevent race conditions
     dbReady = pool.connect().then(async (client) => {
       console.log('[Storage] PostgreSQL connected successfully');
@@ -497,7 +503,7 @@ async function initializeTables() {
         token TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, token)
+        UNIQUE(user_id)
       )
     `);
 
@@ -555,6 +561,20 @@ async function initializeTables() {
 
     // Passwort-Vergessen-Anfrage (vom Kunden, vom Trainer manuell bearbeitet)
     await addColumnIfNotExists('users', 'password_reset_requested_at', 'TIMESTAMP');
+
+    // Client-Profilspalten: historisch beim clients->users-Merge entstanden. Auf der gewachsenen
+    // Prod-DB vorhanden, fehlen aber bei Fresh-Installs (Zweit-Studio) → clients.create/getAll/login
+    // würden sonst brechen. addColumnIfNotExists ist idempotent (no-op, wenn Spalte existiert).
+    await addColumnIfNotExists('users', 'name', 'VARCHAR(255)');
+    await addColumnIfNotExists('users', 'phone', 'VARCHAR(50)');
+    await addColumnIfNotExists('users', 'avatar', 'TEXT');
+    await addColumnIfNotExists('users', 'join_date', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await addColumnIfNotExists('users', 'starter_password', 'VARCHAR(255)');
+    await addColumnIfNotExists('users', 'total_workouts', 'INTEGER DEFAULT 0');
+    await addColumnIfNotExists('users', 'total_volume', 'INTEGER DEFAULT 0');
+    await addColumnIfNotExists('users', 'current_streak', 'INTEGER DEFAULT 0');
+    await addColumnIfNotExists('users', 'longest_streak', 'INTEGER DEFAULT 0');
+    await addColumnIfNotExists('users', 'personal_records', "JSONB DEFAULT '{}'");
 
     // Template-Instance system for workout plans
     await addColumnIfNotExists('workout_plans', 'template_id', 'INTEGER');
@@ -686,24 +706,37 @@ async function seedExerciseCatalog() {
 async function seedDefaultUsers() {
   if (!pool) return;
 
-  const defaultUsers = [
-    { email: 'admin@functional-wiehl.de', password: 'admin123', role: 'admin' },
-    { email: 'trainer@functional-wiehl.de', password: 'trainer123', role: 'trainer' },
+  const isProd = process.env.NODE_ENV === 'production';
+  const seeds = [
+    { email: 'admin@functional-wiehl.de', envVar: 'DEFAULT_ADMIN_PASSWORD', envPw: process.env.DEFAULT_ADMIN_PASSWORD, role: 'admin' },
+    { email: 'trainer@functional-wiehl.de', envVar: 'DEFAULT_TRAINER_PASSWORD', envPw: process.env.DEFAULT_TRAINER_PASSWORD, role: 'trainer' },
   ];
 
-  for (const user of defaultUsers) {
+  for (const seed of seeds) {
+    // Niemals statische Trivialpasswörter: In Produktion nur seeden, wenn ein Passwort
+    // explizit per Env gesetzt ist. In Dev als Fallback ein zufälliges Passwort (geloggt).
+    let password = seed.envPw;
+    if (!password) {
+      if (isProd) {
+        console.warn(`[Storage] Skipping seed for ${seed.email}: set ${seed.envVar} to create this account.`);
+        continue;
+      }
+      password = crypto.randomBytes(12).toString('base64url');
+      console.warn(`[Storage] DEV seed for ${seed.email} with random password: ${password}`);
+    }
     try {
-      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [user.email]);
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1', [seed.email]);
       if (existing.rows.length === 0) {
-        const hashedPassword = await bcrypt.hash(user.password, 10);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        // password_changed=false erzwingt eine Passwortänderung beim ersten Login.
         await pool.query(
-          `INSERT INTO users (email, password, role, password_changed) VALUES ($1, $2, $3, true)`,
-          [user.email, hashedPassword, user.role]
+          `INSERT INTO users (email, password, role, password_changed) VALUES ($1, $2, $3, false)`,
+          [seed.email, hashedPassword, seed.role]
         );
-        console.log(`[Storage] Created default ${user.role}: ${user.email}`);
+        console.log(`[Storage] Created default ${seed.role}: ${seed.email} (password change required on first login)`);
       }
     } catch (err) {
-      console.log(`[Storage] Could not seed ${user.email}:`, err);
+      console.log(`[Storage] Could not seed ${seed.email}:`, err);
     }
   }
 }
@@ -738,6 +771,30 @@ export const storage = {
         }
       }
       return users.find(u => u.email === email) || null;
+    },
+
+    findById: async (id: string): Promise<StoredUser | null> => {
+      if (useDatabase && pool) {
+        if (!isValidDbId(id)) return null;
+        try {
+          const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+          if (result.rows.length === 0) return null;
+          const row = result.rows[0];
+          return {
+            id: row.id.toString(),
+            email: row.email,
+            password: row.password,
+            role: row.role,
+            passwordChanged: row.password_changed,
+            createdAt: row.created_at,
+            consentedAt: row.consented_at ?? undefined,
+            privacyVersion: row.privacy_version ?? undefined,
+          };
+        } catch (err) {
+          console.log('[Storage] DB query failed for findById:', err);
+        }
+      }
+      return users.find(u => u.id === id) || null;
     },
 
     create: async (user: { email: string; password: string; role: string }): Promise<StoredUser> => {
@@ -1896,7 +1953,7 @@ export const storage = {
       return { id };
     },
 
-    update: async (id: string, updates: { name?: string; exercises?: WorkoutExercise[]; timesUsed?: number; lastUsed?: string }): Promise<boolean> => {
+    update: async (id: string, updates: { name?: string; exercises?: WorkoutExercise[]; timesUsed?: number; lastUsed?: string }, ownerId?: string): Promise<boolean> => {
       if (useDatabase && pool) {
         try {
           const setClauses: string[] = [];
@@ -1908,29 +1965,34 @@ export const storage = {
           if (updates.lastUsed !== undefined) { setClauses.push(`last_used = $${idx++}`); values.push(updates.lastUsed); }
           if (setClauses.length === 0) return false;
           values.push(id);
-          const result = await pool.query(`UPDATE routines SET ${setClauses.join(', ')} WHERE id = $${idx}`, values);
+          let whereClause = `id = $${idx}`;
+          if (ownerId !== undefined) { idx++; values.push(ownerId); whereClause += ` AND user_id = $${idx}`; }
+          const result = await pool.query(`UPDATE routines SET ${setClauses.join(', ')} WHERE ${whereClause}`, values);
           return (result.rowCount ?? 0) > 0;
         } catch (err) {
           console.log('[Storage] DB update failed for routine:', err);
         }
       }
-      const routine = routinesData.find(r => r.id === id);
+      const routine = routinesData.find(r => r.id === id && (ownerId === undefined || r.userId === ownerId));
       if (!routine) return false;
       Object.assign(routine, updates);
       return true;
     },
 
-    delete: async (id: string): Promise<boolean> => {
+    delete: async (id: string, ownerId?: string): Promise<boolean> => {
       if (useDatabase && pool) {
         try {
-          const result = await pool.query('DELETE FROM routines WHERE id = $1', [id]);
+          const params: string[] = [id];
+          let sql = 'DELETE FROM routines WHERE id = $1';
+          if (ownerId !== undefined) { sql += ' AND user_id = $2'; params.push(ownerId); }
+          const result = await pool.query(sql, params);
           return (result.rowCount ?? 0) > 0;
         } catch (err) {
           console.log('[Storage] DB delete failed for routine:', err);
         }
       }
       const len = routinesData.length;
-      routinesData = routinesData.filter(r => r.id !== id);
+      routinesData = routinesData.filter(r => !(r.id === id && (ownerId === undefined || r.userId === ownerId)));
       return routinesData.length < len;
     },
   },
@@ -2065,16 +2127,19 @@ export const storage = {
         .slice(0, limit);
     },
 
-    markRead: async (id: string): Promise<boolean> => {
+    markRead: async (id: string, ownerId?: string): Promise<boolean> => {
       if (useDatabase && pool) {
         try {
-          const result = await pool.query(`UPDATE notifications SET read = TRUE WHERE id = $1`, [id]);
+          const params: string[] = [id];
+          let sql = `UPDATE notifications SET read = TRUE WHERE id = $1`;
+          if (ownerId !== undefined) { sql += ' AND user_id = $2'; params.push(ownerId); }
+          const result = await pool.query(sql, params);
           return (result.rowCount ?? 0) > 0;
         } catch (err) {
           console.log('[Storage] DB update failed for notification:', err);
         }
       }
-      const notif = notificationsData.find(n => n.id === id);
+      const notif = notificationsData.find(n => n.id === id && (ownerId === undefined || n.userId === ownerId));
       if (notif) { notif.read = true; return true; }
       return false;
     },
@@ -2289,21 +2354,34 @@ export const storage = {
 
     deleteUserData: async (userId: string): Promise<boolean> => {
       if (useDatabase && pool) {
+        // Transaktional: entweder werden ALLE Daten gelöscht oder gar keine
+        // (kein halb gelöschtes Konto mit verwaister PII).
+        const client = await pool.connect();
         try {
-          // Delete from all tables in correct order (foreign keys)
-          await pool.query(`DELETE FROM challenge_progress WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM routines WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM gamification WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
-          await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
-          await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
-          console.log(`[Storage] DSGVO: All data deleted for user ${userId}`);
+          await client.query('BEGIN');
+          await client.query(`DELETE FROM chat_messages WHERE sender_id = $1 OR receiver_id = $1`, [userId]);
+          await client.query(`DELETE FROM challenge_progress WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM notifications WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM routines WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM gamification WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM body_measurements WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM progress_photos WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM workouts WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM mesocycles WHERE client_id = $1 OR created_by = $1`, [userId]);
+          await client.query(`DELETE FROM workout_plans WHERE created_by = $1 OR assigned_user_id = $1`, [userId]);
+          await client.query(`DELETE FROM push_subscriptions WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM push_tokens WHERE user_id = $1`, [userId]);
+          await client.query(`DELETE FROM password_reset_tokens WHERE user_id = $1::integer`, [userId]);
+          await client.query(`DELETE FROM users WHERE id = $1`, [userId]);
+          await client.query('COMMIT');
+          console.log(`[Storage] DSGVO: All data deleted (transactional) for user ${userId}`);
           return true;
         } catch (err) {
-          console.log('[Storage] DB delete failed for user data:', err);
+          await client.query('ROLLBACK').catch(() => {});
+          console.log('[Storage] DB delete failed for user data (rolled back):', err);
           return false;
+        } finally {
+          client.release();
         }
       }
 
@@ -2316,6 +2394,7 @@ export const storage = {
       routinesData = routinesData.filter(r => r.userId !== userId);
       challengeProgressData = challengeProgressData.filter(p => p.userId !== userId);
       notificationsData = notificationsData.filter(n => n.userId !== userId);
+      workoutPlans = workoutPlans.filter(p => p.createdBy !== userId && (p as any).assignedUserId !== userId);
       return true;
     },
   },
@@ -2536,7 +2615,8 @@ export const storage = {
       if (pool) {
         try {
           const result = await pool.query(
-            `SELECT id, user_id, studio_id, category, notes, created_at FROM progress_photos WHERE user_id = $1 ORDER BY created_at DESC`,
+            // image_data muss mitgeladen werden, sonst zeigen Grid & Vorher/Nachher-Vergleich leere Bilder.
+            `SELECT id, user_id, studio_id, image_data, category, notes, created_at FROM progress_photos WHERE user_id = $1 ORDER BY created_at DESC`,
             [userId]
           );
           return result.rows;

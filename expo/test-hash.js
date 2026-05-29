@@ -1,5 +1,9 @@
 const bcrypt = require('bcryptjs');
-const password = 'trainer123';
+const password = process.env.TEST_PASSWORD || process.argv[2];
+if (!password) {
+  console.error('Bitte Passwort via TEST_PASSWORD env oder als Argument übergeben.');
+  process.exit(1);
+}
 const hash = bcrypt.hashSync(password, 10);
-console.log('Hash für trainer123:', hash);
-console.log('Test mit trainer123:', bcrypt.compareSync('trainer123', hash));
+console.log('Hash:', hash);
+console.log('Test:', bcrypt.compareSync(password, hash));
