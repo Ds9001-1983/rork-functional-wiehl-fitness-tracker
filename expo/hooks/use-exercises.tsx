@@ -30,6 +30,7 @@ function useExercisesData() {
       equipment: e.equipment ?? undefined,
       videoUrl: e.videoUrl ?? undefined,
       imageData: (e as { imageData?: string | null }).imageData ?? null,
+      images: (e as { images?: string[] }).images ?? [],
       instructions: e.instructions ?? undefined,
       muscleGroups: e.muscleGroups ?? [],
     }));
